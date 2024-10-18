@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  gcs-to-bq-function:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gcs-to-bq-function
+    ports:
+      - "8080:8080"
+    environment:
+      - BQ_TABLE=${BQ_TABLE}
+    volumes:
+      - .:/function
+    command: functions-framework --target=load_trace_data_into_bigquery --port=8080

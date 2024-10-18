@@ -3,26 +3,36 @@ import csv
 from google.cloud import bigquery
 from google.cloud import storage
 
-def load_data_into_bigquery(event, context):
-    # Get the file name from the event
+def load_trace_data_into_bigquery(event, context):
     file_name = event['name']
     bucket_name = event['bucket']
 
-    # Initialize GCS client and read the CSV file
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(file_name)
-    data = blob.download_as_text().splitlines()
+    pdf_data = blob.download_as_bytes()
 
-    # Parse CSV data
-    rows = list(csv.DictReader(data))
+    extracted_data = process_pdf(pdf_data)
 
-    # Initialize BigQuery client and insert rows into table
     bigquery_client = bigquery.Client()
-    table_id = os.getenv('BQ_TABLE')  # Use environment variable for table name
+    table_id = os.getenv('BQ_TABLE')  
 
-    errors = bigquery_client.insert_rows_json(table_id, rows)
+    errors = bigquery_client.insert_rows_json(table_id, extracted_data)
     if errors:
         print(f"Errors occurred: {errors}")
     else:
         print(f"Data successfully loaded into {table_id}")
+
+def process_pdf(pdf_data):
+
+    ## Put goutham's pdf processing code here
+
+    json_data = []
+
+    ##sample
+    # json_data.append({
+    #     "name": parts[0].strip(),
+    #     "age": int(parts[1].strip())
+    # })
+
+    return json_data
