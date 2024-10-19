@@ -1,7 +1,7 @@
 from google.cloud import bigquery
 
 class BQClient:
-    def __init__(self, project_id, dataset_id, table_id):
+    def __init__(self, project_id, dataset_id):
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.client = bigquery.Client()
@@ -19,16 +19,25 @@ class BQClient:
         return table
 
 
-# Define the schema for the table
-schema = [
-    bigquery.SchemaField("name", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("age", "INTEGER", mode="NULLABLE"),
-    bigquery.SchemaField("email", "STRING", mode="REQUIRED"),
-]
+    def create_schema(schema_json):
+        schema = []
+        for field in schema_json:
+            schema.append(bigquery.SchemaField(field["name"], field["type"], mode=field["mode"]))
+        return schema
 
-if __name__ == "__main__":
-    project_id = "your-project-id"
-    dataset_id = "your-dataset-id"
-    table_name = "your-table-name"
-    bq_client = BQClient(project_id=project_id, dataset_id=dataset_id, table_id=table_name)
-    bq_client.create_table(schema, table_id=table_name)
+
+    def insert_rows(self, table_id, json_data):
+        table_ref = self.client.dataset(self.dataset_id).table(table_id)
+        errors = self.client.insert_rows_json(table_ref, json_data)
+        if errors:
+            print(f"Errors occurred: {errors}")
+        else:
+            print(f"Data successfully loaded into {table_id}")
+
+
+# if __name__ == "__main__":
+#     project_id = "your-project-id"
+#     dataset_id = "your-dataset-id"
+#     table_name = "your-table-name"
+#     bq_client = BQClient(project_id=project_id, dataset_id=dataset_id)
+#     bq_client.create_table(schema, table_id=table_name)
