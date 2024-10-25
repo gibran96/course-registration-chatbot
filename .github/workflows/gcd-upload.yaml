@@ -1,0 +1,28 @@
+name: Upload to GCS
+
+on:
+  push:
+    branches:
+      - workflow-testing
+      - data-prep
+
+jobs:
+  upload_to_gcs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        project_id: coursecompass
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Upload files to GCS
+      run: |
+        gsutil cp -r ./data_pipeline/* gs://us-central1-data-pipeline-e0d20662-bucket/
