@@ -1,9 +1,3 @@
-import sys
-
-sys.path.append("..")
-sys.path.append("../")
-
-
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -15,6 +9,10 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 )
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 default_args = {
     'owner': 'airflow',
