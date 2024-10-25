@@ -24,4 +24,4 @@ jobs:
 
     - name: Upload files to GCS
       run: |
-        gsutil cp -r ./data_pipeline gs://us-central1-data-pipeline-e0d20662-bucket/
+        gsutil cp -r ./data_pipeline/ gs://us-central1-data-pipeline-e0d20662-bucket/
