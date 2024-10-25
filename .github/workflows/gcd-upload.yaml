@@ -16,7 +16,7 @@ jobs:
     - name: Setup Auth
       uses: google-github-actions/auth@v1
       with:
-        credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
         project_id: coursecompass
 
     - name: Set up Google Cloud SDK
