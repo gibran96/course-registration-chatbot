@@ -13,12 +13,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Google Cloud SDK
+    - name: Setup Auth
       uses: google-github-actions/auth@v1
       with:
+        credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
         project_id: coursecompass
-        service_acount: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-        
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
 
     - name: Upload files to GCS
       run: |
