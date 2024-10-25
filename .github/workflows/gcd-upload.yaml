@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - workflow-testing
-      - data-prep
+      - mihir/data-prep
 
 jobs:
   upload_to_gcs:
