@@ -16,8 +16,7 @@ jobs:
     - name: Set up Google Cloud SDK
       uses: google-github-actions/auth@v1
       with:
-        version: 'latest'
-        service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        service_acount: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
         project_id: coursecompass
 
     - name: Upload files to GCS
