@@ -126,7 +126,7 @@ def process_pdf_files(**context):
         storage_client = storage.Client()
         bucket = storage_client.bucket(bucket_name)
         blobs = bucket.list_blobs(prefix='course_review_dataset/')
-        logging.info("Processing PDFs...", len(blobs))
+        logging.info("Processing PDFs...", blobs)
         for blob in blobs:
             if blob.name.endswith('.pdf'):
                 logging.info(f"Processing {blob.name}")
