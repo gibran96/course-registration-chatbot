@@ -9,6 +9,7 @@ from airflow.models import Variable
 import fitz
 import gc
 import re
+import uuid
 
 # Question mapping
 question_map = {
@@ -114,6 +115,7 @@ def process_pdf_files(**context):
             for response in responses:
                 if response:
                     new_review_row = {
+                        "review_id": uuid.uuid4().hex,
                         "crn": crn,
                         "question": question,
                         "response": response
