@@ -124,7 +124,7 @@ def process_pdf_files(**context):
 
     try:
         storage_client = storage.Client()
-        bucket = storage_client.bucket(bucket_name)
+        bucket = storage_client.bucket(bucket_name + '/course_review_dataset')
         blobs = bucket.list_blobs()
         
         for blob in blobs:

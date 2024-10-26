@@ -38,6 +38,7 @@ with DAG(
         task_id='process_pdfs',
         python_callable=process_pdf_files,
         provide_context=True,
+        dag=dag
     )
 
     # Task to upload processed files back to GCS
@@ -45,6 +46,7 @@ with DAG(
         task_id='upload_to_gcs',
         python_callable=upload_to_gcs,
         provide_context=True,
+        dag=dag
     )
 
     load_reviews_to_bigquery_task = GCSToBigQueryOperator(
