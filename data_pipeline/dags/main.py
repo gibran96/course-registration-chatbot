@@ -5,10 +5,15 @@ from scripts.data_utils import upload_to_gcs
 from scripts.extract_data import process_pdf_files
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
-    GCSToBigQueryOperator,
+    GCSToBigQueryOperator
 )
+from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
+from google.cloud import storage
+
+import logging
+logging.basicConfig(level=logging.INFO)
 
 default_args = {
     'owner': 'airflow',
@@ -20,6 +25,31 @@ default_args = {
     'execution_timeout': timedelta(hours=2),
 }
 
+def get_crn_list(**context):
+    distinct_values = context['ti'].xcom_pull(task_ids='select_distinct_crn')
+    distinct_values_list = [row[0] for row in distinct_values]
+    logging.info("Distinct values:", distinct_values_list)
+    context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
+    return distinct_values_list
+
+
+def get_unique_blobs(**context):
+    bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
+    all_gcs_crns = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix='course_review_dataset/')
+
+    unique_blobs = []
+    blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
+    for blob_name, blob in zip(blob_names, blobs):
+        if blob_name not in all_gcs_crns:
+            unique_blobs.append(blob)
+
+    context['ti'].xcom_push(key='unique_blobs', value=unique_blobs)
+
+    return unique_blobs
 
 # Create DAG
 with DAG(
@@ -32,6 +62,30 @@ with DAG(
     tags=['pdf', 'processing', 'gcs'],
     max_active_runs=1
 ) as dag:
+    
+    select_distinct_crn = BigQueryGetDataOperator(
+        task_id='select_distinct_crn',
+        dataset_id=Variable.get('review_table_name').split('.')[1],
+        table_id=Variable.get('review_table_name').split()[-1], 
+        selected_fields='crn',  
+        query=f"SELECT DISTINCT crn FROM `{Variable.get('review_table_name')}`",
+        provide_context=True,
+        dag=dag
+    )
+
+    get_crn_list_task = PythonOperator(
+        task_id='get_crn_list',
+        python_callable=get_crn_list,
+        provide_context=True,
+        dag=dag
+    )
+
+    unique_blobs = PythonOperator(
+        task_id='get_unique_blobs',
+        python_callable=get_unique_blobs,
+        provide_context=True,
+        dag=dag
+    )
 
     # Task to process PDFs and create CSVs
     process_pdfs = PythonOperator(
