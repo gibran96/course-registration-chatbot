@@ -6,10 +6,11 @@ import csv
 import os
 import pandas as pd
 import numpy as np
+from airflow.models import Variable
 
-def get_cookies():
-    # Send a POST request to Banner API @ /term/search to get the cookie, JSESSIONID and nubanner-cookie
-    base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+def get_cookies(**context):
+    base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
+    # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
     
     url = base_url + "term/search"
 
@@ -46,7 +47,8 @@ def get_cookies():
     cookie_output = {
         "cookie": cookie,
         "jsessionid": jsessionid,
-        "nubanner_cookie": nubanneXr_cookie
+        "nubanner_cookie": nubanneXr_cookie,
+        "base_url": base_url
     }
 
     return cookie_output
@@ -59,7 +61,8 @@ def get_next_term(cookie_output):
 def get_courses_list(cookie_output):
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     
-    base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+    # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+    base_url = cookie_output["base_url"]
         
     url = base_url + "searchResults/searchResults"
 
@@ -115,7 +118,8 @@ def get_course_description(cookie_output, course_list):
     # Get the cookie, JSESSIONID and nubanner-cookie
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     
-    base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+    # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+    base_url = cookie_output["base_url"]
 
     # Send a GET request to Banner API @ /courseDescription to get the description of the course
     url = base_url + "/searchResults/getCourseDescription"

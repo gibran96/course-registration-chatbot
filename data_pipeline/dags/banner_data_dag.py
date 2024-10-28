@@ -50,7 +50,7 @@ with DAG(
     get_course_description_task = PythonOperator(
         task_id='get_course_description_task',
         python_callable=get_course_description,
-        op_args=[get_cookies_task.output],
+        op_args=[get_cookies_task.output, get_course_list_task.output],
         provide_context=True,
         dag=dag
     ),
