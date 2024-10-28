@@ -50,23 +50,23 @@ with DAG(
     )
 
     load_reviews_to_bigquery_task = GCSToBigQueryOperator(
-    task_id='load_to_bigquery',
-    bucket=Variable.get('default_bucket_name'),
-    source_objects=['processed_trace_data/reviews.csv'],
-    destination_project_dataset_table=Variable.get('review_table_name'),
-    write_disposition='WRITE_APPEND',
-    skip_leading_rows=1,
-    dag=dag,
+        task_id='load_to_bigquery',
+        bucket=Variable.get('default_bucket_name'),
+        source_objects=['processed_trace_data/reviews.csv'],
+        destination_project_dataset_table=Variable.get('review_table_name'),
+        write_disposition='WRITE_APPEND',
+        skip_leading_rows=1,
+        dag=dag,
     )
 
     load_courses_to_bigquery_task = GCSToBigQueryOperator(
-    task_id='load_courses_to_bigquery',
-    bucket=Variable.get('default_bucket_name'),
-    source_objects=['processed_trace_data/courses.csv'],
-    destination_project_dataset_table=Variable.get('course_table_name'),
-    write_disposition='WRITE_APPEND',
-    skip_leading_rows=1,
-    dag=dag,
+        task_id='load_courses_to_bigquery',
+        bucket=Variable.get('default_bucket_name'),
+        source_objects=['processed_trace_data/courses.csv'],
+        destination_project_dataset_table=Variable.get('course_table_name'),
+        write_disposition='WRITE_APPEND',
+        skip_leading_rows=1,
+        dag=dag,
     )
 
 
