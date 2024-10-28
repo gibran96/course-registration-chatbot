@@ -1,8 +1,3 @@
 fitz
 pymupdf
-airflow
-logging
-google
-gc
-re
-json
+apache-airflow
