@@ -75,7 +75,7 @@ with DAG(
         bucket=Variable.get('default_bucket_name'),
         source_objects=['processed_trace_data/banner_course_data.csv'],
         destination_project_dataset_table=Variable.get('banner_table_name'),
-        write_disposition='WRITE_APPEND',
+        write_disposition='WRITE_TRUNCATE',
         skip_leading_rows=1,
         dag=dag,
     )

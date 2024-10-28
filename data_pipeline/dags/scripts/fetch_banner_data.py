@@ -7,6 +7,54 @@ import os
 import pandas as pd
 import numpy as np
 
+def get_cookies():
+    # Send a POST request to Banner API @ /term/search to get the cookie, JSESSIONID and nubanner-cookie
+    base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+    
+    url = base_url + "term/search"
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "term": "202510",
+        "studyPath" : "",
+        "studyPathText" : "",
+        "startDatepicker" : "",
+        "endDatepicker" : "",
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch cookies: {e}")
+        return None
+
+    print("Response: ", response.text)
+
+    # Get the cookie from the response
+    cookie = response.headers["Set-Cookie"]
+    cookie = cookie.split(";")[0]
+
+    # Get the JSESSIONID from the response
+    jsessionid_ = response.headers["Set-Cookie"]
+    jsessionid = jsessionid_.split(";")[0]
+
+    # Get the nubanner-cookie from the response
+    nubanneXr_cookie = response.headers["Set-Cookie"].split(";")[3].split(", ")[1]
+    
+    cookie_output = {
+        "cookie": cookie,
+        "jsessionid": jsessionid,
+        "nubanner_cookie": nubanneXr_cookie
+    }
+
+    return cookie_output
+
+# TODO - Implement this function
+def get_next_term(cookie_output):
+    pass
+
 
 def get_courses_list(cookie_output):
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
@@ -19,11 +67,15 @@ def get_courses_list(cookie_output):
         "Cookie": jsessionid+"; "+nubanner_cookie
     }
     
+    # TODO: Check the next semester open for registration and update the txt_term
+    
+    term = "202510" # hardcoded for now
+    
     # Add the query parameters to the URL using requests library
     params = {
         "txt_subject": "CS",
         "txt_courseNumber": "",
-        "txt_term": "202510",
+        "txt_term": term,
         "startDatepicker": "",
         "endDatepicker": "",
         "pageOffset": 0,
@@ -51,7 +103,8 @@ def get_courses_list(cookie_output):
             "campusDescription": course["campusDescription"],
             "courseTitle": course["courseTitle"],
             "subjectCourse": course["subjectCourse"],
-            "facultyName": course["faculty"][0]["displayName"]
+            "facultyName": course["faculty"][0]["displayName"],
+            "term": term
         }
 
     return course_data
@@ -103,51 +156,6 @@ def get_course_description(cookie_output, course_list):
             logging.error(f"Failed to fetch description for course: {course["courseReferenceNumber"]}")
 
     return course_list
-
-def get_cookies():
-    # Send a POST request to Banner API @ /term/search to get the cookie, JSESSIONID and nubanner-cookie
-    base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
-    
-    url = base_url + "term/search"
-
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "term": "202510",
-        "studyPath" : "",
-        "studyPathText" : "",
-        "startDatepicker" : "",
-        "endDatepicker" : "",
-    }
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to fetch cookies: {e}")
-        return None
-
-    print("Response: ", response.text)
-
-    # Get the cookie from the response
-    cookie = response.headers["Set-Cookie"]
-    cookie = cookie.split(";")[0]
-
-    # Get the JSESSIONID from the response
-    jsessionid_ = response.headers["Set-Cookie"]
-    jsessionid = jsessionid_.split(";")[0]
-
-    # Get the nubanner-cookie from the response
-    nubanneXr_cookie = response.headers["Set-Cookie"].split(";")[3].split(", ")[1]
-    
-    cookie_output = {
-        "cookie": cookie,
-        "jsessionid": jsessionid,
-        "nubanner_cookie": nubanneXr_cookie
-    }
-
-    return cookie_output
-
 
 def dump_to_csv(course_data, **context):
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
