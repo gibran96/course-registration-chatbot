@@ -123,4 +123,4 @@ with DAG(
 
 
     # Set task dependencies
-    process_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+    select_distinct_crn >> get_crn_list_task >> unique_blobs >> process_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
