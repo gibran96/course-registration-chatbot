@@ -9,6 +9,7 @@ from airflow.models import Variable
 import fitz
 import gc
 import re
+import string
 import uuid
 
 # Question mapping
@@ -28,7 +29,7 @@ def clean_response(response):
 def clean_text(text):
     """Clean and standardize text."""
     text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace())
+    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
     text = text.lower()
     return text
 
@@ -99,6 +100,8 @@ def extract_data_from_pdf(pdf_file):
                 temp_response = ""
 
                 for response in responses:
+                    response = clean_text(response)
+                    
                     if response.strip().isdigit() and temp_response:
                         cleaned_response = clean_response(temp_response)
                         actual_responses.append(cleaned_response)
