@@ -21,7 +21,7 @@ def get_cookies(**context):
     }
 
     body = {
-        "term": "202510",
+        "term": "202530",
         "studyPath" : "",
         "studyPathText" : "",
         "startDatepicker" : "",
