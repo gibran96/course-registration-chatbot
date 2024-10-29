@@ -42,8 +42,9 @@ def get_unique_blobs(**context):
     blobs = bucket.list_blobs(prefix='course_review_dataset/')
 
     unique_blobs = []
-    blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
-    for blob_name, blob in zip(blob_names, blobs):
+    # blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
+    for blob in blobs:
+        blob_name = blob.name.split('/')[-1].replace('.pdf', '')
         if blob_name not in all_gcs_crns:
             unique_blobs.append(blob)
 
