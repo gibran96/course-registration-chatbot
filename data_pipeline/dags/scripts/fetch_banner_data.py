@@ -20,7 +20,7 @@ def get_cookies(**context):
         "Content-Type": "application/json"
     }
 
-    payload = {
+    body = {
         "term": "202510",
         "studyPath" : "",
         "studyPathText" : "",
@@ -28,13 +28,16 @@ def get_cookies(**context):
         "endDatepicker" : "",
     }
     
-    logging.info("Payload: ", payload)
+    logging.info("Payload: ", body)
     
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=body)
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch cookies: {e}")
         return None
+    
+    logging.ingo("Response: ", response.status_code)
+    logging.info("Response JSON: ", response.json())
 
     if response.json()["regAllowed"] and response.json()["regAllowed"] == False:
         logging.error("Fetching cookies failed!")
