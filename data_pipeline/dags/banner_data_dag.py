@@ -42,7 +42,9 @@ with DAG(
     get_course_list_task = PythonOperator(
         task_id='get_course_list_task',
         python_callable=get_courses_list,
-        op_args=[get_cookies_task.output],
+        op_kwargs={
+            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}"
+        },
         provide_context=True,
         dag=dag
     ),
@@ -50,7 +52,10 @@ with DAG(
     get_course_description_task = PythonOperator(
         task_id='get_course_description_task',
         python_callable=get_course_description,
-        op_args=[get_cookies_task.output, get_course_list_task.output],
+        op_kwargs={
+            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_list_task') }}"
+        },
         provide_context=True,
         dag=dag
     ),
@@ -58,7 +63,9 @@ with DAG(
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
-        op_args=[get_course_list_task.output],
+        op_kwargs={
+            'course_data': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
+        },
         provide_context=True,
         dag=dag
     ),
