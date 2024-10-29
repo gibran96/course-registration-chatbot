@@ -27,13 +27,18 @@ def get_cookies(**context):
         "startDatepicker" : "",
         "endDatepicker" : "",
     }
+    
+    logging.info("Payload: ", payload)
+    
     try:
         response = requests.post(url, headers=headers, json=payload)
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch cookies: {e}")
         return None
 
-    print("Response: ", response.text)
+    if response.json()["regAllowed"] and response.json()["regAllowed"] == False:
+        logging.error("Fetching cookies failed!")
+        return None
 
     # Get the cookie from the response
     cookie = response.headers["Set-Cookie"]
