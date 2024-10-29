@@ -59,6 +59,7 @@ def get_next_term(cookie_output):
 
 
 def get_courses_list(cookie_output):
+    logging.info("Cookie output:", cookie_output)
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     
     # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
