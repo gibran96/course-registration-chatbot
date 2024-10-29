@@ -66,7 +66,7 @@ with DAG(
     select_distinct_crn = BigQueryGetDataOperator(
         task_id='select_distinct_crn',
         dataset_id=Variable.get('review_table_name').split('.')[1],
-        table_id=Variable.get('review_table_name').split()[-1], 
+        table_id=Variable.get('review_table_name').split('.')[-1], 
         selected_fields='crn',  
         gcp_conn_id='bigquery_default',
     )
