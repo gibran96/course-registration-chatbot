@@ -28,7 +28,7 @@ with DAG(
     schedule_interval='0 0 * * *',  # Daily at midnight
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=['pdf', 'processing', 'gcs'],
+    tags=['banner', 'gcs'],
     max_active_runs=1
 ) as dag:
     
