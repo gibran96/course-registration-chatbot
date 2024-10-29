@@ -30,7 +30,7 @@ def get_crn_list(**context):
     distinct_values_list = [row[0] for row in distinct_values]
     logging.info("Distinct values:", distinct_values_list)
     context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
-    return distinct_values_list
+    return list(set(distinct_values_list))
 
 
 def get_unique_blobs(**context):
@@ -68,7 +68,6 @@ with DAG(
         dataset_id=Variable.get('review_table_name').split('.')[1],
         table_id=Variable.get('review_table_name').split()[-1], 
         selected_fields='crn',  
-        query=f"SELECT DISTINCT crn FROM `{Variable.get('review_table_name')}`",
         provide_context=True,
         dag=dag
     )
