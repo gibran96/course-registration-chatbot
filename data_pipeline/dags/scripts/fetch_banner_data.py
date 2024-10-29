@@ -153,11 +153,11 @@ def get_course_description(cookie_output, course_list):
                 course_list[course]["course_description"] = description_text
             else:
                 course_list[course]["course_description"] = "No description available."
-                logging.warning(f"No description found for course: {course["courseReferenceNumber"]}")
+                logging.warning(f"No description found for course: {course_ref_num}")
         else:
             # Handle cases where the request was unsuccessful
             course_list[course]["course_description"] = "Failed to fetch description."
-            logging.error(f"Failed to fetch description for course: {course["courseReferenceNumber"]}")
+            logging.error(f"Failed to fetch description for course: {course_ref_num}")
 
     return course_list
 
