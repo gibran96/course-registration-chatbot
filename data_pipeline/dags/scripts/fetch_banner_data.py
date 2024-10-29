@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 from airflow.models import Variable
+import ast
 
 def get_cookies(**context):
     base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
@@ -60,7 +61,7 @@ def get_next_term(cookie_output):
 
 
 def get_courses_list(cookie_output):
-    cookie_output = json.loads(cookie_output)
+    cookie_output = ast.literal_eval(cookie_output)
     logging.info("Cookie output:", cookie_output)
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     
@@ -117,8 +118,8 @@ def get_courses_list(cookie_output):
 
 def get_course_description(cookie_output, course_list):
     """ Get the description of the course """
-    cookie_output = json.loads(cookie_output)
-    course_list = json.loads(course_list)
+    cookie_output = ast.literal_eval(cookie_output)
+    course_list = ast.literal_eval(course_list)
     
     # Get the cookie, JSESSIONID and nubanner-cookie
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
@@ -168,7 +169,7 @@ def get_course_description(cookie_output, course_list):
 
 def dump_to_csv(course_data, **context):
 
-    course_data = json.loads(course_data)
+    course_data = ast.literal_eval(course_data)
     
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
     
