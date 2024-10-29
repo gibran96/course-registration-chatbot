@@ -108,7 +108,7 @@ with DAG(
         source_objects=['processed_trace_data/reviews.csv'],
         destination_project_dataset_table=Variable.get('review_table_name'),
         write_disposition='WRITE_APPEND',
-        autodetect=False,
+        autodetect=None,
         skip_leading_rows=1,
         dag=dag,
     )
@@ -119,7 +119,7 @@ with DAG(
         source_objects=['processed_trace_data/courses.csv'],
         destination_project_dataset_table=Variable.get('course_table_name'),
         write_disposition='WRITE_APPEND',
-        autodetect=False,
+        autodetect=None,
         skip_leading_rows=1,
         dag=dag,
     )
