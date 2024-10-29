@@ -22,9 +22,9 @@ default_args = {
 }
 
 with DAG(
-    'pdf_processing_pipeline',
+    'banner_dag_pipeline',
     default_args=default_args,
-    description='Process PDFs from GCS and extract course review data',
+    description='Fetch course data from Banner and upload to GCS and BigQuery',
     schedule_interval='0 0 * * *',  # Daily at midnight
     start_date=datetime(2024, 1, 1),
     catchup=False,
