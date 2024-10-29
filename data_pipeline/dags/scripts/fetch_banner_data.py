@@ -14,18 +14,18 @@ def get_cookies(**context):
     base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
     # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
     
-    url = base_url + "term/search"
+    url = base_url + "term/search/"
 
     headers = {
         "Content-Type": "application/json"
     }
 
     body = {
-        "term": "202530",
+        "term": 202530,
         "studyPath" : "",
         "studyPathText" : "",
         "startDatepicker" : "",
-        "endDatepicker" : "",
+        "endDatepicker" : ""
     }
     
     logging.info(f"Payload: {body}")
@@ -34,7 +34,7 @@ def get_cookies(**context):
         logging.info(f"Making POST request to URL: {url}")
         logging.info(f"Headers: {headers}")
         logging.info(f"Body: {body}")
-        response = requests.post(url, headers=headers, json=body)
+        response = requests.post(url, headers=headers, params=body)
         logging.info(f"Request made successfully")
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch cookies: {e}")
