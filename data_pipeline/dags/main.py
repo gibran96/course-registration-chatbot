@@ -68,8 +68,6 @@ with DAG(
         dataset_id=Variable.get('review_table_name').split('.')[1],
         table_id=Variable.get('review_table_name').split()[-1], 
         selected_fields='crn',  
-        provide_context=True,
-        dag=dag
     )
 
     get_crn_list_task = PythonOperator(
