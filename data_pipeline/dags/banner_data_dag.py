@@ -47,7 +47,7 @@ with DAG(
         },
         provide_context=True,
         dag=dag
-    ),
+    )
     
     get_course_description_task = PythonOperator(
         task_id='get_course_description_task',
@@ -58,7 +58,7 @@ with DAG(
         },
         provide_context=True,
         dag=dag
-    ),
+    )
     
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
@@ -68,7 +68,7 @@ with DAG(
         },
         provide_context=True,
         dag=dag
-    ),
+    )
     
     upload_to_gcs_task = PythonOperator(
         task_id='upload_to_gcs',
