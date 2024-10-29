@@ -46,7 +46,7 @@ def get_unique_blobs(**context):
     for blob in blobs:
         blob_name = blob.name.split('/')[-1].replace('.pdf', '')
         if blob_name not in all_gcs_crns:
-            unique_blobs.append(blob)
+            unique_blobs.append(blob_name)
 
     context['ti'].xcom_push(key='unique_blobs', value=unique_blobs)
 

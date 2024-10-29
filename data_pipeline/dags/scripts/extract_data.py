@@ -123,16 +123,20 @@ def extract_data_from_pdf(pdf_file):
 def process_pdf_files(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
-    blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
+    unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
     
     # Initialize DataFrames
     reviews_df = pd.DataFrame(columns=["crn", "question", "response"])
     courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix='course_review_dataset/')
     
     try:
         logging.info("Processing PDFs...", blobs)
         for blob in blobs:
-            if blob.name.endswith('.pdf'):
+            if blob.name.endswith('.pdf') and blob.name.split('/')[-1].replace('.pdf', '') in unique_blobs:
                 logging.info(f"Processing {blob.name}")
                 
                 # Download and process PDF
