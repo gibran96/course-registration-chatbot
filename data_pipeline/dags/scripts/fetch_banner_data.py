@@ -97,10 +97,11 @@ def get_courses_list(cookie_output):
         logging.error(f"Failed to fetch course list: {e}")
         return []
 
+    logging.info("Response: ", response.status_code)
+    logging.info("Number of courses: ", response.json()["totalCount"])
+    
     # Get the JSON response
     response_json = response.json()
-
-    print("Number of courses: ", response_json["totalCount"])
     
     course_data = {}
 
