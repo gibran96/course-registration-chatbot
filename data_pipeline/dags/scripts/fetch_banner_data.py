@@ -17,7 +17,7 @@ def get_cookies(**context):
     url = base_url + "term/search"
 
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/x-www-form-urlencoded; charset=UT"
     }
 
     body = {
