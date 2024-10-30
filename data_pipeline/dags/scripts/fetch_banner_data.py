@@ -120,11 +120,11 @@ def get_courses_list(cookie_output):
 
     for course in response_json["data"]:
         course_data[course["courseReferenceNumber"]] = {
-            "courseReferenceNumber": course["courseReferenceNumber"],
-            "campusDescription": course["campusDescription"],
-            "courseTitle": course["courseTitle"],
-            "subjectCourse": course["subjectCourse"],
-            "facultyName": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
+            "crn": course["courseReferenceNumber"],
+            "campus_description": course["campusDescription"],
+            "course_title": course["courseTitle"],
+            "subject_course": course["subjectCourse"],
+            "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
             "term": str(term)
         }
 
@@ -155,7 +155,7 @@ def get_course_description(cookie_output, course_list):
     }
     
     for course in course_list:
-        course_ref_num = course_list[course]["courseReferenceNumber"]
+        course_ref_num = course_list[course]["crn"]
         params["courseReferenceNumber"] = course_ref_num       
 
         try:
@@ -194,4 +194,4 @@ def dump_to_csv(course_data, **context):
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", "course_description", "term"])
             for course in course_data:
-                writer.writerow(course_data[course].values())
+                writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], course_data[course]["subject_course"], course_data[course]["faculty_name"], course_data[course]["campus_description"], course_data[course]["course_description"], course_data[course]["term"]])
