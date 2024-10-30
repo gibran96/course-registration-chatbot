@@ -198,3 +198,4 @@ def dump_to_csv(course_data, **context):
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", "course_description", "term"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], course_data[course]["subject_course"], course_data[course]["faculty_name"], course_data[course]["campus_description"], course_data[course]["course_description"], course_data[course]["term"]])
+                
