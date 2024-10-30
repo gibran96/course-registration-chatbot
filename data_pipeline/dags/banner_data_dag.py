@@ -84,6 +84,7 @@ with DAG(
         destination_project_dataset_table=Variable.get('banner_table_name'),
         write_disposition='WRITE_TRUNCATE',
         skip_leading_rows=1,
+        autodetect=None,
         dag=dag,
     )
     

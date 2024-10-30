@@ -10,6 +10,8 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
+from extract_data import clean_response
+
 def get_cookies(**context):
     base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
     # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
@@ -97,7 +99,7 @@ def get_courses_list(cookie_output):
         "startDatepicker": "",
         "endDatepicker": "",
         "pageOffset": 0,
-        "pageMaxSize": 500,
+        "pageMaxSize": 1100,
         "sortColumn": "subjectDescription",
         "sortDirection": "asc"
     }
@@ -171,6 +173,7 @@ def get_course_description(cookie_output, course_list):
             if description_section:
                 # Extract and clean up the text
                 description_text = description_section.get_text(strip=True)
+                description_text = clean_response(description_text)
                 course_list[course]["course_description"] = description_text
             else:
                 course_list[course]["course_description"] = "No description available."
