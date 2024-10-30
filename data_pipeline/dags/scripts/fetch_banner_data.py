@@ -109,9 +109,9 @@ def get_courses_list(cookie_output):
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch course list: {e}")
         return []
-
+    total_count = response.json()["totalCount"]
     logging.info(f"Response: {response.status_code}")
-    logging.info(f"Number of courses: {response.json()["totalCount"]}")
+    logging.info(f"Number of courses: {total_count}")
     
     # Get the JSON response
     response_json = response.json()
