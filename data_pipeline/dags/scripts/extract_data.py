@@ -24,6 +24,10 @@ question_map = {
 def clean_response(response):
     """Remove leading index numbers from a response."""
     response = re.sub(r"^\d+\s*", "", response.strip())
+    # remove next line characters
+    response = response.replace("\n", " ")
+    response = response.replace("\r", " ")
+    response = response.replace("\t", " ")
     return response
 
 def clean_text(text):
