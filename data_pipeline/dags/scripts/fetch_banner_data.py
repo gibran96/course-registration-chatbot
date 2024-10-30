@@ -124,7 +124,7 @@ def get_courses_list(cookie_output):
             "campusDescription": course["campusDescription"],
             "courseTitle": course["courseTitle"],
             "subjectCourse": course["subjectCourse"],
-            "facultyName": course["faculty"][0]["displayName"],
+            "facultyName": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
             "term": term
         }
 
