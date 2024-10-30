@@ -72,10 +72,11 @@ def get_next_term(cookie_output):
 
 def get_courses_list(cookie_output):
     cookie_output = ast.literal_eval(cookie_output)
-    logging.info("Cookie output:", cookie_output)
+    
+    logging.info(f"Cookie output: {cookie_output}")
+    
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     
-    # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
     base_url = cookie_output["base_url"]
         
     url = base_url + "searchResults/searchResults"
@@ -86,7 +87,7 @@ def get_courses_list(cookie_output):
     
     # TODO: Check the next semester open for registration and update the txt_term
     
-    term = "202510" # hardcoded for now
+    term = 202530 # hardcoded for now
     
     # Add the query parameters to the URL using requests library
     params = {
@@ -100,9 +101,11 @@ def get_courses_list(cookie_output):
         "sortColumn": "subjectDescription",
         "sortDirection": "asc"
     }
-    
+    logging.info(f"Params: {params}")
+    logging.info(f"Headers: {headers}")
     try:
         response = requests.get(url, headers=headers, params=params)
+        logging.info("Request made successfully")
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch course list: {e}")
         return []
@@ -134,8 +137,7 @@ def get_course_description(cookie_output, course_list):
     
     # Get the cookie, JSESSIONID and nubanner-cookie
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-    
-    # base_url = "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/"
+
     base_url = cookie_output["base_url"]
 
     # Send a GET request to Banner API @ /courseDescription to get the description of the course
@@ -144,16 +146,18 @@ def get_course_description(cookie_output, course_list):
     headers = {
         "Cookie": jsessionid+"; "+nubanner_cookie
     }
+    
+    term = 202530 # hardcoded for now
 
     params = {
-        "term": "202510",
+        "term": term,
         "courseReferenceNumber": ""
     }
     
     for course in course_list:
         course_ref_num = course_list[course]["courseReferenceNumber"]
         params["courseReferenceNumber"] = course_ref_num       
-        
+
         try:
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
