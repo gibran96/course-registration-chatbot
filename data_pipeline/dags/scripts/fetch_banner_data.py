@@ -110,8 +110,8 @@ def get_courses_list(cookie_output):
         logging.error(f"Failed to fetch course list: {e}")
         return []
 
-    logging.info("Response: ", response.status_code)
-    logging.info("Number of courses: ", response.json()["totalCount"])
+    logging.info(f"Response: {response.status_code}")
+    logging.info(f"Number of courses: {response.json()["totalCount"]}")
     
     # Get the JSON response
     response_json = response.json()
@@ -125,7 +125,7 @@ def get_courses_list(cookie_output):
             "courseTitle": course["courseTitle"],
             "subjectCourse": course["subjectCourse"],
             "facultyName": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
-            "term": term
+            "term": str(term)
         }
 
     return course_data
@@ -185,22 +185,13 @@ def get_course_description(cookie_output, course_list):
 def dump_to_csv(course_data, **context):
 
     course_data = ast.literal_eval(course_data)
-    
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
+    os.makedirs(output_path, exist_ok=True)
     
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
-    # Check if the file exists
-    if os.path.exists(file_path):
-        # Append the data to the file
-        with open(file_path, "a") as file:
+    with open(file_path, "w") as file:
             writer = csv.writer(file)
-            for course in course_data:
-                writer.writerow(course_data[course].values())
-    else:
-        # Create a new file and write the data
-        with open(file_path, "w") as file:
-            writer = csv.writer(file)
-            writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", "course_description"])
+            writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", "course_description", "term"])
             for course in course_data:
                 writer.writerow(course_data[course].values())
