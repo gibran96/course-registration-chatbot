@@ -31,9 +31,6 @@ def get_cookies(**context):
     logging.info(f"Payload: {body}")
     
     try:
-        logging.info(f"Making POST request to URL: {url}")
-        logging.info(f"Headers: {headers}")
-        logging.info(f"Body: {body}")
         response = requests.post(url, headers=headers, params=body)
         logging.info(f"Request made successfully")
     except requests.exceptions.RequestException as e:
@@ -42,9 +39,10 @@ def get_cookies(**context):
     
     logging.info(f"Response: {response.status_code}")
     logging.info(f"Response JSON: {response.json()}")
-
-    if response.json()["regAllowed"] and response.json()["regAllowed"] == False:
-        logging.error("Fetching cookies failed!")
+    
+    # if json contains key "regAllowed" then log error
+    if "regAllowed" in response.json():
+        logging.error("Error in fetching cookies")
         return None
 
     # Get the cookie from the response
