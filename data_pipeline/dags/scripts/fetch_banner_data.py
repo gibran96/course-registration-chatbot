@@ -10,7 +10,7 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from extract_data import clean_response
+from scripts.extract_data import clean_response
 
 def get_cookies(**context):
     base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
