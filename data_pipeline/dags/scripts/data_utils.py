@@ -39,4 +39,5 @@ def upload_banner_data_to_gcs(**context):
             filename=local_path
         )
         logging.info(f"Uploaded banner_course_data.csv to GCS")
-        
+
+# test commit for github workflow
