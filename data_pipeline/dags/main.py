@@ -30,7 +30,7 @@ def get_crn_list(**context):
     distinct_values_list = [row[0] for row in distinct_values]
     logging.info("Distinct values:", distinct_values_list)
     context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
-    return distinct_values_list
+    return list(set(distinct_values_list))
 
 
 def get_unique_blobs(**context):
@@ -42,10 +42,11 @@ def get_unique_blobs(**context):
     blobs = bucket.list_blobs(prefix='course_review_dataset/')
 
     unique_blobs = []
-    blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
-    for blob_name, blob in zip(blob_names, blobs):
+    # blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
+    for blob in blobs:
+        blob_name = blob.name.split('/')[-1].replace('.pdf', '')
         if blob_name not in all_gcs_crns:
-            unique_blobs.append(blob)
+            unique_blobs.append(blob_name)
 
     context['ti'].xcom_push(key='unique_blobs', value=unique_blobs)
 
@@ -66,11 +67,9 @@ with DAG(
     select_distinct_crn = BigQueryGetDataOperator(
         task_id='select_distinct_crn',
         dataset_id=Variable.get('review_table_name').split('.')[1],
-        table_id=Variable.get('review_table_name').split()[-1], 
+        table_id=Variable.get('review_table_name').split('.')[-1], 
         selected_fields='crn',  
-        query=f"SELECT DISTINCT crn FROM `{Variable.get('review_table_name')}`",
-        provide_context=True,
-        dag=dag
+        gcp_conn_id='bigquery_default',
     )
 
     get_crn_list_task = PythonOperator(
@@ -109,6 +108,7 @@ with DAG(
         source_objects=['processed_trace_data/reviews.csv'],
         destination_project_dataset_table=Variable.get('review_table_name'),
         write_disposition='WRITE_APPEND',
+        autodetect=None,
         skip_leading_rows=1,
         dag=dag,
     )
@@ -119,6 +119,7 @@ with DAG(
         source_objects=['processed_trace_data/courses.csv'],
         destination_project_dataset_table=Variable.get('course_table_name'),
         write_disposition='WRITE_APPEND',
+        autodetect=None,
         skip_leading_rows=1,
         dag=dag,
     )
@@ -126,4 +127,4 @@ with DAG(
 
 
     # Set task dependencies
-    process_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+    select_distinct_crn >> get_crn_list_task >> unique_blobs >> process_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
