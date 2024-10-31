@@ -1,3 +1,5 @@
-fitz
 pymupdf
 apache-airflow
+google-cloud-storage
+google-cloud-bigquery
+pytest
