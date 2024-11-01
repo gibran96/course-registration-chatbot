@@ -141,21 +141,20 @@ def generate_llm_response(**context):
     analyzed_results = []
     for result in similarity_results:
         prompt = f"""
-        Based on the following course information and related content, provide a detailed analysis:
-        
-        Course: {result['course_name']}
-        Professor: {result['professor']}
-        
-        Related Content:
-        {result['relevant_content']}
-        
-        Please provide:
-        1. A summary of the course content and teaching style
-        2. Key strengths and potential areas for improvement
-        3. Overall assessment and recommendations
-        
-        Format the response as JSON with these keys: summary, strengths, improvements, assessment
-        """
+                Given the following user question and the contextual information from the database, provide a thorough and relevant answer:
+
+                User Question:
+                {user_query}
+
+                Context:
+                {context}
+                The answer should include:
+                1. Key points from the course content, teaching style, and any specific details directly relevant to the user’s question
+                2. A context-driven response addressing the user’s query, incorporating any relevant strengths, limitations, or notable aspects of the course or instructor
+                3. A clear, conclusive assessment as applicable to the user’s question, offering recommendations or additional insights based on the context
+
+                Format the response as a cohesive text answer that directly addresses the user's question with clarity and specificity.
+                """
         
         try:
             response = openai.ChatCompletion.create(
