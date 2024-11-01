@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
-from data_pipeline.dags.scripts.extract_data import clean_text
-from data_pipeline.dags.scripts.extract_data import clean_response
+from data_pipeline.dags.scripts.extract_trace_data import clean_text
+from data_pipeline.dags.scripts.extract_trace_data import clean_response
 
-from data_pipeline.dags.scripts.extract_data import process_data
-from data_pipeline.dags.scripts.extract_data import extract_data_from_pdf
+from data_pipeline.dags.scripts.extract_trace_data import process_data
+from data_pipeline.dags.scripts.extract_trace_data import extract_data_from_pdf
 
 class TestCleanResponse:
     """Test suite for the `clean_response` function."""

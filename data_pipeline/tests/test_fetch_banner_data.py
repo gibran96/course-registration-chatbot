@@ -218,7 +218,7 @@ def test_get_courses_list_request_exception(mock_get, caplog):
     
 @patch("requests.post")
 @patch("bs4.BeautifulSoup")
-@patch("data_pipeline.dags.scripts.extract_data.clean_response")
+@patch("data_pipeline.dags.scripts.extract_trace_data.clean_response")
 def test_get_course_description_successful(mock_clean_response, mock_soup, mock_post):
     # Mock the cookie and course list inputs
     cookie_output = str({

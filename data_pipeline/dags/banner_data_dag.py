@@ -3,7 +3,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_banner_data_to_gcs
 from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv
-from scripts.extract_data import process_pdf_files
+from scripts.extract_trace_data import process_pdf_files
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
