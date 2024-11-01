@@ -10,7 +10,15 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from data_pipeline.dags.scripts.extract_data import clean_response
+from extract_trace_data import clean_response
+
+semester_map = {
+    "10": "Fall",
+    "30": "Spring",
+    "40": "Summer 1",
+    "50": "Summer Full",
+    "60": "Summer 2"
+}
 
 # Function to fetch the cookies from the Banner API
 def get_cookies(**context):
@@ -91,6 +99,8 @@ def get_courses_list(cookie_output):
     
     term = 202530 # hardcoded for now
     
+    term_desc = get_semester_name(str(term))
+    
     params = {
         "txt_subject": "CS",
         "txt_courseNumber": "",
@@ -130,7 +140,10 @@ def get_courses_list(cookie_output):
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
             "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
-            "term": str(term)
+            "begin_time": course["meetingFaculty"][0]["meetingTime"]["beginTime"],
+            "end_time": course["meetingFaculty"][0]["meetingTime"]["endTime"],
+            "days": get_days(course["meetingsFaculty"][0]["meetingTime"]),
+            "term": term_desc
         }
 
     return course_data
@@ -184,6 +197,20 @@ def get_course_description(cookie_output, course_list):
             logging.error(f"Failed to fetch description for course: {course_ref_num}")
 
     return course_list
+
+# Function to get the semester name from the term
+def get_semester_name(term):
+    semester = term[-2:]
+    return semester_map[semester] + " " + term[:4]
+
+# Function to get the days of the course lecture
+def get_days(meeting_time):
+    if isinstance(meeting_time, tuple):
+        meeting_time = meeting_time[0]
+    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
+            if meeting_time.get(day, False)]
+    return ";".join(days)
+    
 
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):

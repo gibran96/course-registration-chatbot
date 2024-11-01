@@ -1,9 +1,6 @@
 import pandas as pd
-import pymupdf
-import json
 import os
 import logging
-from google.cloud import bigquery
 from google.cloud import storage
 from airflow.models import Variable
 import fitz
@@ -42,13 +39,15 @@ def process_data(structured_data, reviews_df, courses_df):
     course_code = structured_data["course_code"]
     course_title = structured_data["course_title"]
     instructor = structured_data["instructor"]
+    term = structured_data["term"]
     
     if crn not in courses_df["crn"].values:
         new_course_row = {
             "crn": crn,
             "course_code": course_code,
             "course_title": course_title,
-            "instructor": instructor
+            "instructor": instructor,
+            "term": term
         }
         courses_df = courses_df._append(new_course_row, ignore_index=True)
     
@@ -62,7 +61,8 @@ def process_data(structured_data, reviews_df, courses_df):
                     "review_id": uuid.uuid4().hex,
                     "crn": crn,
                     "question": question,
-                    "response": response
+                    "response": response,
+                    "term": term
                 }
                 reviews_df = reviews_df._append(new_review_row, ignore_index=True)
                 
@@ -75,6 +75,7 @@ def extract_data_from_pdf(pdf_file):
         "course_title": "",
         "course_code": "",
         "instructor": "",
+        "term": "",
         "responses": []
     }
 
@@ -86,11 +87,13 @@ def extract_data_from_pdf(pdf_file):
             course_id = page_text.split("Course ID: ")[1].split("\n")[0]
             instructor = page_text.split("Instructor: ")[1].split("\n")[0]
             course_title = page_text.split("\n")[0].split("(")[0].strip()
+            term = page_text.split("\n")[0].split("(")[1][:-1].strip()
             course_code = page_text.split("Catalog & Section: ")[1].split(" ")[0]
             structured_data["crn"] = course_id
             structured_data["instructor"] = instructor
             structured_data["course_title"] = course_title
             structured_data["course_code"] = course_code 
+            structured_data["term"] = term
 
         # Extract questions and responses
         if "Q:" in page_text:
@@ -138,7 +141,7 @@ def process_pdf_files(**context):
     blobs = bucket.list_blobs(prefix='course_review_dataset/')
     
     try:
-        logging.info("Processing PDFs...", blobs)
+        logging.info("Processing PDFs...")
         for blob in blobs:
             if blob.name.endswith('.pdf') and blob.name.split('/')[-1].replace('.pdf', '') in unique_blobs:
                 logging.info(f"Processing {blob.name}")
