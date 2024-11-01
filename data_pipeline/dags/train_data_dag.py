@@ -10,7 +10,7 @@ from scripts.data_utils import upload_to_gcs  # Reusing existing utility
 from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
 import pandas as pd
 import numpy as np
-from data_pipeline.data.seed_data import query_templates, topics, seed_query_list
+from data.seed_data import query_templates, topics, seed_query_list
 import logging
 import random
 import vertexai
