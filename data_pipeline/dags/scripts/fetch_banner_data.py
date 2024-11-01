@@ -140,9 +140,12 @@ def get_courses_list(cookie_output):
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
             "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
-            "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
-            "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
-            "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
+            # "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
+            # "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
+            # "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
+            "begin_time": "",
+            "end_time": "",
+            "days": "",
             "term": term_desc
         }
 
