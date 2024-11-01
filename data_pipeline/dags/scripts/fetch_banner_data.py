@@ -58,6 +58,8 @@ def get_cookies(**context):
     # Get the cookie from the response
     cookie = response.headers["Set-Cookie"]
     cookie = cookie.split(";")[0]
+    
+    logging.info(f"Response Headers: {response.headers}")
 
     # Get the JSESSIONID from the response
     jsessionid_ = response.headers["Set-Cookie"]
