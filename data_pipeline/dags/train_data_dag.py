@@ -5,17 +5,23 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOpe
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.models import Variable
 from google.cloud import storage, bigquery
+import vertexai.generative_models
 from scripts.data_utils import upload_to_gcs  # Reusing existing utility
 from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
 import pandas as pd
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from data_pipeline.data.seed_data import query_templates, topics, seed_query_list
-import openai  # Assuming OpenAI for LLM
 import logging
-import json
 import random
+import vertexai
+
+from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
+
+PROJECT_ID = "coursecompass"
+vertexai.init(project=PROJECT_ID, location="us-central1")
+
+client_model = GenerativeModel(model_name="gemini-1.5-flash-002")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,56 +37,95 @@ default_args = {
 
 TARGET_SAMPLE_COUNT = 500
 
+
+def get_llm_response(**context):
+    input_prompt = context['ti'].xcom_pull(task_ids='generate_samples')
+    res = client_model.generate_content(
+            input_prompt,
+            safety_settings={
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            },
+            generation_config=GenerationConfig(
+                max_output_tokens=1024,
+                temperature=0.7,
+            ),
+        ).content
+
+    context['ti'].xcom_push(key='llm_response', value=res)
+
+    return res
+
 def check_sample_count_from_bq(**context):
     client = bigquery.Client()
-    table_id = Variable.get("llm_results_table")
+    table_id = Variable.get("train_data_table_name")
     
     query = f"SELECT COUNT(*) AS sample_count FROM `{table_id}`"
     result = client.query(query).result()
     sample_count = list(result)[0]["sample_count"]
+
     
     if sample_count >= TARGET_SAMPLE_COUNT:
         logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached in BigQuery. Ending DAG run.")
+        context['ti'].xcom_push(key='task_status', value="stop_task")
         return "stop_task"
     else:
         logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+        context['ti'].xcom_push(key='task_status', value="generate_samples")
         return "generate_samples"
 
 
-def select_random_data_from_table(prof_list, course_list):
+def get_initial_queries(**context):
 
-    col_names = ['topic', 'course_name', 'professor_name']
-    selected_col = random.choice(col_names)
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    if task_status == "stop_task":
+        return "stop_task"
+    else:
 
-    query_subset = [query for query in seed_query_list if selected_col in query]
+        course_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='course_list')
+        prof_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='prof_list')
 
-    if selected_col == 'topic':
-        topic = random.choice(topics)
-        queries = [query.format(topic=topic) for query in query_subset]
-    elif selected_col == 'course_name':
-        course_name = random.choice(course_list)
-        queries = [query.format(course_name=course_name) for query in query_subset]
-    elif selected_col == 'professor_name':
-        professor_name = random.choice(prof_list)
-        queries = [query.format(professor_name=professor_name) for query in query_subset]
+        col_names = ['topic', 'course_name', 'professor_name']
+        selected_col = random.choice(col_names)
 
-    return queries
+        query_subset = [query for query in seed_query_list if selected_col in query]
+
+        if selected_col == 'topic':
+            topic = random.choice(topics)
+            queries = [query.format(topic=topic) for query in query_subset]
+        elif selected_col == 'course_name':
+            course_name = random.choice(course_list)
+            queries = [query.format(course_name=course_name) for query in query_subset]
+        elif selected_col == 'professor_name':
+            professor_name = random.choice(prof_list)
+            queries = [query.format(professor_name=professor_name) for query in query_subset]
+
+        context['ti'].xcom_push(key='initial_queries', value=queries)
+
+        return "generate_samples"
 
 
-def get_bq_data():
-    client = bigquery.Client()
-    prof_query = """
-        SELECT DISTINCT professor_name
-        FROM `{Variable.get('banner_table_name')}`
-    """
-    course_query = """
-        SELECT DISTINCT course_title
-        FROM `{Variable.get('banner_table_name')}`
-    """
-    prof_list = list(set(client.query(prof_query).to_list()))
-    course_list = list(set(client.query(course_query).to_list()))
-
-    return prof_list, course_list
+def get_bq_data(**context):
+    sample_count = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
+    if sample_count == "stop_task":
+        return "stop_task"
+    else:
+        client = bigquery.Client()
+        prof_query = """
+            SELECT DISTINCT professor_name
+            FROM `{Variable.get('banner_table_name')}`
+        """
+        course_query = """
+            SELECT DISTINCT course_title
+            FROM `{Variable.get('banner_table_name')}`
+        """
+        prof_list = list(set(client.query(prof_query).to_list()))
+        course_list = list(set(client.query(course_query).to_list()))
+        context['ti'].xcom_push(key='prof_list', value=prof_list)
+        context['ti'].xcom_push(key='course_list', value=course_list)
+        return "generate_samples"
 
 
 def perform_similarity_search(**context):
@@ -128,63 +173,10 @@ def perform_similarity_search(**context):
     return query_response
 
 def generate_llm_response(**context):
-    """
-    Generate LLM response based on similarity search results
-    """
+    pass
 
-    prompt = """
-    """
-
-    similarity_results = context['task_instance'].xcom_pull(key='similarity_results')
-    openai.api_key = Variable.get('openai_api_key')
-    
-    analyzed_results = []
-    for result in similarity_results:
-        prompt = f"""
-        Based on the following course information and related content, provide a detailed analysis:
-        
-        Course: {result['course_name']}
-        Professor: {result['professor']}
-        
-        Related Content:
-        {result['relevant_content']}
-        
-        Please provide:
-        1. A summary of the course content and teaching style
-        2. Key strengths and potential areas for improvement
-        3. Overall assessment and recommendations
-        
-        Format the response as JSON with these keys: summary, strengths, improvements, assessment
-        """
-        
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are an expert course analyzer."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            
-            analysis = json.loads(response.choices[0].message.content)
-            analyzed_results.append({
-                'crn': result['crn'],
-                'course_name': result['course_name'],
-                'professor': result['professor'],
-                'analysis': analysis,
-                'source_pdf': result['pdf_name'],
-                'confidence_score': result['similarity_score']
-            })
-        except Exception as e:
-            logging.error(f"Error generating LLM response for {result['course_name']}: {str(e)}")
-    
-    context['task_instance'].xcom_push(key='llm_results', value=analyzed_results)
-    return analyzed_results
 
 def process_llm_output(**context):
-    """
-    Process and format LLM generated responses for storage
-    """
     llm_results = context['task_instance'].xcom_pull(key='llm_results')
     
     # Prepare data for BigQuery
@@ -227,60 +219,63 @@ with DAG(
     max_active_runs=1
 ) as dag:
     
-    num_data_samples = 0
+    sample_count = PythonOperator(
+        task_id='check_sample_count',
+        python_callable=check_sample_count_from_bq,
+        provide_context=True,
+    )
 
     bq_data = PythonOperator(
         task_id='get_bq_data',
         python_callable=get_bq_data,
         provide_context=True,
     )
-    while len(dataset) < 5:
+
+    initial_queries = PythonOperator(
+        task_id='get_initial_queries',
+        python_callable=get_initial_queries,
+        provide_context=True,
+    )
 
 
-        select_random_data = PythonOperator(
-            task_id='select_random_data',
-            python_callable=select_random_data_from_table,
-            provide_context=True,
-        )
+    # similarity_search_result = PythonOperator(
+    #     task_id='perform_similarity_search',
+    #     python_callable=perform_similarity_search,
+    #     provide_context=True,
+    # )
 
-        similarity_search_result = PythonOperator(
-            task_id='perform_similarity_search',
-            python_callable=perform_similarity_search,
-            provide_context=True,
-        )
+    # # Perform similarity search
+    # similarity_search_task = PythonOperator(
+    #     task_id='perform_similarity_search',
+    #     python_callable=perform_similarity_search,
+    #     provide_context=True,
+    # )
 
-        # Perform similarity search
-        similarity_search_task = PythonOperator(
-            task_id='perform_similarity_search',
-            python_callable=perform_similarity_search,
-            provide_context=True,
-        )
+    # # Generate LLM responses
+    # generate_llm_response_task = PythonOperator(
+    #     task_id='generate_llm_response',
+    #     python_callable=generate_llm_response,
+    #     provide_context=True,
+    # )
 
-        # Generate LLM responses
-        generate_llm_response_task = PythonOperator(
-            task_id='generate_llm_response',
-            python_callable=generate_llm_response,
-            provide_context=True,
-        )
+    # # Process LLM output
+    # process_output_task = PythonOperator(
+    #     task_id='process_llm_output',
+    #     python_callable=process_llm_output,
+    #     provide_context=True,
+    # )
 
-        # Process LLM output
-        process_output_task = PythonOperator(
-            task_id='process_llm_output',
-            python_callable=process_llm_output,
-            provide_context=True,
-        )
+    # # Load results to BigQuery
+    # load_to_bigquery_task = GCSToBigQueryOperator(
+    #     task_id='load_to_bigquery',
+    #     bucket=Variable.get('default_bucket_name'),
+    #     source_objects=['llm_analysis/results.csv'],
+    #     destination_project_dataset_table=Variable.get('train_data_table_name'),
+    #     write_disposition='WRITE_APPEND',
+    #     autodetect=True,
+    #     skip_leading_rows=1,
+    # )
 
-        # Load results to BigQuery
-        load_to_bigquery_task = GCSToBigQueryOperator(
-            task_id='load_to_bigquery',
-            bucket=Variable.get('default_bucket_name'),
-            source_objects=['llm_analysis/results.csv'],
-            destination_project_dataset_table=Variable.get('llm_results_table'),
-            write_disposition='WRITE_APPEND',
-            autodetect=True,
-            skip_leading_rows=1,
-        )
-
-        num_data_samples += 1
 
     # Define task dependenciesa
+    sample_count >> bq_data >> initial_queries
