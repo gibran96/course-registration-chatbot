@@ -112,16 +112,22 @@ def get_bq_data(**context):
         return "stop_task"
     else:
         client = bigquery.Client()
+        
+        # Query for professors
         prof_query = """
-            SELECT DISTINCT professor_name
-            FROM `{Variable.get('banner_table_name')}`
-        """
+            SELECT DISTINCT faculty_name
+            FROM `{}`""".format(Variable.get('banner_table_name'))
+        
+        # Query for courses
         course_query = """
             SELECT DISTINCT course_title
-            FROM `{Variable.get('banner_table_name')}`
-        """
-        prof_list = list(set(client.query(prof_query).to_list()))
-        course_list = list(set(client.query(course_query).to_list()))
+            FROM `{}`""".format(Variable.get('banner_table_name'))
+        
+        # Execute the queries and retrieve results
+        prof_list = list(set(row["faculty_name"] for row in client.query(prof_query).result()))
+        course_list = list(set(row["course_title"] for row in client.query(course_query).result()))
+        
+        # Push results to XCom
         context['ti'].xcom_push(key='prof_list', value=prof_list)
         context['ti'].xcom_push(key='course_list', value=course_list)
         return "generate_samples"
