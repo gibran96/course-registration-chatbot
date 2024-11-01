@@ -1,20 +1,13 @@
-import sys
-import os
-
-# Add the project root to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
-
-
 import pandas as pd
 
 import pytest
 from unittest.mock import MagicMock
 
-from dags.scripts.extract_data import clean_text
-from dags.scripts.extract_data import clean_response
+from data_pipeline.dags.scripts.extract_data import clean_text
+from data_pipeline.dags.scripts.extract_data import clean_response
 
-from dags.scripts.extract_data import process_data
-from dags.scripts.extract_data import extract_data_from_pdf
+from data_pipeline.dags.scripts.extract_data import process_data
+from data_pipeline.dags.scripts.extract_data import extract_data_from_pdf
 
 class TestCleanResponse:
     """Test suite for the `clean_response` function."""

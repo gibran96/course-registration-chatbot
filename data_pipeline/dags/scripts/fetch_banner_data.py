@@ -10,7 +10,7 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from scripts.extract_data import clean_response
+from data_pipeline.dags.scripts.extract_data import clean_response
 
 def get_cookies(**context):
     base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
@@ -50,13 +50,15 @@ def get_cookies(**context):
     # Get the cookie from the response
     cookie = response.headers["Set-Cookie"]
     cookie = cookie.split(";")[0]
+    
+    logging.info(f"Response Headers: {response.headers}")
 
     # Get the JSESSIONID from the response
     jsessionid_ = response.headers["Set-Cookie"]
     jsessionid = jsessionid_.split(";")[0]
 
     # Get the nubanner-cookie from the response
-    nubanneXr_cookie = response.headers["Set-Cookie"].split(";")[3].split(", ")[1]
+    nubanneXr_cookie = response.headers["Set-Cookie"].split(";")[-1].split(", ")[1]
     
     cookie_output = {
         "cookie": cookie,
