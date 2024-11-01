@@ -24,4 +24,4 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest --cov=./  # Run tests with coverage report (optional)
+        pytest
