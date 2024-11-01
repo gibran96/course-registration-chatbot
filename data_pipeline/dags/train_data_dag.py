@@ -102,7 +102,7 @@ def get_initial_queries(**context):
             queries = [query.format(professor_name=professor_name) for query in query_subset]
 
         context['ti'].xcom_push(key='initial_queries', value=queries)
-
+        logging.info('Initial queries: ', queries)
         return "generate_samples"
 
 
@@ -214,9 +214,9 @@ def process_llm_output(**context):
     return processed_results
 
 with DAG(
-    'course_review_llm_pipeline',
+    'train_data_dag',
     default_args=default_args,
-    description='Process course reviews with LLM analysis',
+    description='Generate synthetic training data',
     schedule_interval='0 0 * * *',  # Daily at midnight
     start_date=datetime(2024, 1, 1),
     catchup=False,
