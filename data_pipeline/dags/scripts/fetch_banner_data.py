@@ -230,4 +230,5 @@ def dump_to_csv(course_data, **context):
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
-                                 course_data[course]["term"]])
+                                 course_data[course]["term"], course_data[course]["begin_time"],
+                                 course_data[course]["end_time"], course_data[course]["days"]])
