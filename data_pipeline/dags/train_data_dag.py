@@ -11,9 +11,11 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from data_pipeline.data.seed_data import query_templates, topics, seed_query_list
 import openai  # Assuming OpenAI for LLM
 import logging
 import json
+import random
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,77 +29,67 @@ default_args = {
     'execution_timeout': timedelta(hours=2),
 }
 
-def get_existing_course_data(**context):
-    """Fetch existing course data from BigQuery"""
+
+def format_query(**context):
+    for key, template in query_templates.items():
+        try:
+            query = template.format(**context):
+            print(f"{key}: {query}\n")
+        except KeyError:
+            print(f"{key}: Missing required placeholders for this query.\n")
+
+def select_random_data_from_table(prof_list, course_list):
+
+    col_names = ['topic', 'course_name', 'professor_name']
+    selected_col = random.choice(col_names)
+
+    query_subset = [query for query in seed_query_list if selected_col in query]
+
+    if selected_col == 'topic':
+        topic = random.choice(topics)
+        queries = [query.format(topic=topic) for query in query_subset]
+    elif selected_col == 'course_name':
+        course_name = random.choice(course_list)
+        queries = [query.format(course_name=course_name) for query in query_subset]
+    elif selected_col == 'professor_name':
+        professor_name = random.choice(prof_list)
+        queries = [query.format(professor_name=professor_name) for query in query_subset]
+
+    return queries
+
+
+def get_bq_data():
     client = bigquery.Client()
-    query = f"""
-        SELECT DISTINCT crn, course_name, professor, description
-        FROM `{Variable.get('course_table_name')}`
+    prof_query = """
+        SELECT DISTINCT professor_name
+        FROM `{Variable.get('banner_table_name')}`
     """
-    df = client.query(query).to_dataframe()
-    context['task_instance'].xcom_push(key='course_data', value=df.to_dict('records'))
-    return df.to_dict('records')
+    course_query = """
+        SELECT DISTINCT course_title
+        FROM `{Variable.get('banner_table_name')}`
+    """
+    prof_list = list(set(client.query(prof_query).to_list()))
+    course_list = list(set(client.query(course_query).to_list()))
 
-def extract_pdf_data(**context):
-    """Extract data from PDFs stored in GCS"""
-    bucket_name = Variable.get('default_bucket_name')
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    
-    # List all PDFs in the specified folder
-    blobs = bucket.list_blobs(prefix='course_review_dataset/')
-    
-    extracted_data = []
-    for blob in blobs:
-        if blob.name.endswith('.pdf'):
-            # Download PDF content
-            content = blob.download_as_bytes()
-            # Extract text and metadata
-            # You'll need to implement PDF extraction logic here
-            extracted_data.append({
-                'pdf_name': blob.name,
-                'content': content,
-                'metadata': blob.metadata
-            })
-    
-    context['task_instance'].xcom_push(key='extracted_pdf_data', value=extracted_data)
-    return extracted_data
+    return prof_list, course_list
 
-def perform_similarity_search(**context):
-    """
-    Perform similarity search between course-prof pairs and PDF content
-    """
-    # Get course data and PDF content from XCom
-    course_data = context['task_instance'].xcom_pull(key='course_data')
-    pdf_data = context['task_instance'].xcom_pull(key='extracted_pdf_data')
-    
-    # Prepare text data for similarity comparison
-    vectorizer = TfidfVectorizer(stop_words='english')
-    
-    results = []
-    for course in course_data:
-        # Create course query string
-        course_query = f"{course['course_name']} {course['professor']} {course['description']}"
-        
-        # Compare with each PDF
-        for pdf in pdf_data:
-            # Vectorize both texts
-            tfidf_matrix = vectorizer.fit_transform([course_query, pdf['content']])
-            
-            # Calculate similarity
-            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-            
-            if similarity > 0.3:  # Threshold for relevance
-                results.append({
-                    'crn': course['crn'],
-                    'course_name': course['course_name'],
-                    'professor': course['professor'],
-                    'pdf_name': pdf['pdf_name'],
-                    'similarity_score': similarity,
-                    'relevant_content': pdf['content'][:1000]  # First 1000 chars for context
-                })
-    
-    context['task_instance'].xcom_push(key='similarity_results', value=results)
+
+def perform_similarity_search(queries):
+
+    query = """
+                SELECT base.crn
+                FROM VECTOR_SEARCH(
+                TABLE `coursecompass.mlopsdataset.banner_data_embeddings`, 'ml_generate_embedding_result',
+                (
+                SELECT ml_generate_embedding_result, content AS query
+                FROM ML.GENERATE_EMBEDDING(
+                MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                (SELECT '{}' AS content))
+                ),
+                top_k => 10,  options => '{"use_brute_force":true}',
+                distance_type => 'COSINE') AS base
+            """
+    results = context['task_instance'].xcom_pull(key='bq_results')
     return results
 
 def generate_llm_response(**context):
