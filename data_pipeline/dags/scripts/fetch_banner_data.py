@@ -215,6 +215,9 @@ def get_days(meeting_time):
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
+    
+    # print the length of the course_data
+    logging.info(f"Length of course_data: {len(course_data)}")
 
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
 
@@ -225,7 +228,7 @@ def dump_to_csv(course_data, **context):
     with open(file_path, "w") as file:
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term"])
+                             "course_description", "term", "begin_time", "end_time", "days"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 

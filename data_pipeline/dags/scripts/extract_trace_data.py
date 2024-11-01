@@ -132,7 +132,7 @@ def process_pdf_files(**context):
     unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
     
     # Initialize DataFrames
-    reviews_df = pd.DataFrame(columns=["review_id, crn", "question", "response, term"])
+    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response", "term"])
     courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
     storage_client = storage.Client()
@@ -157,6 +157,10 @@ def process_pdf_files(**context):
                 gc.collect()
                 
                 logging.info(f"Processed {blob.name}")
+        
+        # print length of the dataframes
+        logging.info(f"Length of reviews: {reviews_df.shape[0]}")
+        logging.info(f"Length of courses: {courses_df.shape[0]}")
         
         # Save processed data
         os.makedirs(output_path, exist_ok=True)
