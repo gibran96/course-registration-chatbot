@@ -10,7 +10,7 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from scripts.extract_data import clean_response
+from data_pipeline.dags.scripts.extract_data import clean_response
 
 # Function to fetch the cookies from the Banner API
 def get_cookies(**context):

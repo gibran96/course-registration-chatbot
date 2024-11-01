@@ -28,7 +28,7 @@ def test_get_cookies_successful_response(mock_variable_get, mock_post):
     mock_response.status_code = 200
     mock_response.json.return_value = {}
     mock_response.headers = {
-        "Set-Cookie": "JSESSIONID=0BE4FE8240151D9C328E183AA883C604; Path=/; Secure, nubanner-cookie=2384404891.36895.0000"
+        "Set-Cookie": "JSESSIONID=0BE4FE8240151D9C328E183AA883C604; Path=/; Path=/; Secure, nubanner-cookie=2384404891.36895.0000"
     }
     mock_post.return_value = mock_response
 
