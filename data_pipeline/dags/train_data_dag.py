@@ -29,14 +29,23 @@ default_args = {
     'execution_timeout': timedelta(hours=2),
 }
 
+TARGET_SAMPLE_COUNT = 500
 
-def format_query(**context):
-    for key, template in query_templates.items():
-        try:
-            query = template.format(**context):
-            print(f"{key}: {query}\n")
-        except KeyError:
-            print(f"{key}: Missing required placeholders for this query.\n")
+def check_sample_count_from_bq(**context):
+    client = bigquery.Client()
+    table_id = Variable.get("llm_results_table")
+    
+    query = f"SELECT COUNT(*) AS sample_count FROM `{table_id}`"
+    result = client.query(query).result()
+    sample_count = list(result)[0]["sample_count"]
+    
+    if sample_count >= TARGET_SAMPLE_COUNT:
+        logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached in BigQuery. Ending DAG run.")
+        return "stop_task"
+    else:
+        logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+        return "generate_samples"
+
 
 def select_random_data_from_table(prof_list, course_list):
 
@@ -74,28 +83,58 @@ def get_bq_data():
     return prof_list, course_list
 
 
-def perform_similarity_search(queries):
+def perform_similarity_search(**context):
+    queries = context['dag_run'].conf.get('queries')
 
-    query = """
-                SELECT base.crn
-                FROM VECTOR_SEARCH(
-                TABLE `coursecompass.mlopsdataset.banner_data_embeddings`, 'ml_generate_embedding_result',
+    client = bigquery.Client()
+    query_response = {}
+
+    for query in queries:
+        bq_query = """
+            SELECT base.crn
+            FROM VECTOR_SEARCH(
+                TABLE `coursecompass.mlopsdataset.banner_data_embeddings`, 
+                'ml_generate_embedding_result',
                 (
-                SELECT ml_generate_embedding_result, content AS query
-                FROM ML.GENERATE_EMBEDDING(
-                MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                (SELECT '{}' AS content))
+                    SELECT ml_generate_embedding_result, content AS query
+                    FROM ML.GENERATE_EMBEDDING(
+                        MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                        (SELECT @query AS content)
+                    )
                 ),
-                top_k => 10,  options => '{"use_brute_force":true}',
-                distance_type => 'COSINE') AS base
-            """
-    results = context['task_instance'].xcom_pull(key='bq_results')
-    return results
+                top_k => 10,  
+                options => '{"use_brute_force":true}',
+                distance_type => 'COSINE'
+            ) AS base
+        """
+
+        query_params = [
+            bigquery.ScalarQueryParameter("query", "STRING", query)
+        ]
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params
+        )
+        query_job = client.query(bq_query, job_config=job_config)
+
+        results = query_job.result()
+        results = [row.crn for row in results]
+
+        query_response[query] = results
+
+        logging.info(f"Similarity search results for query '{query}': {results}")
+   
+    context['ti'].xcom_push(key='similarity_results', value=query_response)
+    return query_response
 
 def generate_llm_response(**context):
     """
     Generate LLM response based on similarity search results
     """
+
+    prompt = """
+    """
+
     similarity_results = context['task_instance'].xcom_pull(key='similarity_results')
     openai.api_key = Variable.get('openai_api_key')
     
@@ -187,52 +226,61 @@ with DAG(
     tags=['pdf', 'banner', 'llm'],
     max_active_runs=1
 ) as dag:
+    
+    num_data_samples = 0
 
-    # Get existing course data
-    get_course_data_task = PythonOperator(
-        task_id='get_course_data',
-        python_callable=get_existing_course_data,
+    bq_data = PythonOperator(
+        task_id='get_bq_data',
+        python_callable=get_bq_data,
         provide_context=True,
     )
+    while len(dataset) < 5:
 
-    # Extract PDF data
-    extract_pdf_task = PythonOperator(
-        task_id='extract_pdf_data',
-        python_callable=extract_pdf_data,
-        provide_context=True,
-    )
 
-    # Perform similarity search
-    similarity_search_task = PythonOperator(
-        task_id='perform_similarity_search',
-        python_callable=perform_similarity_search,
-        provide_context=True,
-    )
+        select_random_data = PythonOperator(
+            task_id='select_random_data',
+            python_callable=select_random_data_from_table,
+            provide_context=True,
+        )
 
-    # Generate LLM responses
-    generate_llm_response_task = PythonOperator(
-        task_id='generate_llm_response',
-        python_callable=generate_llm_response,
-        provide_context=True,
-    )
+        similarity_search_result = PythonOperator(
+            task_id='perform_similarity_search',
+            python_callable=perform_similarity_search,
+            provide_context=True,
+        )
 
-    # Process LLM output
-    process_output_task = PythonOperator(
-        task_id='process_llm_output',
-        python_callable=process_llm_output,
-        provide_context=True,
-    )
+        # Perform similarity search
+        similarity_search_task = PythonOperator(
+            task_id='perform_similarity_search',
+            python_callable=perform_similarity_search,
+            provide_context=True,
+        )
 
-    # Load results to BigQuery
-    load_to_bigquery_task = GCSToBigQueryOperator(
-        task_id='load_to_bigquery',
-        bucket=Variable.get('default_bucket_name'),
-        source_objects=['llm_analysis/results.csv'],
-        destination_project_dataset_table=Variable.get('llm_results_table'),
-        write_disposition='WRITE_APPEND',
-        autodetect=True,
-        skip_leading_rows=1,
-    )
+        # Generate LLM responses
+        generate_llm_response_task = PythonOperator(
+            task_id='generate_llm_response',
+            python_callable=generate_llm_response,
+            provide_context=True,
+        )
 
-    # Define task dependencies
-    [get_course_data_task, extract_pdf_task] >> similarity_search_task >> generate_llm_response_task >> process_output_task >> load_to_bigquery_task
+        # Process LLM output
+        process_output_task = PythonOperator(
+            task_id='process_llm_output',
+            python_callable=process_llm_output,
+            provide_context=True,
+        )
+
+        # Load results to BigQuery
+        load_to_bigquery_task = GCSToBigQueryOperator(
+            task_id='load_to_bigquery',
+            bucket=Variable.get('default_bucket_name'),
+            source_objects=['llm_analysis/results.csv'],
+            destination_project_dataset_table=Variable.get('llm_results_table'),
+            write_disposition='WRITE_APPEND',
+            autodetect=True,
+            skip_leading_rows=1,
+        )
+
+        num_data_samples += 1
+
+    # Define task dependenciesa
