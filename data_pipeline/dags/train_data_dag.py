@@ -261,6 +261,7 @@ def upload_gcs_to_bq(**context):
         autodetect=True,  # Set to True for autodetecting schema
         skip_leading_rows=1,
         dag=context['dag'],  # Pass the current DAG context
+        source_format='PARQUET', 
     )
 
     # Execute the operator
