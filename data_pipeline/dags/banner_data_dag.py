@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv
-from scripts.extract_data import process_pdf_files
+from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv, get_faculty_info, get_course_prerequisites
+from scripts.extract_trace_data import process_pdf_files
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
@@ -49,12 +49,34 @@ with DAG(
         dag=dag
     )
     
+    get_faculty_meeting_info_task = PythonOperator(
+        task_id='get_faculty_meeting_info_task',
+        python_callable=get_faculty_info,
+        op_kwargs={
+            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_list_task') }}"
+        },
+        provide_context=True,
+        dag=dag
+    )
+    
     get_course_description_task = PythonOperator(
         task_id='get_course_description_task',
         python_callable=get_course_description,
         op_kwargs={
             'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
-            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_list_task') }}"
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_faculty_meeting_info_task') }}"
+        },
+        provide_context=True,
+        dag=dag
+    )
+    
+    get_course_pre_req_task = PythonOperator(
+        task_id='get_course_pre_req_task',
+        python_callable=get_course_prerequisites,
+        op_kwargs={
+            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
         },
         provide_context=True,
         dag=dag
@@ -64,7 +86,7 @@ with DAG(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
         op_kwargs={
-            'course_data': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
+            'course_data': "{{ task_instance.xcom_pull(task_ids='get_course_pre_req_task') }}"
         },
         provide_context=True,
         dag=dag
@@ -88,7 +110,7 @@ with DAG(
         dag=dag,
     )
     
-    get_cookies_task >> get_course_list_task >> get_course_description_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
     
     
     
