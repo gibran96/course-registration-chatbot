@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
-from data_pipeline.dags.scripts.extract_data import clean_text
-from data_pipeline.dags.scripts.extract_data import clean_response
+from data_pipeline.dags.scripts.extract_trace_data import clean_text
+from data_pipeline.dags.scripts.extract_trace_data import clean_response
 
-from data_pipeline.dags.scripts.extract_data import process_data
-from data_pipeline.dags.scripts.extract_data import extract_data_from_pdf
+from data_pipeline.dags.scripts.extract_trace_data import process_data
+from data_pipeline.dags.scripts.extract_trace_data import extract_data_from_pdf
 
 class TestCleanResponse:
     """Test suite for the `clean_response` function."""
@@ -158,7 +158,8 @@ class TestProcessData:
                     "question": "Q2",
                     "responses": ["Perhaps from assignments?"]
                 }
-            ]
+            ],
+            "term": "202530"
         }
 
     @pytest.fixture
@@ -229,7 +230,8 @@ class TestProcessData:
             "instructor": "Alikhani, Malihe",
             "responses": [
                 {"question": "Q1", "responses": ["Amazing course!"]}
-            ]
+            ],
+            "term": "202530"
         }
 
         structured_data_2 = {
@@ -239,7 +241,8 @@ class TestProcessData:
             "instructor": "Dr. Johnson",
             "responses": [
                 {"question": "Q1", "responses": ["Very informative."]}
-            ]
+            ],
+            "term": "202530"
         }
 
         reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
