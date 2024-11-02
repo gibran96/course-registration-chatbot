@@ -221,7 +221,7 @@ def generate_llm_response(**context):
                 Given the following user question and the contextual information from the database, provide a thorough and relevant answer:
 
                 User Question:
-                {user_query}
+                {query}
 
                 Context:
                 {content}
