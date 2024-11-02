@@ -234,7 +234,7 @@ def perform_similarity_search(**context):
                     """
 
             query_params = [
-                bigquery.ScalarQueryParameter("query", "STRING", new_query),
+                bigquery.ScalarQueryParameter("new_query", "STRING", new_query),
             ]
 
             job_config = bigquery.QueryJobConfig(
