@@ -122,16 +122,16 @@ with DAG(
         dag=dag
     )
     
-    load_banner_data_to_bq_task = GCSToBigQueryOperator(
-        task_id='load_banner_data_to_bq_task',
-        bucket=Variable.get('default_bucket_name'),
-        source_objects=['banner_data/banner_course_data.csv'],
-        destination_project_dataset_table=Variable.get('banner_table_name'),
-        write_disposition='WRITE_TRUNCATE',
-        skip_leading_rows=1,
-        autodetect=None,
-        dag=dag,
-    )
+    # load_banner_data_to_bq_task = GCSToBigQueryOperator(
+    #     task_id='load_banner_data_to_bq_task',
+    #     bucket=Variable.get('default_bucket_name'),
+    #     source_objects=['banner_data/banner_course_data.csv'],
+    #     destination_project_dataset_table=Variable.get('banner_table_name'),
+    #     write_disposition='WRITE_TRUNCATE',
+    #     skip_leading_rows=1,
+    #     autodetect=None,
+    #     dag=dag,
+    # )
     
     # get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
     get_cookies_task >> get_course_list_task >> get_faculty_info_parallel >> get_course_description_parallel >> get_prerequisites_parallel >> dump_to_csv_task >> upload_to_gcs_task

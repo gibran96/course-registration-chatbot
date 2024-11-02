@@ -1,9 +1,9 @@
-# New utility functions for batch processing
-import ast
 import json
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
 
 from scripts.fetch_banner_data import get_course_description, get_course_prerequisites, get_faculty_info
-
 
 def split_course_list(course_list, batch_size=10):
     """Split course list into smaller batches"""
@@ -16,63 +16,141 @@ def merge_course_data(batch_results):
     """Merge results from parallel processing back into a single dictionary"""
     merged_data = {}
     for batch in batch_results:
-        if batch:  # Check if batch is not None
-            merged_data.update(ast.literal_eval(batch))
+        if batch:
+            if isinstance(batch, str):
+                try:
+                    batch_dict = json.loads(batch)
+                except json.JSONDecodeError:
+                    logging.error(f"Failed to decode batch: {batch}")
+                    continue
+            else:
+                batch_dict = batch
+            merged_data.update(batch_dict)
     return merged_data
 
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses"""
-    return get_faculty_info(cookie_output, json.dumps(course_batch))
+    try:
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
+    except Exception as e:
+        logging.error(f"Error processing faculty info batch: {e}")
+        return None
 
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
-    return get_course_description(cookie_output, json.dumps(course_batch))
+    try:
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
+    except Exception as e:
+        logging.error(f"Error processing course description batch: {e}")
+        return None
 
 def process_prerequisites_batch(cookie_output, course_batch):
     """Process prerequisites for a batch of courses"""
-    return get_course_prerequisites(cookie_output, json.dumps(course_batch))
+    try:
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
+    except Exception as e:
+        logging.error(f"Error processing prerequisites batch: {e}")
+        return None
 
-# Modified main processing functions
+def parallel_process_with_threads(process_func, cookie_output, course_list, max_workers=5):
+    """
+    Generic function to process batches using ThreadPoolExecutor
+    """
+    try:
+        # Ensure course_list is a dictionary
+        if isinstance(course_list, str):
+            course_list = json.loads(course_list)
+            
+        batches = list(split_course_list(course_list))
+        results = []
+        
+        process_batch = partial(process_func, cookie_output)
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_batch = {
+                executor.submit(process_batch, batch): batch 
+                for batch in batches
+            }
+            
+            for future in as_completed(future_to_batch):
+                try:
+                    result = future.result()
+                    if result:
+                        results.append(result)
+                except Exception as e:
+                    logging.error(f"Batch processing failed: {e}")
+        
+        return merge_course_data(results)
+    except Exception as e:
+        logging.error(f"Error in parallel processing: {e}")
+        raise
+
 def parallel_faculty_info(**context):
-    cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-    course_list = ast.literal_eval(context['task_instance'].xcom_pull(task_ids='get_course_list_task'))
-    
-    batches = list(split_course_list(course_list))
-    batch_results = []
-    
-    # Process each batch and collect results
-    for batch in batches:
-        result = process_faculty_info_batch(cookie_output, batch)
-        if result:
-            batch_results.append(result)
-    
-    # Merge results
-    return json.dumps(merge_course_data(batch_results))
+    try:
+        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
+        course_list = context['task_instance'].xcom_pull(task_ids='get_course_list_task')
+        
+        # Ensure proper JSON formatting
+        if isinstance(course_list, str):
+            course_list = json.loads(course_list)
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        
+        results = parallel_process_with_threads(
+            process_faculty_info_batch,
+            json.dumps(cookie_output),
+            course_list
+        )
+        
+        return json.dumps(results)
+    except Exception as e:
+        logging.error(f"Error in parallel_faculty_info: {e}")
+        raise
 
 def parallel_course_description(**context):
-    cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-    course_list = ast.literal_eval(context['task_instance'].xcom_pull(task_ids='get_faculty_info_parallel'))
-    
-    batches = list(split_course_list(course_list))
-    batch_results = []
-    
-    for batch in batches:
-        result = process_description_batch(cookie_output, batch)
-        if result:
-            batch_results.append(result)
-    
-    return json.dumps(merge_course_data(batch_results))
+    try:
+        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
+        course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_parallel')
+        
+        if isinstance(course_list, str):
+            course_list = json.loads(course_list)
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        
+        results = parallel_process_with_threads(
+            process_description_batch,
+            json.dumps(cookie_output),
+            course_list
+        )
+        
+        return json.dumps(results)
+    except Exception as e:
+        logging.error(f"Error in parallel_course_description: {e}")
+        raise
 
 def parallel_prerequisites(**context):
-    cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-    course_list = ast.literal_eval(context['task_instance'].xcom_pull(task_ids='get_course_description_parallel'))
-    
-    batches = list(split_course_list(course_list))
-    batch_results = []
-    
-    for batch in batches:
-        result = process_prerequisites_batch(cookie_output, batch)
-        if result:
-            batch_results.append(result)
-    
-    return json.dumps(merge_course_data(batch_results))
+    try:
+        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
+        course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_parallel')
+        
+        if isinstance(course_list, str):
+            course_list = json.loads(course_list)
+        if isinstance(cookie_output, str):
+            cookie_output = json.loads(cookie_output)
+        
+        results = parallel_process_with_threads(
+            process_prerequisites_batch,
+            json.dumps(cookie_output),
+            course_list
+        )
+        
+        return json.dumps(results)
+    except Exception as e:
+        logging.error(f"Error in parallel_prerequisites: {e}")
+        raise
