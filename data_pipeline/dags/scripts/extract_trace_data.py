@@ -341,7 +341,7 @@ def preprocess_data(**context):
         artifact_id = record_preprocessing_metadata(store, execution_id, metadata_values)
         
         # Update execution end time
-        execution = store.get_execution_by_id(execution_id)
+        execution = store.get_executions_by_id([execution_id])[0]
         execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
         store.put_executions([execution])
         
@@ -362,7 +362,7 @@ def preprocess_data(**context):
         record_preprocessing_metadata(store, execution_id, metadata_values)
         
         # Update execution end time
-        execution = store.get_execution_by_id(execution_id)
+        execution = store.get_executions_by_id([execution_id])
         execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
         store.put_executions([execution])
         
@@ -373,12 +373,12 @@ def get_preprocessing_metadata(store, execution_id):
     """
     Utility function to retrieve preprocessing metadata for a given execution.
     """
-    execution = store.get_execution_by_id(execution_id)
+    execution = store.get_executions_by_id([execution_id])[0]
     events = store.get_events_by_execution_ids([execution_id])
     
     if events:
         artifact_id = events[0].artifact_id
-        artifact = store.get_artifact_by_id(artifact_id)
+        artifact = store.get_artifacts_by_id([artifact_id])[0]
         
         metadata = {
             "raw_reviews_count": artifact.properties["raw_reviews_count"].int_value,
@@ -450,11 +450,9 @@ def check_for_gender_bias(df, column_name):
         for index, row in df.iterrows():
             if pron in row[column_name]:
                 flag = True
-                sensitive_data_found = sensitive_data_found.append(row)
+                sensitive_data_found.loc[-1] = [row["crn"], row["question"], row[column_name]]
 
-                # Replace the pronoun with the professor
                 df.at[index, column_name] = row[column_name].replace(pron, "the professor")
-    
     return flag, sensitive_data_found
 
 
