@@ -77,10 +77,6 @@ def get_cookies(**context):
 
     return cookie_output
 
-# TODO - Implement this function
-def get_next_term(cookie_output):
-    pass
-
 # Function to fetch the list of courses from the Banner API
 def get_courses_list(cookie_output):
     cookie_output = ast.literal_eval(cookie_output)
@@ -182,7 +178,7 @@ def get_faculty_info(cookie_output, course_list):
             course_list[course]["days"] = ""
             logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
     
-    return course_list
+    return json.dumps(course_list)
 
 # Function to fetch the course description from the Banner API
 def get_course_description(cookie_output, course_list):
@@ -208,7 +204,6 @@ def get_course_description(cookie_output, course_list):
     for course in course_list:
         course_ref_num = course_list[course]["crn"]
         params["courseReferenceNumber"] = course_ref_num       
-        
         try:  
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
@@ -294,27 +289,9 @@ def get_course_prerequisites(cookie_output, course_list):
     
     return course_list
 
-# Function to get the semester name from the term
-def get_semester_name(term):
-    semester = term[-2:]
-    return semester_map[semester] + " " + term[:4]
-
-# Function to get the days of the course lecture
-def get_days(meeting_time):
-    if isinstance(meeting_time, tuple):
-        meeting_time = meeting_time[0]
-    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
-            if meeting_time.get(day, False)]
-    return ";".join(days)
-    
-
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
-    
-    for course in course_data:
-        if course_data[course]["crn"] == "37072":
-            logging.info(f"Course: {course_data[course]}")
     
     # print the length of the course_data
     logging.info(f"Length of course_data: {len(course_data)}")
@@ -335,3 +312,21 @@ def dump_to_csv(course_data, **context):
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
                                  course_data[course]["term"], course_data[course]["begin_time"],
                                  course_data[course]["end_time"], course_data[course]["days"], course_data[course]["prereq"]])    
+                
+
+# Function to get the semester name from the term
+def get_semester_name(term):
+    semester = term[-2:]
+    return semester_map[semester] + " " + term[:4]
+
+# Function to get the days of the course lecture
+def get_days(meeting_time):
+    if isinstance(meeting_time, tuple):
+        meeting_time = meeting_time[0]
+    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
+            if meeting_time.get(day, False)]
+    return ";".join(days)
+
+# TODO - Implement this function
+def get_next_term(cookie_output):
+    pass
