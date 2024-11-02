@@ -15,7 +15,7 @@ def upload_train_data_to_gcs():
     output_path = '/tmp/'
 
     gcs_hook = GCSHook()
-    filename = 'llm_train_data.csv'
+    filename = 'llm_train_data.pq'
     local_path = f"{output_path}/{filename}"
     gcs_path = f"processed_trace_data/{filename}"
 
