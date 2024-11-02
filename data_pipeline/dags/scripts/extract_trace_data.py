@@ -1,9 +1,6 @@
 import pandas as pd
-import pymupdf
-import json
 import os
 import logging
-from google.cloud import bigquery
 from google.cloud import storage
 from airflow.models import Variable
 import fitz
@@ -42,44 +39,13 @@ def clean_text(text):
     text = clean_response(text)
     return text
 
-def process_data(structured_data, reviews_df, courses_df):
-    crn = structured_data["crn"]
-    course_code = structured_data["course_code"]
-    course_title = structured_data["course_title"]
-    instructor = structured_data["instructor"]
-    
-    if crn not in courses_df["crn"].values:
-        new_course_row = {
-            "crn": crn,
-            "course_code": course_code,
-            "course_title": course_title,
-            "instructor": instructor
-        }
-        courses_df = courses_df._append(new_course_row, ignore_index=True)
-    
-    for response_data in structured_data["responses"]:
-        question = response_data.get("question", "")
-        responses = response_data.get("responses", [])
-        
-        for response in responses:
-            if response:
-                new_review_row = {
-                    "review_id": uuid.uuid4().hex,
-                    "crn": crn,
-                    "question": question,
-                    "response": response
-                }
-                reviews_df = reviews_df._append(new_review_row, ignore_index=True)
-                
-    return reviews_df, courses_df
-
-
 def extract_data_from_pdf(pdf_file):
     structured_data = {
         "crn": "",
         "course_title": "",
         "course_code": "",
         "instructor": "",
+        "term": "",
         "responses": []
     }
 
@@ -91,11 +57,13 @@ def extract_data_from_pdf(pdf_file):
             course_id = page_text.split("Course ID: ")[1].split("\n")[0]
             instructor = page_text.split("Instructor: ")[1].split("\n")[0]
             course_title = page_text.split("\n")[0].split("(")[0].strip()
+            term = page_text.split("\n")[0].split("(")[1][:-1].strip()
             course_code = page_text.split("Catalog & Section: ")[1].split(" ")[0]
             structured_data["crn"] = course_id
             structured_data["instructor"] = instructor
             structured_data["course_title"] = course_title
             structured_data["course_code"] = course_code 
+            structured_data["term"] = term
 
         # Extract questions and responses
         if "Q:" in page_text:
@@ -129,13 +97,47 @@ def extract_data_from_pdf(pdf_file):
 
     return structured_data
 
+def process_data(structured_data, reviews_df, courses_df):
+    crn = structured_data["crn"]
+    course_code = structured_data["course_code"]
+    course_title = structured_data["course_title"]
+    instructor = structured_data["instructor"]
+    term = structured_data["term"]
+    
+    if crn not in courses_df["crn"].values:
+        new_course_row = {
+            "crn": crn,
+            "course_code": course_code,
+            "course_title": course_title,
+            "instructor": instructor,
+            "term": term
+        }
+        courses_df = courses_df._append(new_course_row, ignore_index=True)
+    
+    for response_data in structured_data["responses"]:
+        question = response_data.get("question", "")
+        responses = response_data.get("responses", [])
+        
+        for response in responses:
+            if response:
+                new_review_row = {
+                    "review_id": uuid.uuid4().hex,
+                    "crn": crn,
+                    "question": question,
+                    "response": response,
+                    "term": term
+                }
+                reviews_df = reviews_df._append(new_review_row, ignore_index=True)
+                
+    return reviews_df, courses_df
+
 def process_pdf_files(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
     
     # Initialize DataFrames
-    reviews_df = pd.DataFrame(columns=["crn", "question", "response"])
+    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response", "term"])
     courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
     storage_client = storage.Client()
@@ -143,7 +145,7 @@ def process_pdf_files(**context):
     blobs = bucket.list_blobs(prefix='course_review_dataset/')
     
     try:
-        logging.info("Processing PDFs...", blobs)
+        logging.info("Processing PDFs...")
         for blob in blobs:
             if blob.name.endswith('.pdf') and blob.name.split('/')[-1].replace('.pdf', '') in unique_blobs:
                 logging.info(f"Processing {blob.name}")
@@ -160,6 +162,10 @@ def process_pdf_files(**context):
                 gc.collect()
                 
                 logging.info(f"Processed {blob.name}")
+        
+        # print length of the dataframes
+        logging.info(f"Length of reviews: {reviews_df.shape[0]}")
+        logging.info(f"Length of courses: {courses_df.shape[0]}")
         
         # Save processed data
         os.makedirs(output_path, exist_ok=True)

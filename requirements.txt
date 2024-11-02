@@ -3,3 +3,5 @@ apache-airflow
 google-cloud-storage
 google-cloud-bigquery
 pytest
+beautifulsoup4
+pandas
