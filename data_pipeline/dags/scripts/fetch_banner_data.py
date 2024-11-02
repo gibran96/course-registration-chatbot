@@ -108,7 +108,7 @@ def get_courses_list(cookie_output):
         "startDatepicker": "",
         "endDatepicker": "",
         "pageOffset": 0,
-        "pageMaxSize": 1100,
+        "pageMaxSize": 501, # this is the maximum number of courses that can be fetched in one request
         "sortColumn": "subjectDescription",
         "sortDirection": "asc"
     }
@@ -132,18 +132,16 @@ def get_courses_list(cookie_output):
     course_data = {}
 
     for course in response_json["data"]:
-        if len(course["faculty"]) == 0:
-            continue # Skip courses with no faculty
         course_data[course["courseReferenceNumber"]] = {
             "crn": course["courseReferenceNumber"],
             "campus_description": course["campusDescription"],
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
             "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
-            # "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
-            # "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
-            # "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
-            "term": term_desc
+            "term": term_desc,
+            "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
+            "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
+            "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
         }
 
     return course_data
@@ -172,7 +170,7 @@ def get_course_description(cookie_output, course_list):
     for course in course_list:
         course_ref_num = course_list[course]["crn"]
         params["courseReferenceNumber"] = course_ref_num       
-        logging.info(f"Fetching description for course: {course_ref_num}")
+        
         try:  
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
@@ -228,9 +226,10 @@ def dump_to_csv(course_data, **context):
     with open(file_path, "w") as file:
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term"])
+                             "course_description", "term", "begin_time", "end_time", "days"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
-                                 course_data[course]["term"]])
+                                 course_data[course]["term"], course_data[course]["begin_time"],
+                                 course_data[course]["end_time"], course_data[course]["days"]])    
