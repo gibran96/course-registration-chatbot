@@ -178,7 +178,7 @@ def get_faculty_info(cookie_output, course_list):
             course_list[course]["days"] = ""
             logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
     
-    return course_list
+    return json.dumps(course_list)
 
 # Function to fetch the course description from the Banner API
 def get_course_description(cookie_output, course_list):
