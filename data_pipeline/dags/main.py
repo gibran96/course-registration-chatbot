@@ -29,8 +29,9 @@ def get_crn_list(**context):
     distinct_values = context['ti'].xcom_pull(task_ids='select_distinct_crn')
     distinct_values_list = [row[0] for row in distinct_values]
     logging.info("Distinct values:", distinct_values_list)
+    distinct_values_list = set(distinct_values_list)
     context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
-    return list(set(distinct_values_list))
+    return list((distinct_values_list))
 
 
 def get_unique_blobs(**context):

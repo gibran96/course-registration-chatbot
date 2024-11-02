@@ -8,9 +8,9 @@ import gc
 import re
 import string
 import uuid
-from google.cloud import aiplatform
+from google.cloud.aiplatform import metadata_store
+from datetime import datetime
 
-aiplatform.init(project="coursecompass", location="us-east1")
 
 
 # Question mapping
@@ -185,95 +185,187 @@ def process_pdf_files(**context):
         logging.error(f"Error processing PDFs: {str(e)}")
         raise
 
+def track_preprocessing_metadata(**context):
+    """
+    Track preprocessing metadata using Vertex AI Metadata Store.
+    Returns the metadata store and execution object.
+    """
+    # Initialize metadata store
+    store = metadata_store.MetadataStore()
+    
+    # Create dataset metadata
+    dataset_metadata = {
+        'timestamp': datetime.utcnow().isoformat(),
+        'dag_run_id': context['dag_run'].run_id,
+        'output_path': context['dag_run'].conf.get('output_path', '/tmp/processed_data')
+    }
+    
+    # Register dataset type if it doesn't exist
+    try:
+        dataset_type = store.get_artifact_type("CourseReviewDataset")
+    except Exception:
+        dataset_type = store.create_artifact_type(
+            display_name="CourseReviewDataset",
+            property_types={
+                "raw_reviews_count": "INT",
+                "raw_courses_count": "INT",
+                "processed_reviews_count": "INT",
+                "processed_courses_count": "INT",
+                "null_responses_removed": "INT",
+                "sensitive_data_flags": "INT"
+            }
+        )
+    
+    # Register preprocessing type if it doesn't exist
+    try:
+        preprocessing_type = store.get_execution_type("DataPreprocessing")
+    except Exception:
+        preprocessing_type = store.create_execution_type(
+            display_name="DataPreprocessing",
+            property_types={
+                "timestamp": "STRING",
+                "dag_run_id": "STRING",
+                "output_path": "STRING"
+            }
+        )
+    
+    # Create execution
+    preprocessing_execution = store.create_execution(
+        schema_title="DataPreprocessing",
+        display_name=f"preprocessing_run_{context['dag_run'].run_id}",
+        properties=dataset_metadata
+    )
+    
+    return store, preprocessing_execution
+
+def update_preprocessing_metadata(store, execution, metadata_values):
+    """Update preprocessing metadata with final values."""
+    # Create artifact for processed dataset
+    dataset_artifact = store.create_artifact(
+        schema_title="CourseReviewDataset",
+        display_name=f"processed_dataset_{datetime.utcnow().isoformat()}",
+        properties=metadata_values
+    )
+    
+    # Link execution to artifact
+    store.create_event(
+        execution=execution,
+        artifact=dataset_artifact,
+        event_type=metadata_store.Event.Type.OUTPUT
+    )
+
 def preprocess_data(**context):
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
-
-
-    # Load data
-    reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
-    courses_df = pd.read_csv(f"{output_path}/courses.csv")
-
-    # Initialize Metadata Store and Context in Vertex AI
-    metadata_store = aiplatform.MetadataStore.get_or_create(
-        display_name="preprocessing_metadata_store"
-    )
+    # Initialize metadata tracking
+    store, preprocessing_execution = track_preprocessing_metadata(**context)
     
-    preprocess_context = aiplatform.Context.create(
-        display_name="preprocess_context",
-        metadata_store=metadata_store
-    )
-
-    # Log input artifacts
-    reviews_artifact = aiplatform.Artifact.create(
-        display_name="raw_reviews_csv",
-        uri=f"gs://{output_path}/reviews.csv",
-        schema_title="google.Artifact",
-        metadata_store=metadata_store
-    )
-    
-    courses_artifact = aiplatform.Artifact.create(
-        display_name="raw_courses_csv",
-        uri=f"gs://{output_path}/courses.csv",
-        schema_title="google.Artifact",
-        metadata_store=metadata_store
-    )
-    
-    # Start execution for preprocessing
-    preprocess_execution = aiplatform.Execution.create(
-        display_name="preprocess_execution",
-        schema_title="system.Pipeline",
-        metadata_store=metadata_store
-    )
-    
-    preprocess_execution.assign_input_artifacts([reviews_artifact, courses_artifact])
-    preprocess_execution.assign_contexts([preprocess_context])
-    
-    # Preprocess data
-    reviews_df["response"] = reviews_df["response"].apply(clean_text)
-    courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
-
-    # Remove rows with null responses
-    reviews_df = reviews_df[reviews_df["response"].notnull()]
-
-    # Check for sensitive data
-    flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
-
-    # if flag is True, send a notification with the sensitive data found
-    if flag:
-        logging.warning("Sensitive data found in responses")
-        logging.warning(sensitive_data_found)
-
-    # Save preprocessed data
-    reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
-    courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
-
-    # Save preprocessed data
-    reviews_df.to_csv(reviews_preprocessed_path, index=False)
-    courses_df.to_csv(courses_preprocessed_path, index=False)
-
-    # Log output artifacts
-    processed_reviews_artifact = aiplatform.Artifact.create(
-        display_name="processed_reviews_csv",
-        uri=f"gs://{reviews_preprocessed_path}",
-        schema_title="google.Artifact",
-        metadata_store=metadata_store
-    )
-    
-    processed_courses_artifact = aiplatform.Artifact.create(
-        display_name="processed_courses_csv",
-        uri=f"gs://{courses_preprocessed_path}",
-        schema_title="google.Artifact",
-        metadata_store=metadata_store
-    )
-    
-    preprocess_execution.assign_output_artifacts([processed_reviews_artifact, processed_courses_artifact])
-    preprocess_execution.update(state="COMPLETE")
-    
-    return {
-        'reviews_count': len(reviews_df),
-        'courses_count': len(courses_df)
+    # Initialize metadata values
+    metadata_values = {
+        "raw_reviews_count": 0,
+        "raw_courses_count": 0,
+        "processed_reviews_count": 0,
+        "processed_courses_count": 0,
+        "null_responses_removed": 0,
+        "sensitive_data_flags": 0
     }
+
+    try:
+        # Load data
+        reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
+        courses_df = pd.read_csv(f"{output_path}/courses.csv")
+        
+        # Record initial counts
+        metadata_values["raw_reviews_count"] = len(reviews_df)
+        metadata_values["raw_courses_count"] = len(courses_df)
+
+        # Preprocess data
+        reviews_df["response"] = reviews_df["response"].apply(clean_text)
+        courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
+
+        # Track null responses removed
+        null_count = reviews_df["response"].isnull().sum()
+        reviews_df = reviews_df[reviews_df["response"].notnull()]
+        metadata_values["null_responses_removed"] = null_count
+
+        # Check for sensitive data
+        flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
+        metadata_values["sensitive_data_flags"] = len(sensitive_data_found) if flag else 0
+
+        if flag:
+            logging.warning("Sensitive data found in responses")
+            logging.warning(sensitive_data_found)
+
+        # Record final counts
+        metadata_values["processed_reviews_count"] = len(reviews_df)
+        metadata_values["processed_courses_count"] = len(courses_df)
+
+        # Save preprocessed data
+        reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
+        courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
+        reviews_df.to_csv(reviews_preprocessed_path, index=False)
+        courses_df.to_csv(courses_preprocessed_path, index=False)
+
+        # Update metadata store with final values
+        update_preprocessing_metadata(store, preprocessing_execution, metadata_values)
+        
+        # Log metadata summary
+        logging.info(f"Preprocessing metadata: {metadata_values}")
+        
+        return {
+            'reviews_count': len(reviews_df),
+            'courses_count': len(courses_df),
+            'metadata': metadata_values
+        }
+        
+    except Exception as e:
+        # Mark execution as failed
+        preprocessing_execution.set_state(metadata_store.Execution.State.FAILED)
+        logging.error(f"Error in preprocessing: {str(e)}")
+        raise
+    finally:
+        # Complete execution
+        preprocessing_execution.set_state(metadata_store.Execution.State.COMPLETE)
+
+# def preprocess_data(**context):
+#     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
+    
+
+
+#     # Load data
+#     reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
+#     courses_df = pd.read_csv(f"{output_path}/courses.csv")
+
+    
+#     # # Preprocess data
+#     reviews_df["response"] = reviews_df["response"].apply(clean_text)
+#     courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
+
+#     # Remove rows with null responses
+#     reviews_df = reviews_df[reviews_df["response"].notnull()]
+
+#     # Check for sensitive data
+#     flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
+
+#     # if flag is True, send a notification with the sensitive data found
+#     if flag:
+#         logging.warning("Sensitive data found in responses")
+#         logging.warning(sensitive_data_found)
+
+#     # Save preprocessed data
+#     reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
+#     courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
+
+#     # Save preprocessed data
+#     reviews_df.to_csv(reviews_preprocessed_path, index=False)
+#     courses_df.to_csv(courses_preprocessed_path, index=False)
+
+    
+    
+#     return {
+#         'reviews_count': len(reviews_df),
+#         'courses_count': len(courses_df)
+#     }
 
 def check_for_gender_bias(df, column_name):
     # Check for gender bias in the df for the given column
