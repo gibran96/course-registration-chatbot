@@ -221,14 +221,14 @@ def generate_llm_response(**context):
     Summary:
     """
 
-    train_data_df = pd.DataFrame(columns=['query', 'context', 'response'])
+    train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
     for query, response in query_responses.items():
         crns = response['crns'] 
         content = response['final_content']
         for crn, content in zip(crns, content):
             input_prompt = prompt.format(query=query, content=content)
             llm_res = get_llm_response(input_prompt)
-            train_data_df = train_data_df.append({'query': query, 'context': content, 'response': llm_res}, ignore_index=True)
+            train_data_df = train_data_df.append({'question': query, 'context': content, 'response': llm_res}, ignore_index=True)
 
     logging.info(f'Generated {len(train_data_df)} samples')
     train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
