@@ -5,6 +5,7 @@ from functools import partial
 
 from scripts.fetch_banner_data import get_course_description, get_course_prerequisites, get_faculty_info
 
+# Helper functions for parallel processing
 def split_course_list(course_list, batch_size=10):
     """Split course list into smaller batches"""
     course_items = list(course_list.items())
@@ -12,6 +13,7 @@ def split_course_list(course_list, batch_size=10):
         batch = dict(course_items[i:i + batch_size])
         yield batch
 
+# Merge results from parallel processing
 def merge_course_data(batch_results):
     """Merge results from parallel processing back into a single dictionary"""
     merged_data = {}
@@ -28,6 +30,7 @@ def merge_course_data(batch_results):
             merged_data.update(batch_dict)
     return merged_data
 
+# Process faculty info in parallel
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses"""
     try:
@@ -38,6 +41,7 @@ def process_faculty_info_batch(cookie_output, course_batch):
         logging.error(f"Error processing faculty info batch: {e}")
         return None
 
+# Process course descriptions in parallel
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
     try:
@@ -48,6 +52,7 @@ def process_description_batch(cookie_output, course_batch):
         logging.error(f"Error processing course description batch: {e}")
         return None
 
+# Process prerequisites in parallel
 def process_prerequisites_batch(cookie_output, course_batch):
     """Process prerequisites for a batch of courses"""
     try:
@@ -58,6 +63,7 @@ def process_prerequisites_batch(cookie_output, course_batch):
         logging.error(f"Error processing prerequisites batch: {e}")
         return None
 
+# Generic function for parallel processing
 def parallel_process_with_threads(process_func, cookie_output, course_list, max_workers=5):
     """
     Generic function to process batches using ThreadPoolExecutor
@@ -91,6 +97,7 @@ def parallel_process_with_threads(process_func, cookie_output, course_list, max_
         logging.error(f"Error in parallel processing: {e}")
         raise
 
+# DAG tasks for faculty info
 def parallel_faculty_info(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
@@ -113,6 +120,7 @@ def parallel_faculty_info(**context):
         logging.error(f"Error in parallel_faculty_info: {e}")
         raise
 
+# DAG tasks for course description
 def parallel_course_description(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
@@ -133,7 +141,7 @@ def parallel_course_description(**context):
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
         raise
-
+# DAG tasks for prerequisites
 def parallel_prerequisites(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
