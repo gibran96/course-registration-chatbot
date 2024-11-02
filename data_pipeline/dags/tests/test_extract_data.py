@@ -1,13 +1,19 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pandas as pd
 
 import pytest
 from unittest.mock import MagicMock
 
-from data_pipeline.dags.scripts.extract_trace_data import clean_text
-from data_pipeline.dags.scripts.extract_trace_data import clean_response
+from scripts.extract_trace_data import clean_text
+from scripts.extract_trace_data import clean_response
 
-from data_pipeline.dags.scripts.extract_trace_data import process_data
-from data_pipeline.dags.scripts.extract_trace_data import extract_data_from_pdf
+from scripts.extract_trace_data import process_data
+from scripts.extract_trace_data import extract_data_from_pdf
+
 
 class TestCleanResponse:
     """Test suite for the `clean_response` function."""
