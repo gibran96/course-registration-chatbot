@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv, get_faculty_info
+from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv, get_faculty_info, get_course_prerequisites
 from scripts.extract_trace_data import process_pdf_files
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
@@ -71,6 +71,17 @@ with DAG(
         dag=dag
     )
     
+    get_course_pre_req_task = PythonOperator(
+        task_id='get_course_pre_req_task',
+        python_callable=get_course_prerequisites,
+        op_kwargs={
+            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_faculty_meeting_info_task') }}"
+        },
+        provide_context=True,
+        dag=dag
+    )
+    
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
@@ -99,7 +110,7 @@ with DAG(
         dag=dag,
     )
     
-    get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
     
     
     
