@@ -77,7 +77,7 @@ def generate_sample_queries(query):
     """
     input_prompt = prompt.format(query=query)
     res = get_llm_response(input_prompt)
-    queries = llm_response_parser(res)
+    queries = llm_response_parser(res)['queries']
     logging.info(f'generated queries are: {queries}')
     return queries
 
