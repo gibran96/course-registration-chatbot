@@ -235,7 +235,7 @@ def generate_llm_response(**context):
     prompt = """          
             Given the user question and the relevant information from the database, craft a concise and informative response:
             User Question:
-            {user_query}
+            {query}
             Context:
             {content}
             The response should:
