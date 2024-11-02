@@ -13,6 +13,8 @@ from scripts.seed_data import topics, seed_query_list
 import logging
 import random
 import vertexai
+import re
+import ast
 
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -52,6 +54,33 @@ def get_llm_response(input_prompt):
         ).text
     return res
 
+def llm_response_parser(llm_response):
+    matches = re.findall(r'```json(.*)```', llm_response, re.DOTALL)
+    if matches:
+        return ast.literal_eval(matches[0])
+    else:
+        return None
+
+
+def generate_sample_queries(query):
+
+    prompt = """Understand the following query provided by the user and generate 10 queries similar to the user's query that can be asked in different ways.
+
+    give the output in the following json format enclosed by ```json```
+    Sample Output :
+    ```json{{"queries": ["query_1", "query_2", ...],}}```
+
+    User Query :
+    {query}
+
+    Generated Queries :
+    """
+    input_prompt = prompt.format(query=query)
+    res = get_llm_response(input_prompt)
+    queries = llm_response_parser(res)
+    return queries
+
+
 def check_sample_count_from_bq(**context):
     client = bigquery.Client()
     table_id = Variable.get("train_data_table_name")
@@ -81,25 +110,28 @@ def get_initial_queries(**context):
         course_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='course_list')
         prof_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='prof_list')
 
-        col_names = ['topic']
+        col_names = ['topic', 'course_name', 'professor_name']
         selected_col = random.choice(col_names)
 
         query_subset = [query for query in seed_query_list if selected_col in query]
 
-        if selected_col == 'topic':
-            topic = random.choice(topics)
-            topic = 'Software Engineering'
-            queries = [query.format(topic=topic) for query in query_subset]
-        elif selected_col == 'course_name':
-            course_name = random.choice(course_list)
-            queries = [query.format(course_name=course_name) for query in query_subset]
-        elif selected_col == 'professor_name':
-            professor_name = random.choice(prof_list)
-            queries = [query.format(professor_name=professor_name) for query in query_subset]
+        all_queries = []
+        for selected_col in col_names:
+            if selected_col == 'topic':
+                topic = random.choice(topics)
+                queries = [query.format(topic=topic) for query in query_subset]
+            elif selected_col == 'course_name':
+                course_name = random.choice(course_list)
+                queries = [query.format(course_name=course_name) for query in query_subset]
+            elif selected_col == 'professor_name':
+                professor_name = random.choice(prof_list)
+                queries = [query.format(professor_name=professor_name) for query in query_subset]
 
-        context['ti'].xcom_push(key='initial_queries', value=queries)
-        logging.info(f'Initial queries: {len(queries)}' )
-        logging.info(queries)
+            all_queries.extend(queries)
+
+        context['ti'].xcom_push(key='initial_queries', value=all_queries)
+        logging.info(f'Initial queries: {len(all_queries)}' )
+        logging.info(f'Initial queries: {all_queries}' )
         return "generate_samples"
 
 
@@ -141,87 +173,89 @@ def perform_similarity_search(**context):
     query_response = {}
 
     for query in queries:
-        bq_query = """
-                        WITH query_embedding AS (
-                            SELECT ml_generate_embedding_result 
-                            FROM ML.GENERATE_EMBEDDING(
-                                MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                                (SELECT @query AS content)
-                            )
-                        ),
-                        vector_search_results AS (
-                            SELECT 
-                                base.*,
-                                distance as search_distance
-                            FROM VECTOR_SEARCH(
-                                (
-                                    SELECT *
-                                    FROM `coursecompass.mlopsdataset.banner_data_embeddings`
-                                    WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
-                                ),
-                                'ml_generate_embedding_result',
-                                TABLE query_embedding,
-                                distance_type => 'COSINE',
-                                top_k => 10,
-                                options => '{"use_brute_force": true}'
-                            )
-                        ),
-                        course_matches AS (
-                            SELECT 
-                                v.*,
-                                c.crn AS course_crn
-                            FROM vector_search_results v
-                            JOIN `coursecompass.mlopsdataset.course_data_table` c
-                                ON v.faculty_name = c.instructor
-                        ),
-                        review_data AS (
-                            SELECT * EXCEPT(review_id)
-                            FROM `coursecompass.mlopsdataset.review_data_table`
+        new_queries = generate_sample_queries(query)
+        for new_query in new_queries:
+            bq_query = """
+                    WITH query_embedding AS (
+                        SELECT ml_generate_embedding_result 
+                        FROM ML.GENERATE_EMBEDDING(
+                            MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                            (SELECT @new_query AS content)
                         )
-                        SELECT DISTINCT
-                            cm.course_crn AS crn,
+                    ),
+                    vector_search_results AS (
+                        SELECT 
+                            base.*,
+                            distance as search_distance
+                        FROM VECTOR_SEARCH(
+                            (
+                                SELECT *
+                                FROM `coursecompass.mlopsdataset.banner_data_embeddings`
+                                WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
+                            ),
+                            'ml_generate_embedding_result',
+                            TABLE query_embedding,
+                            distance_type => 'COSINE',
+                            top_k => 10,
+                            options => '{"use_brute_force": true}'
+                        )
+                    ),
+                    course_matches AS (
+                        SELECT 
+                            v.*,
+                            c.crn AS course_crn
+                        FROM vector_search_results v
+                        JOIN `coursecompass.mlopsdataset.course_data_table` c
+                            ON v.faculty_name = c.instructor
+                    ),
+                    review_data AS (
+                        SELECT * EXCEPT(review_id)
+                        FROM `coursecompass.mlopsdataset.review_data_table`
+                    )
+                    SELECT DISTINCT
+                        cm.course_crn AS crn,
+                        cm.content,
+                        STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; ') AS concatenated_review_info,
+                        cm.search_distance AS score,
+                        CONCAT(
+                            'Course Information:\\n',
                             cm.content,
-                            STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; ') AS concatenated_review_info,
-                            cm.search_distance AS score,
-                            CONCAT(
-                                'Course Information:\n',
-                                cm.content,
-                                '\nReview Information:\n',
-                                STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; '),
-                                '\n'
-                            ) AS full_info
-                        FROM course_matches cm
-                        JOIN review_data AS review
-                            ON cm.course_crn = review.crn
-                        GROUP BY
-                            cm.course_crn,
-                            cm.content,
-                            cm.search_distance
-                """
+                            '\\nReview Information:\\n',
+                            STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\\n'), '; '),
+                            '\\n'
+                        ) AS full_info
+                    FROM course_matches cm
+                    JOIN review_data AS review
+                        ON cm.course_crn = review.crn
+                    GROUP BY
+                        cm.course_crn,
+                        cm.content,
+                        cm.search_distance
+                    """
 
-        query_params = [
-            bigquery.ScalarQueryParameter("query", "STRING", query)
-        ]
+            query_params = [
+                bigquery.ScalarQueryParameter("query", "STRING", new_query),
+            ]
 
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=query_params
-        )
-        query_job = client.query(bq_query, job_config=job_config)
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=query_params
+            )
+            query_job = client.query(bq_query, job_config=job_config)
 
-        results = query_job.result()
+            results = query_job.result()
 
-        result_crns = []
-        result_content = []
+            result_crns = []
+            result_content = []
 
-        for row in results:
-            result_crns.append(row.crn)
-            result_content.append(remove_punctuation(row.full_info))
-        query_response[query] = {
-            'crns': result_crns,
-            'final_content': result_content
-        }
+            for row in results:
+                result_crns.append(row.crn)
+                result_content.append(remove_punctuation(row.full_info))
+            query_response[new_query] = {
+                'crns': result_crns,
+                'final_content': result_content
+            }
 
-        logging.info(f"Similarity search results for query '{query}': {','.join(result_crns)}")
+            logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
    
     context['ti'].xcom_push(key='similarity_results', value=query_response)
     return "generate_samples"
