@@ -233,7 +233,9 @@ def create_preprocessing_execution(store, **context):
     """
     # Create execution
     execution = metadata_store_pb2.Execution()
-    execution.type_id = store.get_execution_type_id("Preprocessing")
+    preprocessing_execution_type = store.get_execution_type("Preprocessing")
+    execution.type_id = preprocessing_execution_type.id
+
     execution.properties["dag_run_id"].string_value = context['dag_run'].run_id
     execution.properties["output_path"].string_value = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     execution.properties["start_time"].string_value = datetime.utcnow().isoformat()
@@ -247,7 +249,9 @@ def record_preprocessing_metadata(store, execution_id, metadata_values):
     """
     # Create artifact
     artifact = metadata_store_pb2.Artifact()
-    artifact.type_id = store.get_artifact_type_id("PreprocessingDataset")
+    preprocessing_artifact_type = store.get_artifact_type("PreprocessingDataset")
+    artifact.type_id = preprocessing_artifact_type.id
+
     
     # Set properties
     artifact.properties["raw_reviews_count"].int_value = metadata_values["raw_reviews_count"]
