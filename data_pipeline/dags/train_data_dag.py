@@ -37,8 +37,7 @@ default_args = {
 TARGET_SAMPLE_COUNT = 500
 
 
-def get_llm_response(**context):
-    input_prompt = context['ti'].xcom_pull(task_ids='generate_samples')
+def get_llm_response(input_prompt):
     res = client_model.generate_content(
             input_prompt,
             safety_settings={
@@ -52,9 +51,6 @@ def get_llm_response(**context):
                 temperature=0.7,
             ),
         ).content
-
-    context['ti'].xcom_push(key='llm_response', value=res)
-
     return res
 
 def check_sample_count_from_bq(**context):
@@ -93,6 +89,7 @@ def get_initial_queries(**context):
 
         if selected_col == 'topic':
             topic = random.choice(topics)
+            topic = 'Software Engineering'
             queries = [query.format(topic=topic) for query in query_subset]
         elif selected_col == 'course_name':
             course_name = random.choice(course_list)
@@ -146,26 +143,40 @@ def perform_similarity_search(**context):
 
     for query in queries:
         bq_query = """
-            WITH query_embedding AS (
-            SELECT ml_generate_embedding_result
-            FROM ML.GENERATE_EMBEDDING(
-                MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                (SELECT @query AS content)
-            )
-        )
-        SELECT base.*
-        FROM VECTOR_SEARCH(
-            (
-                SELECT *
-                FROM `coursecompass.mlopsdataset.banner_data_embeddings`
-                WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
-            ),
-            'ml_generate_embedding_result',
-            TABLE query_embedding,
-            distance_type => 'COSINE',
-            top_k => 10,
-            options => '{"use_brute_force": true}'
-        );
+                    WITH query_embedding AS (
+                        SELECT ml_generate_embedding_result
+                        FROM ML.GENERATE_EMBEDDING(
+                            MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                            (SELECT @query AS content)
+                        )
+                    ),
+                    review_data AS (
+                        SELECT *
+                        EXCEPT (review_id) -- Exclude the review_id column
+                        FROM `coursecompass.mlopsdataset.review_data_table`
+                    )
+                    SELECT DISTINCT 
+                        base.crn, 
+                        base.content, 
+                        STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; ') AS concatenated_review_info,
+                        distance AS score,
+                        CONCAT('Course Information:\n', base.content, '\nReview Information:\n', 
+                            STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; '), '\n') AS full_info
+                    FROM VECTOR_SEARCH(
+                        (
+                            SELECT *
+                            FROM `coursecompass.mlopsdataset.banner_data_embeddings`
+                            WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
+                        ),
+                        'ml_generate_embedding_result',
+                        TABLE query_embedding,
+                        distance_type => 'COSINE',
+                        top_k => 10,
+                        options => '{"use_brute_force": true}'
+                    ) 
+                    JOIN review_data AS review
+                    ON base.crn = review.crn
+                    GROUP BY base.crn, base.content, distance;
         """
 
         query_params = [
@@ -178,51 +189,78 @@ def perform_similarity_search(**context):
         query_job = client.query(bq_query, job_config=job_config)
 
         results = query_job.result()
-        results = [row.crn for row in results]
 
-        query_response[query] = results
+        result_crns = []
+        result_content = []
 
-        logging.info(f"Similarity search results for query '{query}': {','.join(results)}")
+        for row in results:
+            result_crns.append(row.crn)
+            result_content.append(row.full_info)
+        query_response[query] = {
+            'crns': result_crns,
+            'final_content': result_content
+        }
+
+        logging.info(f"Similarity search results for query '{query}': {','.join(result_crns)}")
    
     context['ti'].xcom_push(key='similarity_results', value=query_response)
     return "generate_samples"
 
 def generate_llm_response(**context):
-    pass
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    if task_status == "stop_task":
+        return "stop_task"
+    query_responses = context['ti'].xcom_pull(task_ids='perform_similarity_search', key='similarity_results')
 
+    prompt = """
+    Given the following course information, please provide a summary based on the user's query.:
+    Understand the intent of the user's query and based on that, provide a suitable answer to the user's query.
 
-def process_llm_output(**context):
-    llm_results = context['task_instance'].xcom_pull(key='llm_results')
-    
-    # Prepare data for BigQuery
-    processed_results = []
-    for result in llm_results:
-        processed_results.append({
-            'crn': result['crn'],
-            'course_name': result['course_name'],
-            'professor': result['professor'],
-            'summary': result['analysis']['summary'],
-            'strengths': result['analysis']['strengths'],
-            'improvements': result['analysis']['improvements'],
-            'assessment': result['analysis']['assessment'],
-            'source_pdf': result['source_pdf'],
-            'confidence_score': result['confidence_score'],
-            'analysis_timestamp': datetime.now().isoformat()
-        })
-    
-    # Save to temporary CSV for BigQuery upload
-    df = pd.DataFrame(processed_results)
-    df.to_csv('/tmp/llm_analysis_results.csv', index=False)
-    
-    # Upload to GCS
+    Query: {query}
+    Course Information: {content}
+    Summary:
+    """
+
+    train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
+    for query, response in query_responses.items():
+        crns = response['crns'] 
+        content = response['final_content']
+        for crn, content in zip(crns, content):
+            input_prompt = prompt.format(query=query, content=content)
+            llm_res = get_llm_response(input_prompt)
+            train_data_df = train_data_df.append({'question': query, 'context': content, 'response': llm_res}, ignore_index=True)
+
+    logging.info(f'Generated {len(train_data_df)} samples')
+    train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
     upload_to_gcs(
         bucket_name=Variable.get('default_bucket_name'),
-        source_path='/tmp/llm_analysis_results.csv',
-        destination_path='llm_analysis/results.csv'
+        source_path='/tmp/llm_train_data.csv',
+        destination_path='processed_trace_data/llm_train_data.csv'
     )
-    
-    return processed_results
+    return "generate_samples"
 
+def upload_gcs_to_bq(**context):
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    
+    if task_status == "stop_task":
+        return "stop_task"
+
+    # Create the GCSToBigQueryOperator instance
+    load_to_bigquery = GCSToBigQueryOperator(
+        task_id='load_to_bigquery',
+        bucket=Variable.get('default_bucket_name'),
+        source_objects=['llm_analysis/results.csv'],
+        destination_project_dataset_table=Variable.get('train_data_table_name'),
+        write_disposition='WRITE_TRUNCATE',
+        autodetect=True,  # Set to True for autodetecting schema
+        skip_leading_rows=1,
+        dag=context['dag'],  # Pass the current DAG context
+    )
+
+    # Execute the operator
+    return load_to_bigquery.execute(context=context)
+
+    
 with DAG(
     'train_data_dag',
     default_args=default_args,
@@ -259,31 +297,18 @@ with DAG(
         provide_context=True,
     )
 
-    # # Generate LLM responses
-    # generate_llm_response_task = PythonOperator(
-    #     task_id='generate_llm_response',
-    #     python_callable=generate_llm_response,
-    #     provide_context=True,
-    # )
+    llm_response = PythonOperator(
+        task_id='generate_llm_response',
+        python_callable=generate_llm_response,
+        provide_context=True,
+    )
 
-    # # Process LLM output
-    # process_output_task = PythonOperator(
-    #     task_id='process_llm_output',
-    #     python_callable=process_llm_output,
-    #     provide_context=True,
-    # )
-
-    # # Load results to BigQuery
-    # load_to_bigquery_task = GCSToBigQueryOperator(
-    #     task_id='load_to_bigquery',
-    #     bucket=Variable.get('default_bucket_name'),
-    #     source_objects=['llm_analysis/results.csv'],
-    #     destination_project_dataset_table=Variable.get('train_data_table_name'),
-    #     write_disposition='WRITE_APPEND',
-    #     autodetect=True,
-    #     skip_leading_rows=1,
-    # )
+    load_to_bigquery_task = PythonOperator(
+        task_id='upload_gcs_to_bq',
+        python_callable=upload_gcs_to_bq,
+        provide_context=True,
+    )
 
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results
+    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> load_to_bigquery_task
