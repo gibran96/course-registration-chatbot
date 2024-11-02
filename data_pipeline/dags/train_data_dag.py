@@ -215,14 +215,14 @@ def perform_similarity_search(**context):
                     SELECT DISTINCT
                         cm.course_crn AS crn,
                         cm.content,
-                        STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; ') AS concatenated_review_info,
+                        STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; ') AS concatenated_review_info,
                         cm.search_distance AS score,
                         CONCAT(
-                            'Course Information:\n',
+                            'Course Information:\\n',
                             cm.content,
-                            '\nReview Information:\n',
-                            STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; '),
-                            '\n'
+                            '\\nReview Information:\\n',
+                            STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\\n'), '; '),
+                            '\\n'
                         ) AS full_info
                     FROM course_matches cm
                     JOIN review_data AS review
