@@ -84,20 +84,15 @@ def get_next_term(cookie_output):
 # Function to fetch the list of courses from the Banner API
 def get_courses_list(cookie_output):
     cookie_output = ast.literal_eval(cookie_output)
-
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
-  
     url = base_url + "searchResults/searchResults"
 
     headers = {
         "Cookie": jsessionid+"; "+nubanner_cookie
     }
     
-    # TODO: Check the next semester open for registration and update the txt_term
-    
-    term = 202530 # hardcoded for now
+    term = 202530 # hardcoded for now TODO: Make this dynamic
     
     term_desc = get_semester_name(str(term))
     
@@ -218,6 +213,7 @@ def get_course_description(cookie_output, course_list):
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to fetch course description: {e}")
+            continue
         
         if response.status_code == 200:
             # Parse the HTML response to extract course description
@@ -237,6 +233,64 @@ def get_course_description(cookie_output, course_list):
             course_list[course]["course_description"] = "Failed to fetch description."
             logging.error(f"Failed to fetch description for course: {course_ref_num}")
 
+    return course_list
+
+# Function to fetch the prerequisites for the courses from the Banner API
+def get_course_prerequisites(cookie_output, course_list):
+    cookie_output = ast.literal_eval(cookie_output)
+    course_list = ast.literal_eval(course_list)
+    
+    cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
+
+    base_url = cookie_output["base_url"]
+    url = base_url + "/searchResults/getSectionPrerequisites"
+    
+    headers = {
+        "Cookie": jsessionid+"; "+nubanner_cookie
+    }
+    
+    term = 202530 # hardcoded for now
+
+    params = {
+        "term": term,
+        "courseReferenceNumber": ""
+    }
+    
+    for course in course_list:
+        course_ref_num = course_list[course]["crn"]
+        params["courseReferenceNumber"] = course_ref_num       
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to fetch prerequisites for CRN: {course_ref_num} - {e}")
+            continue
+
+        # Parse HTML response
+        soup = BeautifulSoup(response.text, 'html.parser')
+        prerequisites = []
+        
+        # Locate the prerequisite table
+        table = soup.find("table", class_="basePreqTable")
+        
+        if table:
+            # Parse each row in the table body
+            for row in table.find("tbody").find_all("tr"):
+                cells = row.find_all("td")
+                prereq = {
+                    "and_or": cells[0].text.strip(),
+                    "subject": cells[4].text.strip(),
+                    "course_number": cells[5].text.strip(),
+                    "level": cells[6].text.strip(),
+                    "grade": cells[7].text.strip()
+                }
+                prerequisites.append(prereq)
+        else:
+            logging.warning(f"No prerequisites found for CRN: {course_ref_num}")
+        
+        course_list[course]["prereq"] = prerequisites
+    
     return course_list
 
 # Function to get the semester name from the term
@@ -269,10 +323,10 @@ def dump_to_csv(course_data, **context):
     with open(file_path, "w") as file:
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term", "begin_time", "end_time", "days"])
+                             "course_description", "term", "begin_time", "end_time", "days", "prereq"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
                                  course_data[course]["term"], course_data[course]["begin_time"],
-                                 course_data[course]["end_time"], course_data[course]["days"]])    
+                                 course_data[course]["end_time"], course_data[course]["days"], course_data[course].get("prereq", [])])    
