@@ -6,11 +6,10 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.models import Variable
 from google.cloud import storage, bigquery
 import vertexai.generative_models
-from scripts.data_utils import upload_train_data_to_gcs  # Reusing existing utility
-from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
+from scripts.data_utils import upload_train_data_to_gcs, remove_punctuation  # Reusing existing utility
 import pandas as pd
 import numpy as np
-from scripts.seed_data import query_templates, topics, seed_query_list
+from scripts.seed_data import topics, seed_query_list
 import logging
 import random
 import vertexai
@@ -200,7 +199,7 @@ def perform_similarity_search(**context):
 
         for row in results:
             result_crns.append(row.crn)
-            result_content.append(row.full_info)
+            result_content.append(remove_punctuation(row.full_info))
         query_response[query] = {
             'crns': result_crns,
             'final_content': result_content
@@ -267,7 +266,10 @@ def upload_gcs_to_bq(**context):
     # Execute the operator
     return load_to_bigquery.execute(context=context)
 
-    
+
+
+
+
 with DAG(
     'train_data_dag',
     default_args=default_args,
