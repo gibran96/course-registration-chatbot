@@ -3,6 +3,24 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import os
 
+
+def upload_train_data_to_gcs():
+    bucket_name = Variable.get('default_bucket_name')
+    output_path = '/tmp/'
+
+    gcs_hook = GCSHook()
+    filename = 'llm_train_data.csv'
+    local_path = f"{output_path}/{filename}"
+    gcs_path = f"processed_trace_data/{filename}"
+
+    if os.path.exists(local_path):
+        gcs_hook.upload(
+            bucket_name=bucket_name,
+            object_name=gcs_path,
+            filename=local_path
+        )
+        logging.info(f"Uploaded {filename} to GCS")
+
 def upload_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
