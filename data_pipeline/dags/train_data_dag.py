@@ -242,7 +242,7 @@ def generate_llm_response(**context):
             train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
 
     logging.info(f'Generated {len(train_data_df)} samples')
-    train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
+    train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
     return "generate_samples"
 
 def upload_gcs_to_bq(**context):
@@ -255,7 +255,7 @@ def upload_gcs_to_bq(**context):
     load_to_bigquery = GCSToBigQueryOperator(
         task_id='load_to_bigquery',
         bucket=Variable.get('default_bucket_name'),
-        source_objects=['processed_trace_data/llm_train_data.csv'],
+        source_objects=['processed_trace_data/llm_train_data.pq'],
         destination_project_dataset_table=Variable.get('train_data_table_name'),
         write_disposition='WRITE_TRUNCATE',
         autodetect=True,  # Set to True for autodetecting schema
