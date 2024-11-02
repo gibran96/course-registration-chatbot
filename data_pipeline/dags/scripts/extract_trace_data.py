@@ -321,6 +321,7 @@ def preprocess_data(**context):
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
         courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
+        # courses_df["instructor"] = courses_df["instructor"].apply(clean_text)
 
         # Track null responses removed
         null_count = reviews_df["response"].isnull().sum()
@@ -341,10 +342,10 @@ def preprocess_data(**context):
         metadata_values["processed_courses_count"] = len(courses_df)
 
         # Save preprocessed data
-        reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
-        courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
-        reviews_df.to_csv(reviews_preprocessed_path, index=False)
-        courses_df.to_csv(courses_preprocessed_path, index=False)
+        reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.pq"
+        courses_preprocessed_path = f"{output_path}/courses_preprocessed.pq"
+        reviews_df.to_parquet(reviews_preprocessed_path, index=False)
+        courses_df.to_parquet(courses_preprocessed_path, index=False)
 
         # Update metadata with success status
         metadata_values["status"] = "completed"
