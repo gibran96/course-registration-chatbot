@@ -137,14 +137,57 @@ def get_courses_list(cookie_output):
             "campus_description": course["campusDescription"],
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
-            "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
             "term": term_desc,
-            "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
-            "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
-            "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
         }
 
     return course_data
+
+# Function to fetch the faculty info from the Banner API
+def get_faculty_info(cookie_output, course_list):
+    cookie_output = ast.literal_eval(cookie_output)
+    course_list = ast.literal_eval(course_list)
+    
+    cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
+
+    base_url = cookie_output["base_url"]
+    url = base_url + "/searchResults/getFacultyMeetingTimes"
+    
+    headers = {
+        "Cookie": jsessionid+"; "+nubanner_cookie
+    }
+    
+    term = 202530 # hardcoded for now
+
+    params = {
+        "term": term,
+        "courseReferenceNumber": ""
+    }
+    
+    for course in course_list:
+        course_ref_num = course_list[course]["crn"]
+        params["courseReferenceNumber"] = course_ref_num       
+        
+        try:  
+            response = requests.post(url, headers=headers, params=params)
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
+        
+        data = response.json()["fmt"][0]
+        
+        if response.status_code == 200:
+            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if len(data["faculty"]) != 0 else ""
+            course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
+            course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
+            course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
+        else:
+            # Handle cases where the request was unsuccessful
+            course_list[course]["faculty_name"] = ""
+            course_list[course]["begin_time"] = ""
+            course_list[course]["end_time"] = ""
+            course_list[course]["days"] = ""
+            logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
+    
+    return course_list
 
 # Function to fetch the course description from the Banner API
 def get_course_description(cookie_output, course_list):
