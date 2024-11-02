@@ -215,13 +215,20 @@ def generate_llm_response(**context):
     query_responses = context['ti'].xcom_pull(task_ids='perform_similarity_search', key='similarity_results')
 
     prompt = """
-    Given the following course information, please provide a summary based on the user's query.:
-    Understand the intent of the user's query and based on that, provide a suitable answer to the user's query.
+                Given the following user question and the contextual information from the database, provide a thorough and relevant answer:
 
-    Query: {query}
-    Course Information: {content}
-    Summary:
-    """
+                User Question:
+                {user_query}
+
+                Context:
+                {content}
+                The answer should include:
+                1. Key points from the course content, teaching style, and any specific details directly relevant to the user’s question
+                2. A context-driven response addressing the user’s query, incorporating any relevant strengths, limitations, or notable aspects of the course or instructor
+                3. A clear, conclusive assessment as applicable to the user’s question, offering recommendations or additional insights based on the context
+
+                Format the response as a cohesive text answer that directly addresses the user's question with clarity and specificity.
+                """
 
     train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
     for query, response in query_responses.items():
