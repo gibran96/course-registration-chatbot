@@ -201,6 +201,9 @@ def setup_mlmd():
     config.mysql.user = Variable.get("metadata_db_user")
     config.mysql.password = Variable.get("metadata_db_password")
 
+    logging.info(f"Connecting to MLMD: {config}")
+    
+
 # Initialize the metadata store
     store = metadata_store.MetadataStore(config)
 
