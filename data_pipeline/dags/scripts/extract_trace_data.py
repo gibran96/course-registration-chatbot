@@ -10,9 +10,8 @@ import string
 import uuid
 from google.cloud import aiplatform
 from datetime import datetime
-
-aiplatform.init(project="coursecompass", location="us-east1")
-
+from ml_metadata import metadata_store
+from ml_metadata.proto import metadata_store_pb2
 
 
 # Question mapping
@@ -187,61 +186,98 @@ def process_pdf_files(**context):
         logging.error(f"Error processing PDFs: {str(e)}")
         raise
 
-def track_preprocessing_metadata(**context):
-    """
-    Track preprocessing metadata using Vertex AI Metadata.
-    Returns the metadata API client and metadata objects.
-    """
-    # Initialize Vertex AI Metadata
-    metadata_client = aiplatform.Metadata()
-    
-    # Create dataset metadata
-    dataset_metadata = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'dag_run_id': context['dag_run'].run_id,
-        'output_path': context['dag_run'].conf.get('output_path', '/tmp/processed_data')
-    }
-    
-    # Create Metadata Schema
-    schema_metadata = {
-        "raw_reviews_count": 0,
-        "raw_courses_count": 0,
-        "processed_reviews_count": 0,
-        "processed_courses_count": 0,
-        "null_responses_removed": 0,
-        "sensitive_data_flags": 0,
-        **dataset_metadata
-    }
-    
-    # Create experiment run
-    experiment = metadata_client.create_experiment(
-        display_name=f"preprocessing_run_{context['dag_run'].run_id}"
-    )
-    
-    # Create run
-    run = metadata_client.create_run(
-        experiment=experiment.name,
-        display_name=f"preprocessing_{datetime.utcnow().isoformat()}",
-        metadata=schema_metadata
-    )
-    
-    return metadata_client, run
 
-def update_preprocessing_metadata(metadata_client, run, metadata_values):
-    """Update preprocessing metadata with final values."""
-    # Update run with final metadata values
-    run.update(metadata=metadata_values)
+def setup_mlmd():
+    """
+    Setup ML Metadata connection and create necessary types.
+    """
+    # Create connection config for metadata store
+    connection_config = metadata_store_pb2.ConnectionConfig()
+    connection_config.sqlite.filename_uri = '/tmp/metadata.db'
+    store = metadata_store.MetadataStore(connection_config)
+
+    # Create ArtifactTypes if they don't exist
+    try:
+        preprocessing_dataset_type = store.get_artifact_type("PreprocessingDataset")
+    except:
+        preprocessing_dataset_type = metadata_store_pb2.ArtifactType()
+        preprocessing_dataset_type.name = "PreprocessingDataset"
+        preprocessing_dataset_type.properties["raw_reviews_count"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["raw_courses_count"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["processed_reviews_count"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["processed_courses_count"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["null_responses_removed"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["sensitive_data_flags"] = metadata_store_pb2.INT
+        preprocessing_dataset_type.properties["timestamp"] = metadata_store_pb2.STRING
+        preprocessing_dataset_type.properties["status"] = metadata_store_pb2.STRING
+        preprocessing_dataset_type_id = store.put_artifact_type(preprocessing_dataset_type)
+
+    # Create ExecutionType if it doesn't exist
+    try:
+        preprocessing_execution_type = store.get_execution_type("Preprocessing")
+    except:
+        preprocessing_execution_type = metadata_store_pb2.ExecutionType()
+        preprocessing_execution_type.name = "Preprocessing"
+        preprocessing_execution_type.properties["dag_run_id"] = metadata_store_pb2.STRING
+        preprocessing_execution_type.properties["output_path"] = metadata_store_pb2.STRING
+        preprocessing_execution_type.properties["start_time"] = metadata_store_pb2.STRING
+        preprocessing_execution_type.properties["end_time"] = metadata_store_pb2.STRING
+        preprocessing_execution_type_id = store.put_execution_type(preprocessing_execution_type)
+
+    return store
+
+
+def create_preprocessing_execution(store, **context):
+    """
+    Create an execution in MLMD for tracking the preprocessing run.
+    """
+    # Create execution
+    execution = metadata_store_pb2.Execution()
+    execution.type_id = store.get_execution_type_id("Preprocessing")
+    execution.properties["dag_run_id"].string_value = context['dag_run'].run_id
+    execution.properties["output_path"].string_value = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
+    execution.properties["start_time"].string_value = datetime.utcnow().isoformat()
     
-    # Log metrics
-    for key, value in metadata_values.items():
-        if isinstance(value, (int, float)):
-            run.log_metric(key, value)
+    execution_id = store.put_executions([execution])[0]
+    return execution_id
+
+def record_preprocessing_metadata(store, execution_id, metadata_values):
+    """
+    Record preprocessing metadata as artifacts in MLMD.
+    """
+    # Create artifact
+    artifact = metadata_store_pb2.Artifact()
+    artifact.type_id = store.get_artifact_type_id("PreprocessingDataset")
+    
+    # Set properties
+    artifact.properties["raw_reviews_count"].int_value = metadata_values["raw_reviews_count"]
+    artifact.properties["raw_courses_count"].int_value = metadata_values["raw_courses_count"]
+    artifact.properties["processed_reviews_count"].int_value = metadata_values["processed_reviews_count"]
+    artifact.properties["processed_courses_count"].int_value = metadata_values["processed_courses_count"]
+    artifact.properties["null_responses_removed"].int_value = metadata_values["null_responses_removed"]
+    artifact.properties["sensitive_data_flags"].int_value = metadata_values["sensitive_data_flags"]
+    artifact.properties["timestamp"].string_value = metadata_values["timestamp"]
+    artifact.properties["status"].string_value = metadata_values["status"]
+    
+    # Put artifact in store
+    artifact_id = store.put_artifacts([artifact])[0]
+    
+    # Create event to link execution and artifact
+    event = metadata_store_pb2.Event()
+    event.execution_id = execution_id
+    event.artifact_id = artifact_id
+    event.type = metadata_store_pb2.Event.Type.OUTPUT
+    
+    store.put_events([event])
+    
+    return artifact_id
 
 def preprocess_data(**context):
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
-    # Initialize metadata tracking
-    metadata_client, run = track_preprocessing_metadata(**context)
+    # Setup ML Metadata
+    store = setup_mlmd()
+    execution_id = create_preprocessing_execution(store, **context)
     
     # Initialize metadata values
     metadata_values = {
@@ -252,8 +288,7 @@ def preprocess_data(**context):
         "null_responses_removed": 0,
         "sensitive_data_flags": 0,
         "timestamp": datetime.utcnow().isoformat(),
-        "dag_run_id": context['dag_run'].run_id,
-        "output_path": output_path
+        "status": "processing"
     }
 
     try:
@@ -265,9 +300,8 @@ def preprocess_data(**context):
         metadata_values["raw_reviews_count"] = len(reviews_df)
         metadata_values["raw_courses_count"] = len(courses_df)
         
-        # Log initial metrics
-        run.log_metric("raw_reviews_count", len(reviews_df))
-        run.log_metric("raw_courses_count", len(courses_df))
+        # Initial metadata recording
+        artifact_id = record_preprocessing_metadata(store, execution_id, metadata_values)
 
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
@@ -277,24 +311,19 @@ def preprocess_data(**context):
         null_count = reviews_df["response"].isnull().sum()
         reviews_df = reviews_df[reviews_df["response"].notnull()]
         metadata_values["null_responses_removed"] = null_count
-        run.log_metric("null_responses_removed", null_count)
 
         # Check for sensitive data
         flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
+        sensitive_count = len(sensitive_data_found) if flag else 0
+        metadata_values["sensitive_data_flags"] = sensitive_count
+
         if flag:
             logging.warning("Sensitive data found in responses")
             logging.warning(sensitive_data_found)
-        sensitive_count = len(sensitive_data_found) if flag else 0
-        metadata_values["sensitive_data_flags"] = sensitive_count
-        run.log_metric("sensitive_data_flags", sensitive_count)
 
         # Record final counts
         metadata_values["processed_reviews_count"] = len(reviews_df)
         metadata_values["processed_courses_count"] = len(courses_df)
-        
-        # Log final metrics
-        run.log_metric("processed_reviews_count", len(reviews_df))
-        run.log_metric("processed_courses_count", len(courses_df))
 
         # Save preprocessed data
         reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
@@ -302,30 +331,66 @@ def preprocess_data(**context):
         reviews_df.to_csv(reviews_preprocessed_path, index=False)
         courses_df.to_csv(courses_preprocessed_path, index=False)
 
-        # Update metadata with final values
-        update_preprocessing_metadata(metadata_client, run, metadata_values)
+        # Update metadata with success status
+        metadata_values["status"] = "completed"
+        artifact_id = record_preprocessing_metadata(store, execution_id, metadata_values)
+        
+        # Update execution end time
+        execution = store.get_execution_by_id(execution_id)
+        execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
+        store.put_executions([execution])
         
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
-        
-        # Mark run as completed
-        run.update_state(state=aiplatform.runtime.metadata.execution.State.COMPLETE)
         
         return {
             'reviews_count': len(reviews_df),
             'courses_count': len(courses_df),
             'metadata': metadata_values,
-            'run_name': run.name
+            'execution_id': execution_id,
+            'artifact_id': artifact_id
         }
         
     except Exception as e:
-        # Mark run as failed
-        run.update_state(state=aiplatform.runtime.metadata.execution.State.FAILED)
+        # Update metadata with failure status
+        metadata_values["status"] = "failed"
+        record_preprocessing_metadata(store, execution_id, metadata_values)
+        
+        # Update execution end time
+        execution = store.get_execution_by_id(execution_id)
+        execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
+        store.put_executions([execution])
+        
         logging.error(f"Error in preprocessing: {str(e)}")
         raise
-    finally:
-        # End the run
-        run.end()
+
+def get_preprocessing_metadata(store, execution_id):
+    """
+    Utility function to retrieve preprocessing metadata for a given execution.
+    """
+    execution = store.get_execution_by_id(execution_id)
+    events = store.get_events_by_execution_ids([execution_id])
+    
+    if events:
+        artifact_id = events[0].artifact_id
+        artifact = store.get_artifact_by_id(artifact_id)
+        
+        metadata = {
+            "raw_reviews_count": artifact.properties["raw_reviews_count"].int_value,
+            "raw_courses_count": artifact.properties["raw_courses_count"].int_value,
+            "processed_reviews_count": artifact.properties["processed_reviews_count"].int_value,
+            "processed_courses_count": artifact.properties["processed_courses_count"].int_value,
+            "null_responses_removed": artifact.properties["null_responses_removed"].int_value,
+            "sensitive_data_flags": artifact.properties["sensitive_data_flags"].int_value,
+            "status": artifact.properties["status"].string_value,
+            "timestamp": artifact.properties["timestamp"].string_value,
+            "dag_run_id": execution.properties["dag_run_id"].string_value,
+            "start_time": execution.properties["start_time"].string_value,
+            "end_time": execution.properties.get("end_time", metadata_store_pb2.Value()).string_value
+        }
+        
+        return metadata
+    return None
 # def preprocess_data(**context):
 #     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
