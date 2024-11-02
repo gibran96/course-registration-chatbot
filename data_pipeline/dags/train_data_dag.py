@@ -146,21 +146,26 @@ def perform_similarity_search(**context):
 
     for query in queries:
         bq_query = """
-            SELECT base.crn
-            FROM VECTOR_SEARCH(
-                TABLE `coursecompass.mlopsdataset.banner_data_embeddings`, 
-                'ml_generate_embedding_result',
-                (
-                    SELECT ml_generate_embedding_result, content AS query
-                    FROM ML.GENERATE_EMBEDDING(
-                        MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                        (SELECT @query AS content)
-                    )
-                ),
-                top_k => 10,  
-                options => '{"use_brute_force":true}',
-                distance_type => 'COSINE'
-            ) AS base
+            WITH query_embedding AS (
+            SELECT ml_generate_embedding_result
+            FROM ML.GENERATE_EMBEDDING(
+                MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                (SELECT @query AS content)
+            )
+        )
+        SELECT base.*
+        FROM VECTOR_SEARCH(
+            (
+                SELECT *
+                FROM `coursecompass.mlopsdataset.banner_data_embeddings`
+                WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
+            ),
+            'ml_generate_embedding_result',
+            TABLE query_embedding,
+            distance_type => 'COSINE',
+            top_k => 10,
+            options => '{"use_brute_force": true}'
+        ) AS base;
         """
 
         query_params = [
