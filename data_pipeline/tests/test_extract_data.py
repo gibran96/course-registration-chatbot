@@ -158,7 +158,8 @@ class TestProcessData:
                     "question": "Q2",
                     "responses": ["Perhaps from assignments?"]
                 }
-            ]
+            ],
+            "term": "202530"
         }
 
     @pytest.fixture
@@ -229,7 +230,8 @@ class TestProcessData:
             "instructor": "Alikhani, Malihe",
             "responses": [
                 {"question": "Q1", "responses": ["Amazing course!"]}
-            ]
+            ],
+            "term": "202530"
         }
 
         structured_data_2 = {
@@ -239,7 +241,8 @@ class TestProcessData:
             "instructor": "Dr. Johnson",
             "responses": [
                 {"question": "Q1", "responses": ["Very informative."]}
-            ]
+            ],
+            "term": "202530"
         }
 
         reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
