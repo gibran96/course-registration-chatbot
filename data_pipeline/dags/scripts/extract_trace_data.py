@@ -321,6 +321,7 @@ def preprocess_data(**context):
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
         courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
+        courses_df["instructor"] = courses_df["instructor"].apply(clean_text)
 
         # Track null responses removed
         null_count = reviews_df["response"].isnull().sum()
