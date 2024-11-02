@@ -113,7 +113,8 @@ def test_get_courses_list_successful_response(mock_get):
                 "campusDescription": "Main Campus",
                 "courseTitle": "Introduction to Computer Science",
                 "subjectCourse": "CS101",
-                "faculty": [{"displayName": "Dr. John Doe"}]
+                "faculty": [{"displayName": "Dr. John Doe"}],
+                "meetingsFaculty": [{"meetingTime": {"beginTime": "10:00", "endTime": "11:00", "monday": True, "tuesday": False, "wednesday": True, "thursday": False, "friday": True, "saturday": False, "sunday": False}}]
             }
         ]
     }
@@ -132,7 +133,10 @@ def test_get_courses_list_successful_response(mock_get):
             "course_title": "Introduction to Computer Science",
             "subject_course": "CS101",
             "faculty_name": "Dr. John Doe",
-            "term": "202530"
+            "term": "Spring 2025",
+            "begin_time": "10:00",
+            "end_time": "11:00",
+            "days": "monday;wednesday;friday"
         }
     }
 
@@ -163,7 +167,8 @@ def test_get_courses_list_empty_faculty(mock_get):
                 "campusDescription": "Main Campus",
                 "courseTitle": "Introduction to Computer Science",
                 "subjectCourse": "CS101",
-                "faculty": []
+                "faculty": [],
+                "meetingsFaculty": [{"meetingTime": {"beginTime": "10:00", "endTime": "11:00", "monday": True, "tuesday": False, "wednesday": True, "thursday": False, "friday": True, "saturday": False, "sunday": False}}]
             }
         ]
     }
@@ -182,7 +187,10 @@ def test_get_courses_list_empty_faculty(mock_get):
             "course_title": "Introduction to Computer Science",
             "subject_course": "CS101",
             "faculty_name": "",
-            "term": "202530"
+            "term": "Spring 2025",
+            "begin_time": "10:00",
+            "end_time": "11:00",
+            "days": "monday;wednesday;friday"
         }
     }
 
@@ -218,7 +226,7 @@ def test_get_courses_list_request_exception(mock_get, caplog):
     
 @patch("requests.post")
 @patch("bs4.BeautifulSoup")
-@patch("data_pipeline.dags.scripts.extract_data.clean_response")
+@patch("data_pipeline.dags.scripts.extract_trace_data.clean_response")
 def test_get_course_description_successful(mock_clean_response, mock_soup, mock_post):
     # Mock the cookie and course list inputs
     cookie_output = str({

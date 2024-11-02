@@ -10,7 +10,15 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from data_pipeline.dags.scripts.extract_data import clean_response
+from scripts.extract_trace_data import clean_response
+
+semester_map = {
+    "10": "Fall",
+    "30": "Spring",
+    "40": "Summer 1",
+    "50": "Summer Full",
+    "60": "Summer 2"
+}
 
 # Function to fetch the cookies from the Banner API
 def get_cookies(**context):
@@ -76,20 +84,17 @@ def get_next_term(cookie_output):
 # Function to fetch the list of courses from the Banner API
 def get_courses_list(cookie_output):
     cookie_output = ast.literal_eval(cookie_output)
-
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
-  
     url = base_url + "searchResults/searchResults"
 
     headers = {
         "Cookie": jsessionid+"; "+nubanner_cookie
     }
     
-    # TODO: Check the next semester open for registration and update the txt_term
+    term = 202530 # hardcoded for now TODO: Make this dynamic
     
-    term = 202530 # hardcoded for now
+    term_desc = get_semester_name(str(term))
     
     params = {
         "txt_subject": "CS",
@@ -98,7 +103,7 @@ def get_courses_list(cookie_output):
         "startDatepicker": "",
         "endDatepicker": "",
         "pageOffset": 0,
-        "pageMaxSize": 1100,
+        "pageMaxSize": 501, # this is the maximum number of courses that can be fetched in one request
         "sortColumn": "subjectDescription",
         "sortDirection": "asc"
     }
@@ -122,18 +127,62 @@ def get_courses_list(cookie_output):
     course_data = {}
 
     for course in response_json["data"]:
-        if len(course["faculty"]) == 0:
-            continue # Skip courses with no faculty
         course_data[course["courseReferenceNumber"]] = {
             "crn": course["courseReferenceNumber"],
             "campus_description": course["campusDescription"],
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
-            "faculty_name": course["faculty"][0]["displayName"] if len(course["faculty"]) != 0 else "",
-            "term": str(term)
+            "term": term_desc,
         }
 
     return course_data
+
+# Function to fetch the faculty info from the Banner API
+def get_faculty_info(cookie_output, course_list):
+    cookie_output = ast.literal_eval(cookie_output)
+    course_list = ast.literal_eval(course_list)
+    
+    cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
+
+    base_url = cookie_output["base_url"]
+    url = base_url + "/searchResults/getFacultyMeetingTimes"
+    
+    headers = {
+        "Cookie": jsessionid+"; "+nubanner_cookie
+    }
+    
+    term = 202530 # hardcoded for now
+
+    params = {
+        "term": term,
+        "courseReferenceNumber": ""
+    }
+    
+    for course in course_list:
+        course_ref_num = course_list[course]["crn"]
+        params["courseReferenceNumber"] = course_ref_num       
+        
+        try:  
+            response = requests.post(url, headers=headers, params=params)
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
+        
+        data = response.json()["fmt"][0]
+        
+        if response.status_code == 200:
+            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if len(data["faculty"]) != 0 else ""
+            course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
+            course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
+            course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
+        else:
+            # Handle cases where the request was unsuccessful
+            course_list[course]["faculty_name"] = ""
+            course_list[course]["begin_time"] = ""
+            course_list[course]["end_time"] = ""
+            course_list[course]["days"] = ""
+            logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
+    
+    return course_list
 
 # Function to fetch the course description from the Banner API
 def get_course_description(cookie_output, course_list):
@@ -159,11 +208,12 @@ def get_course_description(cookie_output, course_list):
     for course in course_list:
         course_ref_num = course_list[course]["crn"]
         params["courseReferenceNumber"] = course_ref_num       
-        logging.info(f"Fetching description for course: {course_ref_num}")
+        
         try:  
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to fetch course description: {e}")
+            continue
         
         if response.status_code == 200:
             # Parse the HTML response to extract course description
@@ -185,9 +235,84 @@ def get_course_description(cookie_output, course_list):
 
     return course_list
 
+# Function to fetch the prerequisites for the courses from the Banner API
+def get_course_prerequisites(cookie_output, course_list):
+    cookie_output = ast.literal_eval(cookie_output)
+    course_list = ast.literal_eval(course_list)
+    
+    cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
+
+    base_url = cookie_output["base_url"]
+    url = base_url + "/searchResults/getSectionPrerequisites"
+    
+    headers = {
+        "Cookie": jsessionid+"; "+nubanner_cookie
+    }
+    
+    term = 202530 # hardcoded for now
+
+    params = {
+        "term": term,
+        "courseReferenceNumber": ""
+    }
+    
+    for course in course_list:
+        course_ref_num = course_list[course]["crn"]
+        params["courseReferenceNumber"] = course_ref_num       
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to fetch prerequisites for CRN: {course_ref_num} - {e}")
+            continue
+
+        # Parse HTML response
+        soup = BeautifulSoup(response.text, 'html.parser')
+        prerequisites = []
+        
+        # Locate the prerequisite table
+        table = soup.find("table", class_="basePreqTable")
+        
+        if table:
+            # Parse each row in the table body
+            for row in table.find("tbody").find_all("tr"):
+                cells = row.find_all("td")
+                prereq = {
+                    "and_or": cells[0].text.strip(),
+                    "subject": cells[4].text.strip(),
+                    "course_number": cells[5].text.strip(),
+                    "level": cells[6].text.strip(),
+                    "grade": cells[7].text.strip()
+                }
+                prerequisites.append(prereq)
+        else:
+            logging.warning(f"No prerequisites found for CRN: {course_ref_num}")
+        
+        course_list[course]["prereq"] = prerequisites
+    
+    return course_list
+
+# Function to get the semester name from the term
+def get_semester_name(term):
+    semester = term[-2:]
+    return semester_map[semester] + " " + term[:4]
+
+# Function to get the days of the course lecture
+def get_days(meeting_time):
+    if isinstance(meeting_time, tuple):
+        meeting_time = meeting_time[0]
+    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
+            if meeting_time.get(day, False)]
+    return ";".join(days)
+    
+
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
+    
+    # print the length of the course_data
+    logging.info(f"Length of course_data: {len(course_data)}")
 
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
 
@@ -198,9 +323,10 @@ def dump_to_csv(course_data, **context):
     with open(file_path, "w") as file:
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term"])
+                             "course_description", "term", "begin_time", "end_time", "days", "prereq"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
-                                 course_data[course]["term"]])
+                                 course_data[course]["term"], course_data[course]["begin_time"],
+                                 course_data[course]["end_time"], course_data[course]["days"], course_data[course]["prereq"]])    
