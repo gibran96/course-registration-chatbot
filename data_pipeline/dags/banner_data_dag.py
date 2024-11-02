@@ -76,7 +76,7 @@ with DAG(
         python_callable=get_course_prerequisites,
         op_kwargs={
             'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
-            'course_list': "{{ task_instance.xcom_pull(task_ids='get_faculty_meeting_info_task') }}"
+            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
         },
         provide_context=True,
         dag=dag
