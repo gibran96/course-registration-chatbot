@@ -110,25 +110,28 @@ def get_initial_queries(**context):
         course_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='course_list')
         prof_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='prof_list')
 
-        col_names = ['topic']
+        col_names = ['topic', 'course_name', 'professor_name']
         selected_col = random.choice(col_names)
 
         query_subset = [query for query in seed_query_list if selected_col in query]
 
-        if selected_col == 'topic':
-            topic = random.choice(topics)
-            topic = 'Software Engineering'
-            queries = [query.format(topic=topic) for query in query_subset]
-        elif selected_col == 'course_name':
-            course_name = random.choice(course_list)
-            queries = [query.format(course_name=course_name) for query in query_subset]
-        elif selected_col == 'professor_name':
-            professor_name = random.choice(prof_list)
-            queries = [query.format(professor_name=professor_name) for query in query_subset]
+        all_queries = []
+        for selected_col in col_names:
+            if selected_col == 'topic':
+                topic = random.choice(topics)
+                queries = [query.format(topic=topic) for query in query_subset]
+            elif selected_col == 'course_name':
+                course_name = random.choice(course_list)
+                queries = [query.format(course_name=course_name) for query in query_subset]
+            elif selected_col == 'professor_name':
+                professor_name = random.choice(prof_list)
+                queries = [query.format(professor_name=professor_name) for query in query_subset]
 
-        context['ti'].xcom_push(key='initial_queries', value=queries)
-        logging.info(f'Initial queries: {len(queries)}' )
-        logging.info(queries)
+            all_queries.extend(queries)
+
+        context['ti'].xcom_push(key='initial_queries', value=all_queries)
+        logging.info(f'Initial queries: {len(all_queries)}' )
+        logging.info(f'Initial queries: {all_queries}' )
         return "generate_samples"
 
 
