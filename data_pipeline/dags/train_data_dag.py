@@ -86,7 +86,7 @@ def get_initial_queries(**context):
         course_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='course_list')
         prof_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='prof_list')
 
-        col_names = ['topic', 'course_name', 'professor_name']
+        col_names = ['topic']
         selected_col = random.choice(col_names)
 
         query_subset = [query for query in seed_query_list if selected_col in query]
@@ -102,7 +102,7 @@ def get_initial_queries(**context):
             queries = [query.format(professor_name=professor_name) for query in query_subset]
 
         context['ti'].xcom_push(key='initial_queries', value=queries)
-        logging.info('Initial queries: ', queries)
+        logging.info('Initial queries: ', len(queries))
         return "generate_samples"
 
 
@@ -134,7 +134,11 @@ def get_bq_data(**context):
 
 
 def perform_similarity_search(**context):
-    queries = context['dag_run'].conf.get('queries')
+
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    if task_status == "stop_task":
+        return "stop_task"
+    queries = context['ti'].xcom_pull(task_ids='get_bq_data', key='initial_queries')
 
     client = bigquery.Client()
     query_response = {}
@@ -172,10 +176,10 @@ def perform_similarity_search(**context):
 
         query_response[query] = results
 
-        logging.info(f"Similarity search results for query '{query}': {results}")
+        logging.info(f"Similarity search results for query '{query}': {','.join(results)}")
    
     context['ti'].xcom_push(key='similarity_results', value=query_response)
-    return query_response
+    return "generate_samples"
 
 def generate_llm_response(**context):
     pass
@@ -243,18 +247,11 @@ with DAG(
     )
 
 
-    # similarity_search_result = PythonOperator(
-    #     task_id='perform_similarity_search',
-    #     python_callable=perform_similarity_search,
-    #     provide_context=True,
-    # )
-
-    # # Perform similarity search
-    # similarity_search_task = PythonOperator(
-    #     task_id='perform_similarity_search',
-    #     python_callable=perform_similarity_search,
-    #     provide_context=True,
-    # )
+    similarity_search_results = PythonOperator(
+        task_id='bq_similarity_search',
+        python_callable=perform_similarity_search,
+        provide_context=True,
+    )
 
     # # Generate LLM responses
     # generate_llm_response_task = PythonOperator(
@@ -283,4 +280,4 @@ with DAG(
 
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries
+    sample_count >> bq_data >> initial_queries >> similarity_search_results
