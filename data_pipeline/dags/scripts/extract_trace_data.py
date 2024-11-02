@@ -344,8 +344,8 @@ def preprocess_data(**context):
         # Save preprocessed data
         reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.pq"
         courses_preprocessed_path = f"{output_path}/courses_preprocessed.pq"
-        reviews_df.to_csv(reviews_preprocessed_path, index=False)
-        courses_df.to_csv(courses_preprocessed_path, index=False)
+        reviews_df.to_parquet(reviews_preprocessed_path, index=False)
+        courses_df.to_parquet(courses_preprocessed_path, index=False)
 
         # Update metadata with success status
         metadata_values["status"] = "completed"
