@@ -102,7 +102,8 @@ def get_initial_queries(**context):
             queries = [query.format(professor_name=professor_name) for query in query_subset]
 
         context['ti'].xcom_push(key='initial_queries', value=queries)
-        logging.info('Initial queries: ', len(queries))
+        logging.info(f'Initial queries: {len(queries)}' )
+        logging.info(queries)
         return "generate_samples"
 
 
@@ -138,7 +139,7 @@ def perform_similarity_search(**context):
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
-    queries = context['ti'].xcom_pull(task_ids='get_bq_data', key='initial_queries')
+    queries = context['ti'].xcom_pull(task_ids='get_initial_queries', key='initial_queries')
 
     client = bigquery.Client()
     query_response = {}
