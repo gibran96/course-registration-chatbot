@@ -275,7 +275,7 @@ def get_course_prerequisites(cookie_output, course_list):
         table = soup.find("table", class_="basePreqTable")
         
         if table:
-            logging.INFO(f"Prerequisites found for CRN: {course_ref_num}")
+            logging.info(f"Prerequisites found for CRN: {course_ref_num}")
             # Parse each row in the table body
             for row in table.find("tbody").find_all("tr"):
                 cells = row.find_all("td")
