@@ -6,10 +6,11 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.models import Variable
 from google.cloud import storage, bigquery
 import vertexai.generative_models
-from scripts.data_utils import upload_train_data_to_gcs, remove_punctuation  # Reusing existing utility
+from scripts.data_utils import upload_to_gcs  # Reusing existing utility
+from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
 import pandas as pd
 import numpy as np
-from scripts.seed_data import topics, seed_query_list
+from scripts.seed_data import query_templates, topics, seed_query_list
 import logging
 import random
 import vertexai
@@ -49,7 +50,7 @@ def get_llm_response(input_prompt):
                 max_output_tokens=1024,
                 temperature=0.7,
             ),
-        ).text
+        ).content
     return res
 
 def check_sample_count_from_bq(**context):
@@ -142,46 +143,42 @@ def perform_similarity_search(**context):
 
     for query in queries:
         bq_query = """
-                WITH query_embedding AS (
-                    SELECT ml_generate_embedding_result
-                    FROM ML.GENERATE_EMBEDDING(
-                        MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                        (SELECT @query AS content)
-                    )
-                ),
-                review_data AS (
-                    SELECT *
-                    EXCEPT (review_id)
-                    FROM `coursecompass.mlopsdataset.review_data_table`
-                )
-                SELECT DISTINCT 
-                    base.crn, 
-                    base.content, 
-                    STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; ') AS concatenated_review_info,
-                    distance AS score,
-                    CONCAT(
-                        'Course Information:\\n', 
-                        base.content, 
-                        '\\nReview Information:\\n', 
-                        STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; '), 
-                        '\\n'
-                    ) AS full_info
-                FROM VECTOR_SEARCH(
-                    (
-                        SELECT *
-                        FROM `coursecompass.mlopsdataset.banner_data_embeddings`
-                        WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
-                    ),
-                    'ml_generate_embedding_result',
-                    TABLE query_embedding,
-                    distance_type => 'COSINE',
-                    top_k => 10,
-                    options => '{"use_brute_force": true}'
-                )
-                JOIN review_data AS review
-                ON base.crn = review.crn
-                GROUP BY base.crn, base.content, distance
-                """
+                    WITH query_embedding AS (
+                            SELECT ml_generate_embedding_result
+                            FROM ML.GENERATE_EMBEDDING(
+                                MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                                (SELECT @query AS content)
+                            )
+                        ),
+                        review_data AS (
+                            SELECT *
+                            EXCEPT (review_id) -- Exclude the review_id column
+                            FROM `coursecompass.mlopsdataset.review_data_table`
+                        )
+                        SELECT DISTINCT 
+                            base.crn, 
+                            base.content, 
+                            STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; ') AS concatenated_review_info,
+                            distance AS score,
+                            CONCAT('Course Information:\n', base.content, '\nReview Information:\n', 
+                                STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; '), '\n') 
+                            AS full_info
+                        FROM VECTOR_SEARCH(
+                            (
+                                SELECT *
+                                FROM `coursecompass.mlopsdataset.banner_data_embeddings`
+                                WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
+                            ),
+                            'ml_generate_embedding_result',
+                            TABLE query_embedding,
+                            distance_type => 'COSINE',
+                            top_k => 10,
+                            options => '{"use_brute_force": true}'
+                        )
+                        JOIN review_data AS review
+                        ON base.crn = review.crn
+                        GROUP BY base.crn, base.content, distance;
+                    """
 
         query_params = [
             bigquery.ScalarQueryParameter("query", "STRING", query)
@@ -199,7 +196,7 @@ def perform_similarity_search(**context):
 
         for row in results:
             result_crns.append(row.crn)
-            result_content.append(remove_punctuation(row.full_info))
+            result_content.append(row.full_info)
         query_response[query] = {
             'crns': result_crns,
             'final_content': result_content
@@ -214,23 +211,25 @@ def generate_llm_response(**context):
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
-    query_responses = context['ti'].xcom_pull(task_ids='bq_similarity_search', key='similarity_results')
+    query_responses = context['ti'].xcom_pull(task_ids='perform_similarity_search', key='similarity_results')
 
     prompt = """
-                Given the following user question and the contextual information from the database, provide a thorough and relevant answer:
+            Given the user question and the relevant information from the database, craft a concise and informative response:
 
-                User Question:
-                {query}
+            User Question:
+            {user_query}
 
-                Context:
-                {content}
-                The answer should include:
-                1. Key points from the course content, teaching style, and any specific details directly relevant to the user’s question
-                2. A context-driven response addressing the user’s query, incorporating any relevant strengths, limitations, or notable aspects of the course or instructor
-                3. A clear, conclusive assessment as applicable to the user’s question, offering recommendations or additional insights based on the context
+            Context:
+            {content}
 
-                Format the response as a cohesive text answer that directly addresses the user's question with clarity and specificity.
-                """
+            The response should:
+            1. Highlight the main topics and unique aspects of the course content.
+            2. Summarize the instructor’s teaching style and notable strengths or weaknesses.
+            3. Clearly address potential benefits and challenges of the course, providing a straightforward recommendation as needed.
+
+            Ensure the answer is direct, informative, and relevant to the user’s question.
+            """
+
 
     train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
     for query, response in query_responses.items():
@@ -239,10 +238,15 @@ def generate_llm_response(**context):
         for crn, content in zip(crns, content):
             input_prompt = prompt.format(query=query, content=content)
             llm_res = get_llm_response(input_prompt)
-            train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
+            train_data_df = train_data_df.append({'question': query, 'context': content, 'response': llm_res}, ignore_index=True)
 
     logging.info(f'Generated {len(train_data_df)} samples')
-    train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
+    train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
+    upload_to_gcs(
+        bucket_name=Variable.get('default_bucket_name'),
+        source_path='/tmp/llm_train_data.csv',
+        destination_path='processed_trace_data/llm_train_data.csv'
+    )
     return "generate_samples"
 
 def upload_gcs_to_bq(**context):
@@ -255,22 +259,18 @@ def upload_gcs_to_bq(**context):
     load_to_bigquery = GCSToBigQueryOperator(
         task_id='load_to_bigquery',
         bucket=Variable.get('default_bucket_name'),
-        source_objects=['processed_trace_data/llm_train_data.pq'],
+        source_objects=['llm_analysis/results.csv'],
         destination_project_dataset_table=Variable.get('train_data_table_name'),
         write_disposition='WRITE_TRUNCATE',
         autodetect=True,  # Set to True for autodetecting schema
         skip_leading_rows=1,
         dag=context['dag'],  # Pass the current DAG context
-        source_format='PARQUET', 
     )
 
     # Execute the operator
     return load_to_bigquery.execute(context=context)
 
-
-
-
-
+    
 with DAG(
     'train_data_dag',
     default_args=default_args,
@@ -311,23 +311,14 @@ with DAG(
         task_id='generate_llm_response',
         python_callable=generate_llm_response,
         provide_context=True,
-        dag=dag
-    )
-
-    upload_to_gcs = PythonOperator(
-        task_id='upload_to_gcs',
-        python_callable=upload_train_data_to_gcs,
-        provide_context=True,
-        dag=dag
     )
 
     load_to_bigquery_task = PythonOperator(
         task_id='upload_gcs_to_bq',
         python_callable=upload_gcs_to_bq,
         provide_context=True,
-        dag=dag
     )
 
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task
+    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> load_to_bigquery_task
