@@ -8,6 +8,10 @@ import gc
 import re
 import string
 import uuid
+from google.cloud import aiplatform
+
+aiplatform.init(project="coursecompass", location="us-east1")
+
 
 # Question mapping
 question_map = {
@@ -32,6 +36,7 @@ def clean_text(text):
     text = text.strip()
     text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
     text = text.lower()
+    text = clean_response(text)
     return text
 
 def extract_data_from_pdf(pdf_file):
@@ -179,3 +184,116 @@ def process_pdf_files(**context):
     except Exception as e:
         logging.error(f"Error processing PDFs: {str(e)}")
         raise
+
+def preprocess_data(**context):
+    output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
+    
+
+
+    # Load data
+    reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
+    courses_df = pd.read_csv(f"{output_path}/courses.csv")
+
+    # Initialize Metadata Store and Context in Vertex AI
+    metadata_store = aiplatform.MetadataStore.get_or_create(
+        display_name="preprocessing_metadata_store"
+    )
+    
+    preprocess_context = aiplatform.Context.create(
+        display_name="preprocess_context",
+        metadata_store=metadata_store
+    )
+
+    # Log input artifacts
+    reviews_artifact = aiplatform.Artifact.create(
+        display_name="raw_reviews_csv",
+        uri=f"gs://{output_path}/reviews.csv",
+        schema_title="google.Artifact",
+        metadata_store=metadata_store
+    )
+    
+    courses_artifact = aiplatform.Artifact.create(
+        display_name="raw_courses_csv",
+        uri=f"gs://{output_path}/courses.csv",
+        schema_title="google.Artifact",
+        metadata_store=metadata_store
+    )
+    
+    # Start execution for preprocessing
+    preprocess_execution = aiplatform.Execution.create(
+        display_name="preprocess_execution",
+        schema_title="system.Pipeline",
+        metadata_store=metadata_store
+    )
+    
+    preprocess_execution.assign_input_artifacts([reviews_artifact, courses_artifact])
+    preprocess_execution.assign_contexts([preprocess_context])
+    
+    # Preprocess data
+    reviews_df["response"] = reviews_df["response"].apply(clean_text)
+    courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
+
+    # Remove rows with null responses
+    reviews_df = reviews_df[reviews_df["response"].notnull()]
+
+    # Check for sensitive data
+    flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
+
+    # if flag is True, send a notification with the sensitive data found
+    if flag:
+        logging.warning("Sensitive data found in responses")
+        logging.warning(sensitive_data_found)
+
+    # Save preprocessed data
+    reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
+    courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
+
+    # Save preprocessed data
+    reviews_df.to_csv(reviews_preprocessed_path, index=False)
+    courses_df.to_csv(courses_preprocessed_path, index=False)
+
+    # Log output artifacts
+    processed_reviews_artifact = aiplatform.Artifact.create(
+        display_name="processed_reviews_csv",
+        uri=f"gs://{reviews_preprocessed_path}",
+        schema_title="google.Artifact",
+        metadata_store=metadata_store
+    )
+    
+    processed_courses_artifact = aiplatform.Artifact.create(
+        display_name="processed_courses_csv",
+        uri=f"gs://{courses_preprocessed_path}",
+        schema_title="google.Artifact",
+        metadata_store=metadata_store
+    )
+    
+    preprocess_execution.assign_output_artifacts([processed_reviews_artifact, processed_courses_artifact])
+    preprocess_execution.update(state="COMPLETE")
+    
+    return {
+        'reviews_count': len(reviews_df),
+        'courses_count': len(courses_df)
+    }
+
+def check_for_gender_bias(df, column_name):
+    # Check for gender bias in the df for the given column
+    # Check for any gender specific pronouns in the responses and replace it with the professor.
+
+    gender_sensitive_pronouns = ["he", "him", "his", "she", "her", "hers", "they", "them", "theirs"]
+
+    flag = False
+
+    sensitive_data_found = pd.DataFrame(columns=["crn", "question", "response"])
+    # Keep a track of all the rows that have the gender specific pronouns
+    for pron in gender_sensitive_pronouns:
+        for index, row in df.iterrows():
+            if pron in row[column_name]:
+                flag = True
+                sensitive_data_found = sensitive_data_found.append(row)
+
+                # Replace the pronoun with the professor
+                df.at[index, column_name] = row[column_name].replace(pron, "the professor")
+    
+    return flag, sensitive_data_found
+
+

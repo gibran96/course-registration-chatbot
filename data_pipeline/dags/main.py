@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_to_gcs
-from scripts.extract_trace_data import process_pdf_files
+from scripts.extract_trace_data import process_pdf_files, preprocess_data
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
@@ -94,6 +94,13 @@ with DAG(
         dag=dag
     )
 
+    preproceess_pdfs = PythonOperator(
+        task_id='preprocess_pdfs',
+        python_callable=preprocess_data,
+        provide_context=True,
+        dag=dag
+    )
+
     # Task to upload processed files back to GCS
     upload_to_gcs_task = PythonOperator(
         task_id='upload_to_gcs',
@@ -105,7 +112,7 @@ with DAG(
     load_reviews_to_bigquery_task = GCSToBigQueryOperator(
         task_id='load_to_bigquery',
         bucket=Variable.get('default_bucket_name'),
-        source_objects=['processed_trace_data/reviews.csv'],
+        source_objects=['processed_trace_data/reviews_preprocessed.csv'],
         destination_project_dataset_table=Variable.get('review_table_name'),
         write_disposition='WRITE_APPEND',
         autodetect=None,
@@ -116,7 +123,7 @@ with DAG(
     load_courses_to_bigquery_task = GCSToBigQueryOperator(
         task_id='load_courses_to_bigquery',
         bucket=Variable.get('default_bucket_name'),
-        source_objects=['processed_trace_data/courses.csv'],
+        source_objects=['processed_trace_data/courses_preprocessed.csv'],
         destination_project_dataset_table=Variable.get('course_table_name'),
         write_disposition='WRITE_APPEND',
         autodetect=None,
@@ -127,4 +134,4 @@ with DAG(
 
 
     # Set task dependencies
-    select_distinct_crn >> get_crn_list_task >> unique_blobs >> process_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+    select_distinct_crn >> get_crn_list_task >> unique_blobs >> process_pdfs >> preproceess_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
