@@ -361,7 +361,7 @@ def preprocess_data(**context):
         record_preprocessing_metadata(store, execution_id, metadata_values)
         
         # Update execution end time
-        execution = store.get_executions_by_id(execution_id)[0]
+        execution = store.get_executions_by_id(execution_id)
         execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
         store.put_executions([execution])
         
@@ -449,11 +449,9 @@ def check_for_gender_bias(df, column_name):
         for index, row in df.iterrows():
             if pron in row[column_name]:
                 flag = True
-                sensitive_data_found = sensitive_data_found.append(row)
+                sensitive_data_found.loc[-1] = [row["crn"], row["question"], row[column_name]]
 
-                # Replace the pronoun with the professor
                 df.at[index, column_name] = row[column_name].replace(pron, "the professor")
-    
     return flag, sensitive_data_found
 
 
