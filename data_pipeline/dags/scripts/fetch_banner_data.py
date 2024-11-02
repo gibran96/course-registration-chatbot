@@ -10,7 +10,7 @@ import numpy as np
 from airflow.models import Variable
 import ast
 
-from data_pipeline.dags.scripts.extract_trace_data import clean_response
+from scripts.extract_trace_data import clean_response
 
 semester_map = {
     "10": "Fall",
