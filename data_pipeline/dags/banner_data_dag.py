@@ -86,7 +86,7 @@ with DAG(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
         op_kwargs={
-            'course_data': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
+            'course_data': "{{ task_instance.xcom_pull(task_ids='get_course_pre_req_task') }}"
         },
         provide_context=True,
         dag=dag
