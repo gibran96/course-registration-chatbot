@@ -134,7 +134,7 @@ with DAG(
     )
     
     # get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
-    get_cookies_task >> get_course_list_task >> get_faculty_info_parallel >> get_course_description_parallel >> get_prerequisites_parallel >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    get_cookies_task >> get_course_list_task >> get_faculty_info_parallel >> get_course_description_parallel >> get_prerequisites_parallel >> dump_to_csv_task >> upload_to_gcs_task
     
     
     
