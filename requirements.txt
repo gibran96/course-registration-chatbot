@@ -5,3 +5,4 @@ google-cloud-bigquery
 pytest
 beautifulsoup4
 pandas
+ml-metadata
