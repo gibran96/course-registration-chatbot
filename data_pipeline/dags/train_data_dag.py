@@ -6,7 +6,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.models import Variable
 from google.cloud import storage, bigquery
 import vertexai.generative_models
-from scripts.data_utils import upload_to_gcs  # Reusing existing utility
+from scripts.data_utils import upload_train_data_to_gcs  # Reusing existing utility
 from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
 import pandas as pd
 import numpy as np
@@ -244,12 +244,6 @@ def generate_llm_response(**context):
 
     logging.info(f'Generated {len(train_data_df)} samples')
     train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
-    upload_to_gcs(
-        **context,
-        bucket_name=Variable.get('default_bucket_name'),
-        source_path='/tmp/llm_train_data.csv',
-        destination_path='processed_trace_data/llm_train_data.csv'
-    )
     return "generate_samples"
 
 def upload_gcs_to_bq(**context):
@@ -262,7 +256,7 @@ def upload_gcs_to_bq(**context):
     load_to_bigquery = GCSToBigQueryOperator(
         task_id='load_to_bigquery',
         bucket=Variable.get('default_bucket_name'),
-        source_objects=['llm_analysis/results.csv'],
+        source_objects=['processed_trace_data/llm_train_data.csv'],
         destination_project_dataset_table=Variable.get('train_data_table_name'),
         write_disposition='WRITE_TRUNCATE',
         autodetect=True,  # Set to True for autodetecting schema
@@ -317,6 +311,13 @@ with DAG(
         dag=dag
     )
 
+    upload_to_gcs = PythonOperator(
+        task_id='upload_to_gcs',
+        python_callable=upload_train_data_to_gcs,
+        provide_context=True,
+        dag=dag
+    )
+
     load_to_bigquery_task = PythonOperator(
         task_id='upload_gcs_to_bq',
         python_callable=upload_gcs_to_bq,
@@ -326,4 +327,4 @@ with DAG(
 
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> load_to_bigquery_task
+    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task
