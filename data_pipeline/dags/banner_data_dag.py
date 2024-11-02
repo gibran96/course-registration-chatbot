@@ -11,6 +11,8 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
 
+from scripts.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -49,35 +51,56 @@ with DAG(
         dag=dag
     )
     
-    get_faculty_meeting_info_task = PythonOperator(
-        task_id='get_faculty_meeting_info_task',
-        python_callable=get_faculty_info,
-        op_kwargs={
-            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
-            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_list_task') }}"
-        },
+    # get_faculty_meeting_info_task = PythonOperator(
+    #     task_id='get_faculty_meeting_info_task',
+    #     python_callable=get_faculty_info,
+    #     op_kwargs={
+    #         'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+    #         'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_list_task') }}"
+    #     },
+    #     provide_context=True,
+    #     dag=dag
+    # )
+    
+    # get_course_description_task = PythonOperator(
+    #     task_id='get_course_description_task',
+    #     python_callable=get_course_description,
+    #     op_kwargs={
+    #         'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+    #         'course_list': "{{ task_instance.xcom_pull(task_ids='get_faculty_meeting_info_task') }}"
+    #     },
+    #     provide_context=True,
+    #     dag=dag
+    # )
+    
+    # get_course_pre_req_task = PythonOperator(
+    #     task_id='get_course_pre_req_task',
+    #     python_callable=get_course_prerequisites,
+    #     op_kwargs={
+    #         'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
+    #         'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
+    #     },
+    #     provide_context=True,
+    #     dag=dag
+    # )
+    
+    get_faculty_info_parallel = PythonOperator(
+        task_id='get_faculty_info_parallel',
+        python_callable=parallel_faculty_info,
         provide_context=True,
         dag=dag
     )
     
-    get_course_description_task = PythonOperator(
-        task_id='get_course_description_task',
-        python_callable=get_course_description,
-        op_kwargs={
-            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
-            'course_list': "{{ task_instance.xcom_pull(task_ids='get_faculty_meeting_info_task') }}"
-        },
+    get_course_description_parallel = PythonOperator(
+        task_id='get_course_description_parallel',
+        python_callable=parallel_course_description,
         provide_context=True,
         dag=dag
     )
     
-    get_course_pre_req_task = PythonOperator(
-        task_id='get_course_pre_req_task',
-        python_callable=get_course_prerequisites,
-        op_kwargs={
-            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}",
-            'course_list': "{{ task_instance.xcom_pull(task_ids='get_course_description_task') }}"
-        },
+    get_prerequisites_parallel = PythonOperator(
+        task_id='get_prerequisites_parallel',
+        python_callable=parallel_prerequisites,
         provide_context=True,
         dag=dag
     )
@@ -110,7 +133,8 @@ with DAG(
         dag=dag,
     )
     
-    get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    # get_cookies_task >> get_course_list_task >> get_faculty_meeting_info_task >> get_course_description_task >> get_course_pre_req_task >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    get_cookies_task >> get_course_list_task >> get_faculty_info_parallel >> get_course_description_parallel >> get_prerequisites_parallel >> dump_to_csv_task >> upload_to_gcs_task
     
     
     
