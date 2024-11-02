@@ -8,8 +8,10 @@ import gc
 import re
 import string
 import uuid
-from google.cloud.aiplatform import metadata_store
+from google.cloud import aiplatform
 from datetime import datetime
+
+aiplatform.init(project="coursecompass", location="us-east1")
 
 
 
@@ -187,11 +189,11 @@ def process_pdf_files(**context):
 
 def track_preprocessing_metadata(**context):
     """
-    Track preprocessing metadata using Vertex AI Metadata Store.
-    Returns the metadata store and execution object.
+    Track preprocessing metadata using Vertex AI Metadata.
+    Returns the metadata API client and metadata objects.
     """
-    # Initialize metadata store
-    store = metadata_store.MetadataStore()
+    # Initialize Vertex AI Metadata
+    metadata_client = aiplatform.Metadata()
     
     # Create dataset metadata
     dataset_metadata = {
@@ -200,65 +202,46 @@ def track_preprocessing_metadata(**context):
         'output_path': context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     }
     
-    # Register dataset type if it doesn't exist
-    try:
-        dataset_type = store.get_artifact_type("CourseReviewDataset")
-    except Exception:
-        dataset_type = store.create_artifact_type(
-            display_name="CourseReviewDataset",
-            property_types={
-                "raw_reviews_count": "INT",
-                "raw_courses_count": "INT",
-                "processed_reviews_count": "INT",
-                "processed_courses_count": "INT",
-                "null_responses_removed": "INT",
-                "sensitive_data_flags": "INT"
-            }
-        )
+    # Create Metadata Schema
+    schema_metadata = {
+        "raw_reviews_count": 0,
+        "raw_courses_count": 0,
+        "processed_reviews_count": 0,
+        "processed_courses_count": 0,
+        "null_responses_removed": 0,
+        "sensitive_data_flags": 0,
+        **dataset_metadata
+    }
     
-    # Register preprocessing type if it doesn't exist
-    try:
-        preprocessing_type = store.get_execution_type("DataPreprocessing")
-    except Exception:
-        preprocessing_type = store.create_execution_type(
-            display_name="DataPreprocessing",
-            property_types={
-                "timestamp": "STRING",
-                "dag_run_id": "STRING",
-                "output_path": "STRING"
-            }
-        )
-    
-    # Create execution
-    preprocessing_execution = store.create_execution(
-        schema_title="DataPreprocessing",
-        display_name=f"preprocessing_run_{context['dag_run'].run_id}",
-        properties=dataset_metadata
+    # Create experiment run
+    experiment = metadata_client.create_experiment(
+        display_name=f"preprocessing_run_{context['dag_run'].run_id}"
     )
     
-    return store, preprocessing_execution
+    # Create run
+    run = metadata_client.create_run(
+        experiment=experiment.name,
+        display_name=f"preprocessing_{datetime.utcnow().isoformat()}",
+        metadata=schema_metadata
+    )
+    
+    return metadata_client, run
 
-def update_preprocessing_metadata(store, execution, metadata_values):
+def update_preprocessing_metadata(metadata_client, run, metadata_values):
     """Update preprocessing metadata with final values."""
-    # Create artifact for processed dataset
-    dataset_artifact = store.create_artifact(
-        schema_title="CourseReviewDataset",
-        display_name=f"processed_dataset_{datetime.utcnow().isoformat()}",
-        properties=metadata_values
-    )
+    # Update run with final metadata values
+    run.update(metadata=metadata_values)
     
-    # Link execution to artifact
-    store.create_event(
-        execution=execution,
-        artifact=dataset_artifact,
-        event_type=metadata_store.Event.Type.OUTPUT
-    )
+    # Log metrics
+    for key, value in metadata_values.items():
+        if isinstance(value, (int, float)):
+            run.log_metric(key, value)
 
 def preprocess_data(**context):
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
     # Initialize metadata tracking
-    store, preprocessing_execution = track_preprocessing_metadata(**context)
+    metadata_client, run = track_preprocessing_metadata(**context)
     
     # Initialize metadata values
     metadata_values = {
@@ -267,7 +250,10 @@ def preprocess_data(**context):
         "processed_reviews_count": 0,
         "processed_courses_count": 0,
         "null_responses_removed": 0,
-        "sensitive_data_flags": 0
+        "sensitive_data_flags": 0,
+        "timestamp": datetime.utcnow().isoformat(),
+        "dag_run_id": context['dag_run'].run_id,
+        "output_path": output_path
     }
 
     try:
@@ -278,6 +264,10 @@ def preprocess_data(**context):
         # Record initial counts
         metadata_values["raw_reviews_count"] = len(reviews_df)
         metadata_values["raw_courses_count"] = len(courses_df)
+        
+        # Log initial metrics
+        run.log_metric("raw_reviews_count", len(reviews_df))
+        run.log_metric("raw_courses_count", len(courses_df))
 
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
@@ -287,18 +277,24 @@ def preprocess_data(**context):
         null_count = reviews_df["response"].isnull().sum()
         reviews_df = reviews_df[reviews_df["response"].notnull()]
         metadata_values["null_responses_removed"] = null_count
+        run.log_metric("null_responses_removed", null_count)
 
         # Check for sensitive data
         flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
-        metadata_values["sensitive_data_flags"] = len(sensitive_data_found) if flag else 0
-
         if flag:
             logging.warning("Sensitive data found in responses")
             logging.warning(sensitive_data_found)
+        sensitive_count = len(sensitive_data_found) if flag else 0
+        metadata_values["sensitive_data_flags"] = sensitive_count
+        run.log_metric("sensitive_data_flags", sensitive_count)
 
         # Record final counts
         metadata_values["processed_reviews_count"] = len(reviews_df)
         metadata_values["processed_courses_count"] = len(courses_df)
+        
+        # Log final metrics
+        run.log_metric("processed_reviews_count", len(reviews_df))
+        run.log_metric("processed_courses_count", len(courses_df))
 
         # Save preprocessed data
         reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
@@ -306,27 +302,30 @@ def preprocess_data(**context):
         reviews_df.to_csv(reviews_preprocessed_path, index=False)
         courses_df.to_csv(courses_preprocessed_path, index=False)
 
-        # Update metadata store with final values
-        update_preprocessing_metadata(store, preprocessing_execution, metadata_values)
+        # Update metadata with final values
+        update_preprocessing_metadata(metadata_client, run, metadata_values)
         
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
         
+        # Mark run as completed
+        run.update_state(state=aiplatform.runtime.metadata.execution.State.COMPLETE)
+        
         return {
             'reviews_count': len(reviews_df),
             'courses_count': len(courses_df),
-            'metadata': metadata_values
+            'metadata': metadata_values,
+            'run_name': run.name
         }
         
     except Exception as e:
-        # Mark execution as failed
-        preprocessing_execution.set_state(metadata_store.Execution.State.FAILED)
+        # Mark run as failed
+        run.update_state(state=aiplatform.runtime.metadata.execution.State.FAILED)
         logging.error(f"Error in preprocessing: {str(e)}")
         raise
     finally:
-        # Complete execution
-        preprocessing_execution.set_state(metadata_store.Execution.State.COMPLETE)
-
+        # End the run
+        run.end()
 # def preprocess_data(**context):
 #     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
