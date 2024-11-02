@@ -221,7 +221,7 @@ def perform_similarity_search(**context):
                             'Course Information:\\n',
                             cm.content,
                             '\\nReview Information:\\n',
-                            STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\\n'), '; '),
+                            STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; '),
                             '\\n'
                         ) AS full_info
                     FROM course_matches cm
