@@ -143,9 +143,6 @@ def get_courses_list(cookie_output):
             # "begin_time": course["meetingsFaculty"][0]["meetingTime"]["beginTime"] if course["meetingsFaculty"] else "",
             # "end_time": course["meetingsFaculty"][0]["meetingTime"]["endTime"] if course["meetingsFaculty"] else "",
             # "days": get_days(course["meetingsFaculty"][0]["meetingTime"]) if course["meetingsFaculty"] else "",
-            "begin_time": "",
-            "end_time": "",
-            "days": "",
             "term": term_desc
         }
 
@@ -231,10 +228,9 @@ def dump_to_csv(course_data, **context):
     with open(file_path, "w") as file:
             writer = csv.writer(file)
             writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term", "begin_time", "end_time", "days"])
+                             "course_description", "term"])
             for course in course_data:
                 writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
                                  course_data[course]["subject_course"], course_data[course]["faculty_name"], 
                                  course_data[course]["campus_description"], course_data[course]["course_description"], 
-                                 course_data[course]["term"], course_data[course]["begin_time"],
-                                 course_data[course]["end_time"], course_data[course]["days"]])
+                                 course_data[course]["term"]])
