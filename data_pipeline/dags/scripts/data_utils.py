@@ -12,7 +12,7 @@ def remove_punctuation(text):
 
 def upload_train_data_to_gcs():
     bucket_name = Variable.get('default_bucket_name')
-    output_path = '/tmp/'
+    output_path = '/tmp'
 
     gcs_hook = GCSHook()
     filename = 'llm_train_data.pq'
