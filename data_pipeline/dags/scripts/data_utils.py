@@ -34,7 +34,7 @@ def upload_to_gcs(**context):
     gcs_hook = GCSHook()
     
     # Upload all CSV files
-    for filename in ['reviews_preprocessed.csv', 'courses_preprocessed.csv', 'question_mapping.csv']:
+    for filename in ['reviews_preprocessed.pq', 'courses_preprocessed.pq', 'question_mapping.csv']:
         local_path = f"{output_path}/{filename}"
         gcs_path = f"processed_trace_data/{filename}"
         
