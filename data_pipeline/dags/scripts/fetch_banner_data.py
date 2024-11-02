@@ -275,6 +275,7 @@ def get_course_prerequisites(cookie_output, course_list):
         table = soup.find("table", class_="basePreqTable")
         
         if table:
+            logging.info(f"Prerequisites found for CRN: {course_ref_num}")
             # Parse each row in the table body
             for row in table.find("tbody").find_all("tr"):
                 cells = row.find_all("td")
@@ -310,6 +311,10 @@ def get_days(meeting_time):
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
+    
+    for course in course_data:
+        if course_data[course]["crn"] == "37072":
+            logging.info(f"Course: {course_data[course]}")
     
     # print the length of the course_data
     logging.info(f"Length of course_data: {len(course_data)}")

@@ -12,6 +12,7 @@ from google.cloud import aiplatform
 from datetime import datetime
 from ml_metadata import metadata_store
 from ml_metadata.proto import metadata_store_pb2
+from airflow.models import Variable
 
 
 # Question mapping
@@ -35,7 +36,7 @@ def clean_response(response):
 def clean_text(text):
     """Clean and standardize text."""
     text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
+    text = ''.join(e for e in text if e.isalnum() or e.isspace())
     text = text.lower()
     text = clean_response(text)
     return text
@@ -193,9 +194,18 @@ def setup_mlmd():
     Setup ML Metadata connection and create necessary types.
     """
     # Create connection config for metadata store
-    connection_config = metadata_store_pb2.ConnectionConfig()
-    connection_config.sqlite.filename_uri = '/tmp/metadata.db'
-    store = metadata_store.MetadataStore(connection_config)
+    config = metadata_store_pb2.ConnectionConfig()
+    config.mysql.host = Variable.get("metadata_db_host")
+    config.mysql.port = 3306
+    config.mysql.database = Variable.get("metadata_db_name")
+    config.mysql.user = Variable.get("metadata_db_user")
+    config.mysql.password = Variable.get("metadata_db_password")
+
+    logging.info(f"Connecting to MLMD: {config}")
+    
+
+# Initialize the metadata store
+    store = metadata_store.MetadataStore(config)
 
     # Create ArtifactTypes if they don't exist
     try:
