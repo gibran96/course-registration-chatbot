@@ -40,6 +40,7 @@ def clean_text(text):
     text = clean_response(text)
     return text
 
+
 def extract_data_from_pdf(pdf_file):
     structured_data = {
         "crn": "",

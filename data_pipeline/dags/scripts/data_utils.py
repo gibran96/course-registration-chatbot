@@ -2,7 +2,13 @@ import logging
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import os
+import string
 
+
+def remove_punctuation(text):
+    punts = string.punctuation
+    new_text = ''.join(e for e in text if e not in punts)
+    return new_text
 
 def upload_train_data_to_gcs():
     bucket_name = Variable.get('default_bucket_name')
