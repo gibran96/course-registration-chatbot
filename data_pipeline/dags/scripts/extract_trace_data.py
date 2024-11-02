@@ -340,7 +340,7 @@ def preprocess_data(**context):
         artifact_id = record_preprocessing_metadata(store, execution_id, metadata_values)
         
         # Update execution end time
-        execution = store.get_executions_by_id(execution_id)[0]
+        execution = store.get_executions_by_id([execution_id])[0]
         execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
         store.put_executions([execution])
         
@@ -361,7 +361,7 @@ def preprocess_data(**context):
         record_preprocessing_metadata(store, execution_id, metadata_values)
         
         # Update execution end time
-        execution = store.get_executions_by_id(execution_id)
+        execution = store.get_executions_by_id([execution_id])
         execution.properties["end_time"].string_value = datetime.utcnow().isoformat()
         store.put_executions([execution])
         
@@ -372,12 +372,12 @@ def get_preprocessing_metadata(store, execution_id):
     """
     Utility function to retrieve preprocessing metadata for a given execution.
     """
-    execution = store.get_executions_by_id(execution_id)[0]
+    execution = store.get_executions_by_id([execution_id])[0]
     events = store.get_events_by_execution_ids([execution_id])
     
     if events:
         artifact_id = events[0].artifact_id
-        artifact = store.get_artifacts_by_id(artifact_id)[0]
+        artifact = store.get_artifacts_by_id([artifact_id])[0]
         
         metadata = {
             "raw_reviews_count": artifact.properties["raw_reviews_count"].int_value,
