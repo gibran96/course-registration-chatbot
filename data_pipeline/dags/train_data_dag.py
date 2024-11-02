@@ -165,7 +165,7 @@ def perform_similarity_search(**context):
             distance_type => 'COSINE',
             top_k => 10,
             options => '{"use_brute_force": true}'
-        ) AS base;
+        );
         """
 
         query_params = [
