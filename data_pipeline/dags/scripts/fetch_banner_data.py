@@ -293,6 +293,10 @@ def get_course_prerequisites(cookie_output, course_list):
 def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
     
+    if not course_data:
+        logging.error("course_data is None or empty, unable to dump to CSV.")
+        return
+    
     # print the length of the course_data
     logging.info(f"Length of course_data: {len(course_data)}")
 
