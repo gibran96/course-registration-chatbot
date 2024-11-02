@@ -143,42 +143,46 @@ def perform_similarity_search(**context):
 
     for query in queries:
         bq_query = """
-                    WITH query_embedding AS (
-                            SELECT ml_generate_embedding_result
-                            FROM ML.GENERATE_EMBEDDING(
-                                MODEL `coursecompass.mlopsdataset.embeddings_model`,
-                                (SELECT @query AS content)
-                            )
-                        ),
-                        review_data AS (
-                            SELECT *
-                            EXCEPT (review_id) -- Exclude the review_id column
-                            FROM `coursecompass.mlopsdataset.review_data_table`
-                        )
-                        SELECT DISTINCT 
-                            base.crn, 
-                            base.content, 
-                            STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; ') AS concatenated_review_info,
-                            distance AS score,
-                            CONCAT('Course Information:\n', base.content, '\nReview Information:\n', 
-                                STRING_AGG(CONCAT(review.question, '\n', review.response, '\n'), '; '), '\n') 
-                            AS full_info
-                        FROM VECTOR_SEARCH(
-                            (
-                                SELECT *
-                                FROM `coursecompass.mlopsdataset.banner_data_embeddings`
-                                WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
-                            ),
-                            'ml_generate_embedding_result',
-                            TABLE query_embedding,
-                            distance_type => 'COSINE',
-                            top_k => 10,
-                            options => '{"use_brute_force": true}'
-                        )
-                        JOIN review_data AS review
-                        ON base.crn = review.crn
-                        GROUP BY base.crn, base.content, distance;
-                    """
+                WITH query_embedding AS (
+                    SELECT ml_generate_embedding_result
+                    FROM ML.GENERATE_EMBEDDING(
+                        MODEL `coursecompass.mlopsdataset.embeddings_model`,
+                        (SELECT @query AS content)
+                    )
+                ),
+                review_data AS (
+                    SELECT *
+                    EXCEPT (review_id)
+                    FROM `coursecompass.mlopsdataset.review_data_table`
+                )
+                SELECT DISTINCT 
+                    base.crn, 
+                    base.content, 
+                    STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; ') AS concatenated_review_info,
+                    distance AS score,
+                    CONCAT(
+                        'Course Information:\\n', 
+                        base.content, 
+                        '\\nReview Information:\\n', 
+                        STRING_AGG(CONCAT(review.question, '\\n', review.response, '\\n'), '; '), 
+                        '\\n'
+                    ) AS full_info
+                FROM VECTOR_SEARCH(
+                    (
+                        SELECT *
+                        FROM `coursecompass.mlopsdataset.banner_data_embeddings`
+                        WHERE ARRAY_LENGTH(ml_generate_embedding_result) = 768
+                    ),
+                    'ml_generate_embedding_result',
+                    TABLE query_embedding,
+                    distance_type => 'COSINE',
+                    top_k => 10,
+                    options => '{"use_brute_force": true}'
+                ) base
+                JOIN review_data AS review
+                ON base.crn = review.crn
+                GROUP BY base.crn, base.content, distance
+                """
 
         query_params = [
             bigquery.ScalarQueryParameter("query", "STRING", query)
