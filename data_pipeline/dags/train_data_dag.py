@@ -215,7 +215,7 @@ def generate_llm_response(**context):
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
-    query_responses = context['ti'].xcom_pull(task_ids='perform_similarity_search', key='similarity_results')
+    query_responses = context['ti'].xcom_pull(task_ids='bq_similarity_search', key='similarity_results')
 
     prompt = """
                 Given the following user question and the contextual information from the database, provide a thorough and relevant answer:
