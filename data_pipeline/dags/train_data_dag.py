@@ -50,7 +50,7 @@ def get_llm_response(input_prompt):
                 max_output_tokens=1024,
                 temperature=0.7,
             ),
-        ).content
+        ).text
     return res
 
 def check_sample_count_from_bq(**context):
