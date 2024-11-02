@@ -245,6 +245,7 @@ def generate_llm_response(**context):
     logging.info(f'Generated {len(train_data_df)} samples')
     train_data_df.to_csv('/tmp/llm_train_data.csv', index=False)
     upload_to_gcs(
+        **context,
         bucket_name=Variable.get('default_bucket_name'),
         source_path='/tmp/llm_train_data.csv',
         destination_path='processed_trace_data/llm_train_data.csv'
@@ -313,12 +314,14 @@ with DAG(
         task_id='generate_llm_response',
         python_callable=generate_llm_response,
         provide_context=True,
+        dag=dag
     )
 
     load_to_bigquery_task = PythonOperator(
         task_id='upload_gcs_to_bq',
         python_callable=upload_gcs_to_bq,
         provide_context=True,
+        dag=dag
     )
 
 
