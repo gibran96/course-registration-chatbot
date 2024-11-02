@@ -2,7 +2,7 @@ name: Python Tests
 
 on: 
   push:
-    branches: [main, unit-testing-data-pipelines]
+    branches: [main, unit-testing-data-pipelines, gibran/banner-dag]
 
 jobs:
   test:
