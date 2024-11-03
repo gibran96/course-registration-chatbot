@@ -19,6 +19,7 @@ from functools import wraps
 import logging
 from typing import Optional, Callable, Any
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import os
 
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -360,8 +361,14 @@ def generate_llm_response(**context):
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
-    # train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
-    context['ti'].xcom_push(key='llm_train_data', value=train_data_df)
+
+    if os.path.exists('/tmp/llm_train_data.pq'):
+        logging.info("llm_train_data.pq exists, removing...")
+        os.remove('/tmp/llm_train_data.pq')
+    if not os.path.exists('/tmp/llm_train_data.pq'):
+        logging.info("Successfully removed llm_train_data.pq")
+    train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
+    logging.info(f"llm_train_data.pq exists: {os.path.exists('/tmp/llm_train_data.pq')}")
     return "generate_samples"
 
 
