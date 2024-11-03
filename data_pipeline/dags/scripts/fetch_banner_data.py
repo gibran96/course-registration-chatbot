@@ -131,7 +131,7 @@ def get_courses_list(cookie_output):
     
     logging.info(f"Number of courses fetched: {len(course_data)}")    
 
-    return course_data
+    return json.dumps(course_data)
 
 # Function to fetch the faculty info from the Banner API
 def get_faculty_info(cookie_output, course_list):
@@ -299,8 +299,7 @@ def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
     
     if not course_data:
-        logging.error("course_data is None or empty, unable to dump to CSV.")
-        return
+        raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
     # print the length of the course_data
     logging.info(f"Length of course_data: {len(course_data)}")

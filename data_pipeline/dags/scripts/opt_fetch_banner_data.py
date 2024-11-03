@@ -103,6 +103,9 @@ def parallel_faculty_info(**context):
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
         course_list = context['task_instance'].xcom_pull(task_ids='get_course_list_task')
         
+        if not course_list:
+            raise ValueError("Course list is empty. Aborting.")
+        
         # Ensure proper JSON formatting
         if isinstance(course_list, str):
             course_list = json.loads(course_list)
@@ -126,6 +129,9 @@ def parallel_course_description(**context):
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
         course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_parallel')
         
+        if not course_list:
+            raise ValueError("Course list is empty. Aborting.")
+        
         if isinstance(course_list, str):
             course_list = json.loads(course_list)
         if isinstance(cookie_output, str):
@@ -146,6 +152,9 @@ def parallel_prerequisites(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
         course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_parallel')
+        
+        if not course_list:
+            raise ValueError("Course list is empty. Aborting.")
         
         if isinstance(course_list, str):
             course_list = json.loads(course_list)
