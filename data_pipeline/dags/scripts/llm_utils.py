@@ -44,7 +44,7 @@ def generate_sample_queries(query):
     return queries
 
 def generate_llm_response(**context):
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"task_status: {task_status}")
     if task_status == "stop_task":
         return "stop_task"

@@ -39,7 +39,7 @@ default_args = {
 }
  
 def trigger_dag_run(**context):
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
     trigger_dag_run = TriggerDagRunOperator(
@@ -65,18 +65,21 @@ with DAG(
         task_id='check_sample_count',
         python_callable=check_sample_count_from_bq,
         provide_context=True,
+        dag=dag
     )
 
     bq_data = PythonOperator(
         task_id='get_bq_data',
         python_callable=get_bq_data,
         provide_context=True,
+        dag=dag
     )
 
     initial_queries = PythonOperator(
         task_id='get_initial_queries',
         python_callable=get_initial_queries,
         provide_context=True,
+        dag=dag
     )
 
 
@@ -84,6 +87,7 @@ with DAG(
         task_id='bq_similarity_search',
         python_callable=perform_similarity_search,
         provide_context=True,
+        dag=dag
     )
 
     llm_response = PythonOperator(

@@ -5,7 +5,7 @@ from scripts.seed_data import topics, seed_query_list
 
 def get_initial_queries(**context):
     """Generate initial queries based on topics, courses, and professors"""
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"Task status: {task_status}")
 
     if task_status == "stop_task":
