@@ -298,7 +298,6 @@ def perform_similarity_search(**context):
                         cm.content,
                         cm.search_distance
                     """
-            logging.info(f"Similarity search query: {new_query}")
 
             query_params = [
                 bigquery.ScalarQueryParameter("new_query", "STRING", new_query),
@@ -322,7 +321,7 @@ def perform_similarity_search(**context):
                 'final_content': result_content
             }
 
-            logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
+            # logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
    
     context['ti'].xcom_push(key='similarity_results', value=query_response)
     return "generate_samples"
@@ -354,6 +353,7 @@ def generate_llm_response(**context):
             input_prompt = prompt.format(query=query, content=content)
             llm_res = get_llm_response(input_prompt)
             train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
+            logging.info(f'Generated {len(train_data_df)} samples')
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
