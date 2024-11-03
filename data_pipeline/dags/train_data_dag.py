@@ -129,15 +129,9 @@ def generate_sample_queries(query):
 
     prompt = """Understand the following query provided by the user and generate 10 similar queries that can be phrased in different ways.
 
-    Output the results in the following JSON format enclosed by triple backticks:
-    ```json
-    {
-        "queries": [
-            "query_1",
-            "query_2",
-            ...
-        ]
-    }
+        Output the results in the following JSON format enclosed by triple backticks:
+        ```json{{"queries": ["query_1","query_2",...]}}```
+
         User Query :
         {query}
         Generated Queries :
