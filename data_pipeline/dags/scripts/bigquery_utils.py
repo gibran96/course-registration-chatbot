@@ -53,7 +53,7 @@ def get_bq_data(**context):
 
 def perform_similarity_search(**context):
     """Perform similarity search in BigQuery using embeddings"""
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"Task status: {task_status}")
     if task_status == "stop_task":
         return "stop_task"
@@ -153,7 +153,7 @@ def perform_similarity_search(**context):
 
 def upload_gcs_to_bq(**context):
     """Upload data from GCS to BigQuery"""
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     
     if task_status == "stop_task":
         return "stop_task"
