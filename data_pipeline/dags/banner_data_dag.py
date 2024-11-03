@@ -51,21 +51,21 @@ with DAG(
     )
     
     get_faculty_info_task = PythonOperator(
-        task_id='get_faculty_info_parallel',
+        task_id='get_faculty_info_task',
         python_callable=parallel_faculty_info,
         provide_context=True,
         dag=dag
     )
     
     get_course_description_task = PythonOperator(
-        task_id='get_course_description_parallel',
+        task_id='get_course_description_task',
         python_callable=parallel_course_description,
         provide_context=True,
         dag=dag
     )
     
     get_prerequisites_task = PythonOperator(
-        task_id='get_prerequisites_parallel',
+        task_id='get_prerequisites_task',
         python_callable=parallel_prerequisites,
         provide_context=True,
         dag=dag
@@ -75,7 +75,7 @@ with DAG(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
         op_kwargs={
-            'course_data': "{{ task_instance.xcom_pull(task_ids='get_prerequisites_parallel') }}"
+            'course_data': "{{ task_instance.xcom_pull(task_ids='get_prerequisites_task') }}"
         },
         provide_context=True,
         dag=dag
