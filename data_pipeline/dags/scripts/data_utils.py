@@ -8,12 +8,47 @@ import string
 
 
 def remove_punctuation(text):
+    """
+    Remove all punctuation from a given text.
+
+    Parameters
+    ----------
+    text : str
+        The text from which to remove punctuation.
+
+    Returns
+    -------
+    str
+        The input text with all punctuation removed.
+    """
     punts = string.punctuation
     new_text = ''.join(e for e in text if e not in punts)
     return new_text
 
 
 def upload_train_data_to_gcs(**context):
+    """
+    Upload the Parquet file with the generated LLM training data to GCS.
+
+    This function checks if the file exists locally and if so, tries to upload it
+    to the specified GCS bucket and path. If the upload is successful, it returns
+    the string 'generate_samples' to trigger the next task in the DAG. If the
+    file does not exist, it logs a warning. If there is an error during the upload
+    process, it logs an error and stops the DAG.
+
+    Parameters
+    ----------
+    **context : dict
+        A dictionary containing context information passed from the DAG run.
+        Expected keys include:
+            - 'ti': The task instance object, used to pull XCom data.
+
+    Returns
+    -------
+    str or None
+        Either the string 'generate_samples' to trigger the next task in the DAG
+        or None if the file does not exist.
+    """
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"task_status: {task_status}")
     if task_status == "stop_task":
@@ -51,6 +86,13 @@ def upload_train_data_to_gcs(**context):
 
 
 def upload_to_gcs(**context):
+    """
+    Uploads the preprocessed CSV files from the local machine to a GCS bucket.
+    
+    Args:
+        context: A dictionary containing context information passed from the DAG run. Expected keys include:
+            - 'dag_run': The DAG run object, which should contain 'conf' with 'bucket_name' and 'output_path'.
+    """
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
@@ -73,6 +115,22 @@ def upload_to_gcs(**context):
             os.remove(local_path)
             
 def upload_banner_data_to_gcs(**context):
+    """
+    Uploads the banner course data CSV file from the local file system to a specified Google Cloud Storage bucket.
+
+    This function checks for the existence of the CSV file in the local directory and uploads it to the designated
+    GCS bucket using the provided path configuration from the DAG run context.
+
+    Parameters
+    ----------
+    **context : dict
+        A dictionary containing context information passed from the DAG run. Expected keys include:
+            - 'dag_run': The DAG run object, which should contain 'conf' with 'bucket_name' and 'output_path'.
+
+    Logs
+    ----
+    Logs an info message upon successful upload of the CSV file to GCS.
+    """
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
     

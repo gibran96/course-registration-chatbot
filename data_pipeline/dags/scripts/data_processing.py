@@ -4,7 +4,15 @@ from scripts.seed_data import topics, seed_query_list
 
 
 def get_initial_queries(**context):
-    """Generate initial queries based on topics, courses, and professors"""
+    """
+    This function generates initial queries for the LLM by selecting a random
+    element from the list of topics, course names, and professor names. The
+    selected element is then used to format the queries in the seed data list
+    and the resulting list of queries is stored in XCom for the DAG to use.
+
+    :param context: The context object containing task instance and other metadata
+    :return: The list of initial queries or "stop_task" if the target sample count has been reached
+    """
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"Task status: {task_status}")
 
