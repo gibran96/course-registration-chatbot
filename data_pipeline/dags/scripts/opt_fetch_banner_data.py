@@ -40,14 +40,9 @@ def process_faculty_info_batch(cookie_output, course_batch):
         if isinstance(course_batch, str):
             course_batch = json.loads(course_batch)
 
-        # Validate the data structure of course_batch
-        if not isinstance(course_batch, dict):
-            raise TypeError("Expected course_batch to be a dictionary with course IDs as keys.")
-
-        # Iterate over courses in course_batch
-        for course_id, course_data in course_batch.items():
-            if not isinstance(course_data, dict):
-                raise TypeError(f"Expected each course entry to be a dictionary. Found {type(course_data)} for course_id {course_id}.")
+        logging.info(f"Processing faculty info batch... length: {len(course_batch)}")
+        logging.info(f"cookie_output: {cookie_output}")
+        logging.info(f"course_batch: {course_batch}")
 
         # Call the faculty info processing function
         return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
@@ -139,8 +134,8 @@ def parallel_faculty_info(**context):
             raise ValueError("Error in parallel_faculty_info")
         return json.dumps(results)
     except Exception as e:
-        logging.error(f"Error in parallel_faculty_info: {e}")
-        raise
+        logging.error(f"Error in parallel_faculty_info: {str(e)}")
+        raise ValueError(f"Error in parallel_faculty_info: {str(e)}") from e
 
 # DAG tasks for course description
 def parallel_course_description(**context):
