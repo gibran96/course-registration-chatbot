@@ -320,7 +320,7 @@ def perform_similarity_search(**context):
                 result_content.append(remove_punctuation(row.full_info))
             query_response[new_query] = {
                 'crns': result_crns,
-                'final_content': result_content
+                'final_content': '\n\n'.join(result_content)
             }
 
             # logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
@@ -349,15 +349,13 @@ def generate_llm_response(**context):
 
     train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
     for query, response in query_responses.items():
-        crns = response['crns'] 
-        content = response['final_content']
-        for crn, content in zip(crns, content):
-            input_prompt = prompt.format(query=query, content=content)
-            llm_res = get_llm_response(input_prompt)
-            train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
-            logging.info(f'Generated {len(train_data_df)} samples')
-            if len(train_data_df) > GENERATED_SAMPLE_COUNT:
-                break
+        context = response['final_content']
+        input_prompt = prompt.format(query=query, content=context)
+        llm_res = get_llm_response(input_prompt)
+        train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [context], 'response': [llm_res]})], ignore_index=True)
+        logging.info(f'Generated {len(train_data_df)} samples')
+        if len(train_data_df) > GENERATED_SAMPLE_COUNT:
+            break
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
