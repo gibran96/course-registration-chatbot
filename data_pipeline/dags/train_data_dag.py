@@ -47,7 +47,7 @@ GENERATED_SAMPLE_COUNT = 100
 
 
 def exponential_backoff(
-    max_retries: int = 5,
+    max_retries: int = 10,
     base_delay: float = 1,
     max_delay: float = 32,
     exponential_base: float = 2,
