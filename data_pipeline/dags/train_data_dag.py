@@ -18,6 +18,7 @@ from random import uniform
 from functools import wraps
 import logging
 from typing import Optional, Callable, Any
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -176,25 +177,24 @@ def get_initial_queries(**context):
         col_names = ['topic', 'course_name', 'professor_name']
 
         all_queries = []
-        for _ in range(10):
-            for selected_col in col_names:
-                if selected_col == 'topic':
-                    topic = random.choice(topics)
-                    topic = 'Software Development'
-                    query_subset = [query for query in seed_query_list if selected_col in query]
-                    queries = [query.format(topic=topic) for query in query_subset]
-                elif selected_col == 'course_name':
-                    course_name = random.choice(course_list)
-                    course_name = 'Advanced Software Development'
-                    query_subset = [query for query in seed_query_list if selected_col in query]
-                    queries = [query.format(course_name=course_name) for query in query_subset]
-                elif selected_col == 'professor_name':
-                    professor_name = random.choice(prof_list)
-                    professor_name = 'Skoteiniotis, Therapon'
-                    query_subset = [query for query in seed_query_list if selected_col in query]
-                    queries = [query.format(professor_name=professor_name) for query in query_subset]
+        for selected_col in col_names:
+            if selected_col == 'topic':
+                topic = random.choice(topics)
+                # topic = 'Software Development'
+                query_subset = [query for query in seed_query_list if selected_col in query]
+                queries = [query.format(topic=topic) for query in query_subset]
+            elif selected_col == 'course_name':
+                course_name = random.choice(course_list)
+                # course_name = 'Advanced Software Development'
+                query_subset = [query for query in seed_query_list if selected_col in query]
+                queries = [query.format(course_name=course_name) for query in query_subset]
+            elif selected_col == 'professor_name':
+                professor_name = random.choice(prof_list)
+                # professor_name = 'Skoteiniotis, Therapon'
+                query_subset = [query for query in seed_query_list if selected_col in query]
+                queries = [query.format(professor_name=professor_name) for query in query_subset]
 
-                all_queries.extend(queries)
+            all_queries.extend(queries)
 
         context['ti'].xcom_push(key='initial_queries', value=all_queries)
         logging.info(f'Initial queries: {len(all_queries)}' )
@@ -382,14 +382,26 @@ def upload_gcs_to_bq(**context):
     )
 
     # Execute the operator
-    return load_to_bigquery.execute(context=context)
+    load_to_bigquery.execute(context=context)
+    return "generate_samples"
+
+def trigger_dag_run(**context):
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    if task_status == "stop_task":
+        return "stop_task"
+    trigger_dag_run = TriggerDagRunOperator(
+        task_id='trigger_dag_run',
+        trigger_dag_id=dag.dag_id,
+    )
+    trigger_dag_run.execute(context=context)
+    return "generate_samples"
 
 
 with DAG(
     'train_data_dag',
     default_args=default_args,
     description='Generate synthetic training data',
-    schedule_interval='0 0 * * *',  # Daily at midnight
+    schedule_interval=None, 
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pdf', 'banner', 'llm'],
@@ -442,6 +454,13 @@ with DAG(
         dag=dag
     )
 
+    trigger_dag_run = PythonOperator(
+        task_id='trigger_dag_run',
+        python_callable=trigger_dag_run,
+        provide_context=True,
+        dag=dag
+    )
+
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task
+    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task >> trigger_dag_run
