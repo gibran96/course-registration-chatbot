@@ -53,36 +53,14 @@ def merge_course_data(batch_results):
 @validate_input
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses."""
-    # try:
-    #     # Ensure JSON strings are parsed into dictionaries
-    #     if isinstance(cookie_output, str):
-    #         cookie_output = json.loads(cookie_output)
-    #     if isinstance(course_batch, str):
-    #         course_batch = json.loads(course_batch)
-
-    #     # Call the faculty info processing function
-    #     return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
-    
-    # except (TypeError, ValueError) as e:
-    #     logging.error(f"Error processing faculty info batch: {str(e)}")
-    #     return None
     cookie_output = parse_json_safely(cookie_output)
     course_batch = parse_json_safely(course_batch)
-    
     return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
 
 # Process course descriptions in parallel
 @validate_input
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
-    # try:
-    #     # if isinstance(cookie_output, str):
-    #     #     cookie_output = json.loads(cookie_output)
-    #     # if isinstance(course_batch, str):
-    #     #     course_batch = json.loads(course_batch)
-    #     return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
-    # except Exception as e:
-    #     logging.error(f"Error processing course description batch: {str(e)}")
     cookie_output = parse_json_safely(cookie_output)
     course_batch = parse_json_safely(course_batch)
     return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
@@ -91,14 +69,6 @@ def process_description_batch(cookie_output, course_batch):
 @validate_input
 def process_prerequisites_batch(cookie_output, course_batch):
     """Process prerequisites for a batch of courses"""
-    # try:
-    #     if isinstance(cookie_output, str):
-    #         cookie_output = json.loads(cookie_output)
-    #     if isinstance(course_batch, str):
-    #         course_batch = json.loads(course_batch)
-    #     return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
-    # except Exception as e:
-    #     logging.error(f"Error processing prerequisites batch: {str(e)}")
     cookie_output = parse_json_safely(cookie_output)
     course_batch = parse_json_safely(course_batch)
     return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
@@ -140,8 +110,6 @@ def parallel_process_with_threads(process_func, cookie_output, course_list, max_
 # DAG tasks for faculty info
 def parallel_faculty_info(**context):
     try:
-        # cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        # course_list = context['task_instance'].xcom_pull(task_ids='get_course_list_task')
         ti = context['ti']
         cookie_output = get_xcom_data(ti, 'get_cookies_task')
         course_list = get_xcom_data(ti, 'get_course_list_task')
@@ -176,9 +144,6 @@ def parallel_faculty_info(**context):
 # DAG tasks for course description
 def parallel_course_description(**context):
     try:
-        # cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        # course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_task')
-        
         ti = context['ti']
         cookie_output = get_xcom_data(ti, 'get_cookies_task')
         course_list = get_xcom_data(ti, 'get_course_list_task')
@@ -211,9 +176,6 @@ def parallel_course_description(**context):
 # DAG tasks for prerequisites
 def parallel_prerequisites(**context):
     try:
-        # cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        # course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_task')
-        
         ti = context['ti']
         cookie_output = get_xcom_data(ti, 'get_cookies_task')
         course_list = get_xcom_data(ti, 'get_course_list_task')
