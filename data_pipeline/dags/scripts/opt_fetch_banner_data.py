@@ -51,15 +51,13 @@ def process_faculty_info_batch(cookie_output, course_batch):
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
     try:
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
-        if isinstance(course_batch, str):
-            course_batch = json.loads(course_batch)
+        # if isinstance(cookie_output, str):
+        #     cookie_output = json.loads(cookie_output)
+        # if isinstance(course_batch, str):
+        #     course_batch = json.loads(course_batch)
         return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing course description batch: {str(e)}")
-        logging.error(f"Course batch: {course_batch}")
-        logging.error(f"Cookie output: {cookie_output}")
 
 # Process prerequisites in parallel
 def process_prerequisites_batch(cookie_output, course_batch):
