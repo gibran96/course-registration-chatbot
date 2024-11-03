@@ -10,22 +10,36 @@ def remove_punctuation(text):
     new_text = ''.join(e for e in text if e not in punts)
     return new_text
 
+
 def upload_train_data_to_gcs():
-    bucket_name = Variable.get('default_bucket_name')
-    output_path = '/tmp'
+    try:
+        bucket_name = Variable.get('default_bucket_name')
+        output_path = '/tmp'
+        filename = 'llm_train_data.pq'
+        local_path = f"{output_path}/{filename}"
+        gcs_path = f"processed_trace_data/{filename}"
+        
+        # Verify bucket name
+        if not bucket_name:
+            logging.error("Bucket name is not set in Airflow variables.")
+            return
 
-    gcs_hook = GCSHook()
-    filename = 'llm_train_data.pq'
-    local_path = f"{output_path}/{filename}"
-    gcs_path = f"processed_trace_data/{filename}"
+        # Initialize GCS Hook
+        gcs_hook = GCSHook()
 
-    if os.path.exists(local_path):
-        gcs_hook.upload(
-            bucket_name=bucket_name,
-            object_name=gcs_path,
-            filename=local_path
-        )
-        logging.info(f"Uploaded {filename} to GCS")
+        # Check if file exists
+        if os.path.exists(local_path):
+            # Try uploading the file
+            gcs_hook.upload(
+                bucket_name=bucket_name,
+                object_name=gcs_path,
+                filename=local_path
+            )
+            logging.info(f"Uploaded {filename} to GCS at {gcs_path}")
+        else:
+            logging.warning(f"File {local_path} does not exist.")
+    except Exception as e:
+        logging.error(f"Failed to upload file to GCS: {str(e)}")
 
 def upload_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
