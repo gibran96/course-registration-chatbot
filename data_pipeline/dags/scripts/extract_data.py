@@ -38,6 +38,23 @@ def clean_text(text):
     return text
 
 def process_data(structured_data, reviews_df, courses_df):
+    """
+    Processes structured data to update reviews and courses dataframes.
+    Args:
+        structured_data (dict): A dictionary containing course and review information.
+            Expected keys are:
+                - "crn" (str): Course Registration Number.
+                - "course_code" (str): Code of the course.
+                - "course_title" (str): Title of the course.
+                - "instructor" (str): Name of the instructor.
+                - "responses" (list): List of response dictionaries, each containing:
+                    - "question" (str): The question asked.
+                    - "responses" (list): List of responses to the question.
+        reviews_df (pandas.DataFrame): DataFrame containing existing reviews.
+        courses_df (pandas.DataFrame): DataFrame containing existing courses.
+    Returns:
+        tuple: A tuple containing updated reviews_df and courses_df.
+    """
     crn = structured_data["crn"]
     course_code = structured_data["course_code"]
     course_title = structured_data["course_title"]
@@ -70,6 +87,20 @@ def process_data(structured_data, reviews_df, courses_df):
 
 
 def extract_data_from_pdf(pdf_file):
+    """
+    Extracts structured data from a PDF file containing course information and responses.
+    Args:
+        pdf_file (list): A list of PDF page objects.
+    Returns:
+        dict: A dictionary containing structured data with the following keys:
+            - crn (str): Course ID.
+            - course_title (str): Title of the course.
+            - course_code (str): Course code.
+            - instructor (str): Name of the instructor.
+            - responses (list): A list of dictionaries, each containing:
+                - question (str): The question text.
+                - responses (list): A list of responses to the question.
+    """
     structured_data = {
         "crn": "",
         "course_title": "",
