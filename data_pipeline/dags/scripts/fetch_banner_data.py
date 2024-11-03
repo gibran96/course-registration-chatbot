@@ -166,7 +166,6 @@ def get_faculty_info(cookie_output, course_list):
         data = response.json()["fmt"][0]
         
         if response.status_code == 200:
-            # if faculty name is not present, remove the course from the list
             if not data["faculty"]:
                 logging.warning(f"No faculty found for course: {course_ref_num}")
                 del course_list[course]
