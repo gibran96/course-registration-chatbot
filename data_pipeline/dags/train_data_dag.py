@@ -16,12 +16,13 @@ from scripts.bigquery_utils import (
 )
 from scripts.data_processing import (
     get_initial_queries,
-    upload_train_data_to_gcs
+    
 )
 from scripts.llm_utils import generate_llm_response
 
 from scripts.data_utils import (
-    upload_to_gcs
+    upload_to_gcs,
+    upload_train_data_to_gcs
 )       
 
 logging.basicConfig(level=logging.INFO)
