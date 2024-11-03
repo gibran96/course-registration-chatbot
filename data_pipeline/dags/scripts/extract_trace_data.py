@@ -227,22 +227,26 @@ def read_and_parse_pdf_files(**context):
         logging.info(f"Length of courses: {courses_df.shape[0]}")
         
         # Save processed data
-        os.makedirs(output_path, exist_ok=True)
-        # Check if the file exists
-        reviews_path = f"{output_path}/reviews.csv"
-        courses_path = f"{output_path}/courses.csv"
+        # os.makedirs(output_path, exist_ok=True)
+        # # Check if the file exists
+        # reviews_path = f"{output_path}/reviews.csv"
+        # courses_path = f"{output_path}/courses.csv"
 
-        if os.path.exists(reviews_path):
-            os.remove(reviews_path)
-            logging.info(f"Removed existing reviews file at {reviews_path}")
-        if os.path.exists(courses_path):
-            os.remove(courses_path)
-            logging.info(f"Removed existing courses file at {courses_path}")
+        # if os.path.exists(reviews_path):
+        #     os.remove(reviews_path)
+        #     logging.info(f"Removed existing reviews file at {reviews_path}")
+        # if os.path.exists(courses_path):
+        #     os.remove(courses_path)
+        #     logging.info(f"Removed existing courses file at {courses_path}")
         
-        reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
-        courses_df.to_csv(f"{output_path}/courses.csv", index=False)
+        # reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
+        # courses_df.to_csv(f"{output_path}/courses.csv", index=False)
         
-        logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+        # logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+
+        # Push the data frames to xcom
+        context['ti'].xcom_push(key='reviews_df', value=reviews_df)
+        context['ti'].xcom_push(key='courses_df', value=courses_df)
 
         
         # Create question mapping
@@ -406,9 +410,9 @@ def preprocess_data(**context):
     }
 
     try:
-        # Load data
-        reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
-        courses_df = pd.read_csv(f"{output_path}/courses.csv")
+        # Load data from xcom 
+        reviews_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='reviews_df')
+        courses_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='courses_df')
         
         # Record initial counts
         metadata_values["raw_reviews_count"] = len(reviews_df)
