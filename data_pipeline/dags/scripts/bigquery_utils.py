@@ -1,12 +1,12 @@
 import logging
 from google.cloud import bigquery
 from airflow.models import Variable
-from scripts.data_utils import remove_punctuation
+from data_utils import remove_punctuation
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
 )
-from scripts.llm_utils import generate_sample_queries
-from scripts.constants import TARGET_SAMPLE_COUNT
+from llm_utils import generate_sample_queries
+from constants import TARGET_SAMPLE_COUNT
 
 
 

@@ -1,6 +1,6 @@
 import logging
 import random
-from scripts.seed_data import topics, seed_query_list
+from seed_data import topics, seed_query_list
 
 
 def get_initial_queries(**context):
