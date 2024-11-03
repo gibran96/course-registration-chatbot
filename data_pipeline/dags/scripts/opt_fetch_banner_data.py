@@ -45,6 +45,8 @@ def process_faculty_info_batch(cookie_output, course_batch):
     
     except (TypeError, ValueError) as e:
         logging.error(f"Error processing faculty info batch: {e}")
+        logging.error(f"cookie_output: {cookie_output}")
+        logging.error(f"course_batch: {course_batch}")
         return None
 
 # Process course descriptions in parallel
@@ -125,7 +127,7 @@ def parallel_faculty_info(**context):
         
         results = parallel_process_with_threads(
             process_faculty_info_batch,
-            json.dumps(cookie_output),
+            cookie_output,
             course_list
         )
         logging.info(f"Length of results: {len(results)}")
