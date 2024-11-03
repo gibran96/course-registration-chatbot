@@ -465,10 +465,6 @@ def preprocess_data(**context):
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
 
-        # Delete the original files
-        os.remove(f"{output_path}/reviews.csv")
-        os.remove(f"{output_path}/courses.csv")
-
         
         return {
             'reviews_count': len(reviews_df),
@@ -652,10 +648,15 @@ def get_distinct_crn(**context):
         query = f"""
             SELECT DISTINCT crn
             FROM {Variable.get('review_table_name')}
+            ORDER BY crn
+            LIMIT 1000
         """
         query_job = client.query(query)
-        results = query_job.result()
-        return results
+        crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        logging.info(f"CRN List: {crn_list}")
+        client.close()
+        context['ti'].xcom_push(key='crn_list', value=crn_list)
+        return crn_list
     except Exception as e:
         logging.error(f"Error: {e}")
         return []
