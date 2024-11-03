@@ -154,7 +154,7 @@ def parallel_course_description(**context):
         
         results = parallel_process_with_threads(
             process_description_batch,
-            json.dumps(cookie_output),
+            cookie_output,
             course_list
         )
         logging.info(f"Length of results: {len(results)}")
@@ -183,7 +183,7 @@ def parallel_prerequisites(**context):
         
         results = parallel_process_with_threads(
             process_prerequisites_batch,
-            json.dumps(cookie_output),
+            cookie_output,
             course_list
         )
         logging.info(f"Length of results: {len(results)}")

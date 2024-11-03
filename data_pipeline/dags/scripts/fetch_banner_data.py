@@ -166,11 +166,7 @@ def get_faculty_info(cookie_output, course_list):
         data = response.json()["fmt"][0]
         
         if response.status_code == 200:
-            if not data["faculty"]:
-                logging.warning(f"No faculty found for course: {course_ref_num}")
-                del course_list[course]
-                continue
-            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"]
+            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if data["faculty"] else ""
             course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
             course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
             course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
@@ -182,7 +178,7 @@ def get_faculty_info(cookie_output, course_list):
             course_list[course]["days"] = ""
             logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
     
-    return json.dumps(course_list)
+    return course_list
 
 # Function to fetch the course description from the Banner API
 def get_course_description(cookie_output, course_list):
@@ -274,7 +270,6 @@ def get_course_prerequisites(cookie_output, course_list):
         table = soup.find("table", class_="basePreqTable")
         
         if table:
-            logging.info(f"Prerequisites found for CRN: {course_ref_num}")
             # Parse each row in the table body
             for row in table.find("tbody").find_all("tr"):
                 cells = row.find_all("td")
@@ -292,6 +287,16 @@ def get_course_prerequisites(cookie_output, course_list):
         course_list[course]["prereq"] = prerequisites
     
     return course_list
+
+# Function to remove courses without faculty info
+def remove_courses_without_faculty(**context):
+    course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
+    course_data = ast.literal_eval(course_data)
+    logging.info(f"Length of course_data: {len(course_data)}")
+    # Remove courses without faculty info
+    course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
+    
+    return course_data
 
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
