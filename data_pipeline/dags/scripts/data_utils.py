@@ -68,6 +68,9 @@ def upload_to_gcs(**context):
                 filename=local_path
             )
             logging.info(f"Uploaded {filename} to GCS")
+
+            # Remove the local file
+            os.remove(local_path)
             
 def upload_banner_data_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))

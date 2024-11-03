@@ -207,7 +207,7 @@ def get_course_description(cookie_output, course_list):
         try:  
             response = requests.post(url, headers=headers, params=params)
         except requests.exceptions.RequestException as e:
-            logging.error(f"Failed to fetch course description: {e}")
+            logging.error(f"Failed to fetch description for course: {course_ref_num}: {e}")
             continue
         
         if response.status_code == 200:
@@ -225,7 +225,7 @@ def get_course_description(cookie_output, course_list):
                 logging.warning(f"No description found for course: {course_ref_num}")
         else:
             # Handle cases where the request was unsuccessful
-            course_list[course]["course_description"] = "Failed to fetch description."
+            course_list[course]["course_description"] = ""
             logging.error(f"Failed to fetch description for course: {course_ref_num}")
 
     return course_list

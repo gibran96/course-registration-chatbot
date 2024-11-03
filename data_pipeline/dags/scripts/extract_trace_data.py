@@ -460,6 +460,11 @@ def preprocess_data(**context):
         
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
+
+        # Delete the original files
+        os.remove(f"{output_path}/reviews.csv")
+        os.remove(f"{output_path}/courses.csv")
+
         
         return {
             'reviews_count': len(reviews_df),
