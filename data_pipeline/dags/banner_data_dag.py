@@ -99,12 +99,17 @@ with DAG(
         dag=dag,
     )
     
-    # Email notification for successful DAG completion
     success_email_task = EmailOperator(
         task_id='success_email',
         to='mlopsggmu@gmail.com',
         subject='DAG banner_dag_pipeline Succeeded',
-        html_content='<p>The DAG <strong>banner_dag_pipeline</strong> has completed successfully.</p>',
+        html_content="""<p>Dear User,</p>
+                        <p>The DAG <strong>{{ dag.dag_id }}</strong> was copleted successfully on {{ ds }}.</p>
+                        <p><strong>Execution Date:</strong> {{ execution_date }}</p>
+                        <p>Please check the <a href="{{ task_instance.log_url }}">task logs</a> for more details.</p>
+                        <br/><br/>
+                        <p>Best regards,</p>
+                        <p>Airflow Notifications</p>""",
         trigger_rule='all_success',
         dag=dag,
     )
