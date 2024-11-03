@@ -126,17 +126,21 @@ def llm_response_parser(llm_response):
 
 def generate_sample_queries(query):
 
-    prompt = """Understand the following query provided by the user and generate 10 queries similar to the user's query that can be asked in different ways.
+    prompt = """Understand the following query provided by the user and generate 10 similar queries that can be phrased in different ways.
 
-    give the output in the following json format enclosed by ```json```
-    Sample Output :
-    ```json{{"queries": ["query_1", "query_2", ...],}}```
-
-    User Query :
-    {query}
-
-    Generated Queries :
-    """
+    Output the results in the following JSON format enclosed by triple backticks:
+    ```json
+    {
+        "queries": [
+            "query_1",
+            "query_2",
+            ...
+        ]
+    }
+        User Query :
+        {query}
+        Generated Queries :
+        """
     input_prompt = prompt.format(query=query)
     res = get_llm_response(input_prompt)
     queries = llm_response_parser(res)['queries']
