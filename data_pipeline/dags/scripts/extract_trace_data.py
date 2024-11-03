@@ -344,8 +344,8 @@ def preprocess_data(**context):
         # Save preprocessed data
         reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.pq"
         courses_preprocessed_path = f"{output_path}/courses_preprocessed.pq"
-        reviews_df.to_parquet(reviews_preprocessed_path, index=False)
-        courses_df.to_parquet(courses_preprocessed_path, index=False)
+        reviews_df.to_parquet(reviews_preprocessed_path, index=False, engine='pyarrow')
+        courses_df.to_parquet(courses_preprocessed_path, index=False, engine='pyarrow')
 
         # Update metadata with success status
         metadata_values["status"] = "completed"
@@ -451,19 +451,32 @@ def check_for_gender_bias(df, column_name):
     # Check for gender bias in the df for the given column
     # Check for any gender specific pronouns in the responses and replace it with the professor.
 
-    gender_sensitive_pronouns = ["he", "him", "his", "she", "her", "hers", "they", "them", "theirs"]
+    gender_sensitive_pronouns = [" he " , " him ", " his ", " she ", " her ", " hers ", " they ", " them ", " theirs "]
 
     flag = False
 
     sensitive_data_found = pd.DataFrame(columns=["crn", "question", "response"])
     # Keep a track of all the rows that have the gender specific pronouns
-    for pron in gender_sensitive_pronouns:
-        for index, row in df.iterrows():
-            if pron in row[column_name]:
-                flag = True
-                sensitive_data_found.loc[-1] = [row["crn"], row["question"], row[column_name]]
-
-                df.at[index, column_name] = row[column_name].replace(pron, "the professor")
+    # Check each row in the specified column for gender-specific pronouns
+    for index, row in df.iterrows():
+        response_text = f" {row[column_name]} "  # Adding spaces around the text to handle word boundaries
+        found_pronouns = any(pronoun in response_text.lower() for pronoun in gender_sensitive_pronouns)
+        
+        if found_pronouns:
+            # Set flag to True if any sensitive data is found
+            flag = True
+            
+            # Append row to sensitive_data_found DataFrame
+            sensitive_data_found[-1] = [row["crn"], row["question"], row[column_name]]
+            
+            # Replace pronouns with "the professor" in the response text
+            for pronoun in gender_sensitive_pronouns:
+                response_text = response_text.replace(pronoun, " the professor ")
+            
+            # Update the original DataFrame with the modified text
+            df.at[index, column_name] = response_text.strip()
+    
+    return flag, sensitive_data_found
     return flag, sensitive_data_found
 
 
