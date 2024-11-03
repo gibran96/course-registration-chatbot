@@ -36,10 +36,12 @@ def process_faculty_info_batch(cookie_output, course_batch):
     try:
         if isinstance(cookie_output, str):
             cookie_output = json.loads(cookie_output)
+        if isinstance(course_batch, str):
+            course_batch = json.loads(course_batch)
         return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing faculty info batch: {e}")
-        return None
+        raise ValueError("Error processing faculty info batch")
 
 # Process course descriptions in parallel
 def process_description_batch(cookie_output, course_batch):
@@ -47,10 +49,12 @@ def process_description_batch(cookie_output, course_batch):
     try:
         if isinstance(cookie_output, str):
             cookie_output = json.loads(cookie_output)
+        if isinstance(course_batch, str):
+            course_batch = json.loads(course_batch)
         return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing course description batch: {e}")
-        return None
+        raise ValueError("Error processing course description batch")
 
 # Process prerequisites in parallel
 def process_prerequisites_batch(cookie_output, course_batch):
@@ -58,10 +62,12 @@ def process_prerequisites_batch(cookie_output, course_batch):
     try:
         if isinstance(cookie_output, str):
             cookie_output = json.loads(cookie_output)
+        if isinstance(course_batch, str):
+            course_batch = json.loads(course_batch)
         return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing prerequisites batch: {e}")
-        return None
+        raise ValueError("Error processing prerequisites batch")
 
 # Generic function for parallel processing
 def parallel_process_with_threads(process_func, cookie_output, course_list, max_workers=5):
