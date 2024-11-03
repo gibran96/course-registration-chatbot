@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from scripts.extract_trace_data import clean_text
 from scripts.extract_trace_data import clean_response
 
-from scripts.extract_trace_data import process_data
+from scripts.extract_trace_data import parse_data
 from scripts.extract_trace_data import extract_data_from_pdf
 
 
@@ -178,7 +178,7 @@ class TestProcessData:
     def test_process_data_new_course(self, structured_data, empty_dataframes):
         """Test processing data with a new course."""
         reviews_df, courses_df = empty_dataframes
-        updated_reviews_df, updated_courses_df = process_data(structured_data, reviews_df, courses_df)
+        updated_reviews_df, updated_courses_df = parse_data(structured_data, reviews_df, courses_df)
 
         # Verify course added to courses_df
         assert len(updated_courses_df) == 1
@@ -205,7 +205,7 @@ class TestProcessData:
         }])
         reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
 
-        updated_reviews_df, updated_courses_df = process_data(structured_data, reviews_df, courses_df)
+        updated_reviews_df, updated_courses_df = parse_data(structured_data, reviews_df, courses_df)
 
         # Verify no new course row added
         assert len(updated_courses_df) == 1
@@ -219,7 +219,7 @@ class TestProcessData:
         reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
         courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
-        updated_reviews_df, updated_courses_df = process_data(structured_data, reviews_df, courses_df)
+        updated_reviews_df, updated_courses_df = parse_data(structured_data, reviews_df, courses_df)
 
         # Verify course added to courses_df
         assert len(updated_courses_df) == 1
@@ -255,9 +255,9 @@ class TestProcessData:
         courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
         # Process first course
-        reviews_df, courses_df = process_data(structured_data_1, reviews_df, courses_df)
+        reviews_df, courses_df = parse_data(structured_data_1, reviews_df, courses_df)
         # Process second course
-        reviews_df, courses_df = process_data(structured_data_2, reviews_df, courses_df)
+        reviews_df, courses_df = parse_data(structured_data_2, reviews_df, courses_df)
 
         # Verify both courses are added
         assert len(courses_df) == 2
