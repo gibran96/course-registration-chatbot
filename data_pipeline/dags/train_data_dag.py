@@ -16,9 +16,10 @@ from scripts.bigquery_utils import (
 )
 from scripts.data_processing import (
     get_initial_queries,
-    generate_llm_response,
     upload_train_data_to_gcs
 )
+from scripts.llm_utils import generate_llm_response
+
 from scripts.data_utils import (
     upload_to_gcs
 )       
