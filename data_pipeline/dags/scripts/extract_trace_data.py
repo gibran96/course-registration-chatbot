@@ -583,7 +583,7 @@ def get_crn_list(**context):
         logging.info(f"Executing query: {query}")
         # logging.info(f"Len of result: {len(client.query(query).result())}")
         crn_list = list(set(row["crn"] for row in client.query(query).result()))
-        logging.info(f"CRN List: {crn_list}")
+        logging.info(f"CRN List: {len(crn_list)}")
         client.close()
         context['ti'].xcom_push(key='crn_list', value=crn_list)
         return crn_list
@@ -628,37 +628,3 @@ def monitor_new_rows_and_trigger(**context):
         trigger_train_data_pipeline.execute(context=context)
     else:
         logging.info("Not triggering the train_data_dag")
-
-
-def get_distinct_crn(**context):
-    """
-    Retrieves distinct CRN (Course Reference Number) values from a specified BigQuery table.
-    This function connects to a BigQuery client, executes a query to fetch distinct CRN values
-    from the table specified by the 'review_table_name' variable, and returns the results.
-    Args:
-        **context: Arbitrary keyword arguments. This can include Airflow context variables.
-    Returns:
-        google.cloud.bigquery.table.RowIterator: An iterator over the query results containing distinct CRN values.
-        If an exception occurs, an empty list is returned.
-    Raises:
-        google.cloud.exceptions.GoogleCloudError: If there is an error with the BigQuery client or query execution.
-    """
-    try :
-        client = bigquery.Client()
-        query = f"""
-            SELECT DISTINCT crn
-            FROM {Variable.get('review_table_name')}
-            ORDER BY crn
-            LIMIT 1000
-        """
-        query_job = client.query(query)
-        crn_list = list(set(row["crn"] for row in client.query(query).result()))
-        logging.info(f"CRN List: {crn_list}")
-        client.close()
-        context['ti'].xcom_push(key='crn_list', value=crn_list)
-        return crn_list
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return []
-
-
