@@ -36,9 +36,9 @@ def clean_response(response):
 def clean_text(text):
     """Clean and standardize text."""
     text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace())
+    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
     text = text.lower()
-    text = clean_response(text)
+    # text = clean_response(text)
     return text
 
 
@@ -139,7 +139,7 @@ def process_pdf_files(**context):
     unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
     
     # Initialize DataFrames
-    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response", "term"])
+    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
     courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
     storage_client = storage.Client()
@@ -317,15 +317,17 @@ def preprocess_data(**context):
         # Initial metadata recording
         artifact_id = record_preprocessing_metadata(store, execution_id, metadata_values)
 
+        # Track null responses removed
+        null_count = reviews_df["response"].isnull().sum()
+        reviews_df = reviews_df[reviews_df["response"].notnull()]
+        metadata_values["null_responses_removed"] = null_count
+
+
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
         courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
         # courses_df["instructor"] = courses_df["instructor"].apply(clean_text)
 
-        # Track null responses removed
-        null_count = reviews_df["response"].isnull().sum()
-        reviews_df = reviews_df[reviews_df["response"].notnull()]
-        metadata_values["null_responses_removed"] = null_count
 
         # Check for sensitive data
         flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")

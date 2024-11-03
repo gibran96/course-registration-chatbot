@@ -1,14 +1,12 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.models import Variable
 from google.cloud import storage, bigquery
 import vertexai.generative_models
 from scripts.data_utils import upload_train_data_to_gcs, remove_punctuation  # Reusing existing utility
 import pandas as pd
-import numpy as np
 from scripts.seed_data import topics, seed_query_list
 import logging
 import random
@@ -20,6 +18,7 @@ from random import uniform
 from functools import wraps
 import logging
 from typing import Optional, Callable, Any
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -128,17 +127,15 @@ def llm_response_parser(llm_response):
 
 def generate_sample_queries(query):
 
-    prompt = """Understand the following query provided by the user and generate 10 queries similar to the user's query that can be asked in different ways.
+    prompt = """Understand the following query provided by the user and generate 10 similar queries that can be phrased in different ways.
 
-    give the output in the following json format enclosed by ```json```
-    Sample Output :
-    ```json{{"queries": ["query_1", "query_2", ...],}}```
+        Output the results in the following JSON format enclosed by triple backticks:
+        ```json{{"queries": ["query_1","query_2",...]}}```
 
-    User Query :
-    {query}
-
-    Generated Queries :
-    """
+        User Query :
+        {query}
+        Generated Queries :
+        """
     input_prompt = prompt.format(query=query)
     res = get_llm_response(input_prompt)
     queries = llm_response_parser(res)['queries']
@@ -181,17 +178,17 @@ def get_initial_queries(**context):
         for selected_col in col_names:
             if selected_col == 'topic':
                 topic = random.choice(topics)
-                topic = 'Software Development'
+                # topic = 'Software Development'
                 query_subset = [query for query in seed_query_list if selected_col in query]
                 queries = [query.format(topic=topic) for query in query_subset]
             elif selected_col == 'course_name':
                 course_name = random.choice(course_list)
-                course_name = 'Advanced Software Development'
+                # course_name = 'Advanced Software Development'
                 query_subset = [query for query in seed_query_list if selected_col in query]
                 queries = [query.format(course_name=course_name) for query in query_subset]
             elif selected_col == 'professor_name':
                 professor_name = random.choice(prof_list)
-                professor_name = 'Skoteiniotis, Therapon'
+                # professor_name = 'Skoteiniotis, Therapon'
                 query_subset = [query for query in seed_query_list if selected_col in query]
                 queries = [query.format(professor_name=professor_name) for query in query_subset]
 
@@ -301,7 +298,6 @@ def perform_similarity_search(**context):
                         cm.content,
                         cm.search_distance
                     """
-            logging.info(f"Similarity search query: {new_query}")
 
             query_params = [
                 bigquery.ScalarQueryParameter("new_query", "STRING", new_query),
@@ -325,7 +321,7 @@ def perform_similarity_search(**context):
                 'final_content': result_content
             }
 
-            logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
+            # logging.info(f"Similarity search results for query '{new_query}': {','.join(result_crns)}")
    
     context['ti'].xcom_push(key='similarity_results', value=query_response)
     return "generate_samples"
@@ -357,6 +353,7 @@ def generate_llm_response(**context):
             input_prompt = prompt.format(query=query, content=content)
             llm_res = get_llm_response(input_prompt)
             train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
+            logging.info(f'Generated {len(train_data_df)} samples')
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
@@ -383,14 +380,26 @@ def upload_gcs_to_bq(**context):
     )
 
     # Execute the operator
-    return load_to_bigquery.execute(context=context)
+    load_to_bigquery.execute(context=context)
+    return "generate_samples"
+
+def trigger_dag_run(**context):
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    if task_status == "stop_task":
+        return "stop_task"
+    trigger_dag_run = TriggerDagRunOperator(
+        task_id='trigger_dag_run',
+        trigger_dag_id=dag.dag_id,
+    )
+    trigger_dag_run.execute(context=context)
+    return "generate_samples"
 
 
 with DAG(
     'train_data_dag',
     default_args=default_args,
     description='Generate synthetic training data',
-    schedule_interval='0 0 * * *',  # Daily at midnight
+    schedule_interval=None, 
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pdf', 'banner', 'llm'],
@@ -443,6 +452,13 @@ with DAG(
         dag=dag
     )
 
+    trigger_dag_run = PythonOperator(
+        task_id='trigger_dag_run',
+        python_callable=trigger_dag_run,
+        provide_context=True,
+        dag=dag
+    )
+
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task
+    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task >> trigger_dag_run
