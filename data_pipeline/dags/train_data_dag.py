@@ -35,9 +35,6 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=2),
 }
-
-TARGET_SAMPLE_COUNT = 500
-GENERATED_SAMPLE_COUNT = 100
  
 def trigger_dag_run(**context):
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
