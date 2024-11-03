@@ -1,7 +1,7 @@
 import logging
 from google.cloud import bigquery
 from airflow.models import Variable
-from scripts.data_processing import remove_punctuation
+from scripts.data_utils import remove_punctuation
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
 )
