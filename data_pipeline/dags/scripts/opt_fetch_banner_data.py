@@ -32,16 +32,29 @@ def merge_course_data(batch_results):
 
 # Process faculty info in parallel
 def process_faculty_info_batch(cookie_output, course_batch):
-    """Process faculty info for a batch of courses"""
+    """Process faculty info for a batch of courses."""
     try:
+        # Ensure JSON strings are parsed into dictionaries
         if isinstance(cookie_output, str):
             cookie_output = json.loads(cookie_output)
         if isinstance(course_batch, str):
             course_batch = json.loads(course_batch)
+
+        # Validate the data structure of course_batch
+        if not isinstance(course_batch, dict):
+            raise TypeError("Expected course_batch to be a dictionary with course IDs as keys.")
+
+        # Iterate over courses in course_batch
+        for course_id, course_data in course_batch.items():
+            if not isinstance(course_data, dict):
+                raise TypeError(f"Expected each course entry to be a dictionary. Found {type(course_data)} for course_id {course_id}.")
+
+        # Call the faculty info processing function
         return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
-    except Exception as e:
+    
+    except (TypeError, ValueError) as e:
         logging.error(f"Error processing faculty info batch: {e}")
-        raise ValueError("Error processing faculty info batch")
+        return None
 
 # Process course descriptions in parallel
 def process_description_batch(cookie_output, course_batch):
@@ -54,7 +67,6 @@ def process_description_batch(cookie_output, course_batch):
         return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing course description batch: {e}")
-        raise ValueError("Error processing course description batch")
 
 # Process prerequisites in parallel
 def process_prerequisites_batch(cookie_output, course_batch):
@@ -67,7 +79,6 @@ def process_prerequisites_batch(cookie_output, course_batch):
         return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing prerequisites batch: {e}")
-        raise ValueError("Error processing prerequisites batch")
 
 # Generic function for parallel processing
 def parallel_process_with_threads(process_func, cookie_output, course_list, max_workers=5):
@@ -124,6 +135,8 @@ def parallel_faculty_info(**context):
             course_list
         )
         logging.info(f"Length of results: {len(results)}")
+        if not results:
+            raise ValueError("Error in parallel_faculty_info")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_faculty_info: {e}")
@@ -149,10 +162,13 @@ def parallel_course_description(**context):
             course_list
         )
         logging.info(f"Length of results: {len(results)}")
+        if not results:
+            raise ValueError("Error in parallel_course_description")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
         raise
+    
 # DAG tasks for prerequisites
 def parallel_prerequisites(**context):
     try:
@@ -173,6 +189,8 @@ def parallel_prerequisites(**context):
             course_list
         )
         logging.info(f"Length of results: {len(results)}")
+        if not results:
+            raise ValueError("Error in parallel_prerequisites")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_prerequisites: {e}")
