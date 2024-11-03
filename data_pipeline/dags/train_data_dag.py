@@ -39,6 +39,13 @@ default_args = {
 }
  
 def trigger_dag_run(**context):
+    """
+    Trigger the DAG run if the sample count has not reached the target.
+
+    If the sample count has reached the target, this function will return "stop_task" to
+    stop the DAG run. Otherwise, it will trigger the DAG run and return "generate_samples".
+    """
+    
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     if task_status == "stop_task":
         return "stop_task"

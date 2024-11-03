@@ -28,7 +28,16 @@ def get_llm_response(input_prompt: str) -> str:
     return res
 
 def llm_response_parser(llm_response):
-    """Parse JSON response from LLM output"""
+    """
+    Parse the response from LLM to extract JSON object
+
+    The response from LLM is expected to be a string that contains a JSON object
+    enclosed in triple backticks. This function extracts the JSON object and
+    returns it as a Python object.
+
+    :param llm_response: string response from LLM
+    :return: Python object parsed from the JSON object in the response
+    """
     matches = re.findall(r'```json(.*)```', llm_response, re.DOTALL)
     if matches:
         return ast.literal_eval(matches[0])
@@ -36,7 +45,11 @@ def llm_response_parser(llm_response):
         return None
 
 def generate_sample_queries(query):
-    """Generate similar queries using LLM"""
+    """
+    Generate sample queries based on given query
+    :param query: user query
+    :return: list of sample queries
+    """
     input_prompt = QUERY_GENERATION_PROMPT.format(query=query)
     res = get_llm_response(input_prompt)
     queries = llm_response_parser(res)['queries']
@@ -44,6 +57,17 @@ def generate_sample_queries(query):
     return queries
 
 def generate_llm_response(**context):
+    """
+    This function is responsible for generating LLM responses based on the similarity search results from BigQuery.
+    It takes the task instance context as input and returns a string "generate_samples" if successful.
+
+    The function first checks the task status from the previous task, and if it is "stop_task", it returns "stop_task".
+    Otherwise, it retrieves the similarity search results from the previous task and generates LLM responses based on the results.
+    The generated responses are then saved to a Parquet file named "llm_train_data.pq" in the /tmp directory.
+
+    :param context: task instance context
+    :return: string "generate_samples" if successful
+    """
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"task_status: {task_status}")
     if task_status == "stop_task":
