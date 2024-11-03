@@ -180,6 +180,8 @@ def parallel_prerequisites(**context):
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
         
+        logging.info(f"Length of course list: {len(course_list)}")
+        
         if isinstance(course_list, str):
             course_list = json.loads(course_list)
         if isinstance(cookie_output, str):
