@@ -13,7 +13,11 @@ def remove_punctuation(text):
     return new_text
 
 
-def upload_train_data_to_gcs():
+def upload_train_data_to_gcs(**context):
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    logging.info(f"task_status: {task_status}")
+    if task_status == "stop_task":
+        return "stop_task"
     try:
         bucket_name = Variable.get('default_bucket_name')
         output_path = '/tmp'
@@ -38,10 +42,13 @@ def upload_train_data_to_gcs():
                 filename=local_path
             )
             logging.info(f"Uploaded {filename} to GCS at {gcs_path}")
+
+            return 'generate_samples'
         else:
             logging.warning(f"File {local_path} does not exist.")
     except Exception as e:
         logging.error(f"Failed to upload file to GCS: {str(e)}")
+
 
 def upload_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
