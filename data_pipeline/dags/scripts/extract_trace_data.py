@@ -36,7 +36,7 @@ def clean_response(response):
 def clean_text(text):
     """Clean and standardize text."""
     text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
+    # text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
     text = text.lower()
     # text = clean_response(text)
     return text
