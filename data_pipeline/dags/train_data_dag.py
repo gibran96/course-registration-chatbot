@@ -19,6 +19,7 @@ from functools import wraps
 import logging
 from typing import Optional, Callable, Any
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.email import EmailOperator
 
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -34,6 +35,7 @@ default_args = {
     'depends_on_past': False,
     'email_on_failure': True,
     'email_on_retry': False,
+    'email': ['mlopsggmu@gmail.com'],
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=2),
@@ -458,7 +460,32 @@ with DAG(
         provide_context=True,
         dag=dag
     )
+    
+    success_email_task = EmailOperator(
+        task_id='success_email',
+        to='mlopsggmu@gmail.com',
+        subject='DAG train_data_dag Succeeded',
+        html_content="""<p>Dear User,</p>
+                        <p>The DAG <strong>{{ dag.dag_id }}</strong> was copleted successfully on {{ ds }}.</p>
+                        <p><strong>Execution Date:</strong> {{ execution_date }}</p>
+                        <p>Please check the <a href="{{ task_instance.log_url }}">task logs</a> for more details.</p>
+                        <br/><br/>
+                        <p>Best regards,</p>
+                        <p>Airflow Notifications</p>""",
+        trigger_rule='all_success',
+        dag=dag,
+    )
 
 
     # Define task dependenciesa
-    sample_count >> bq_data >> initial_queries >> similarity_search_results >> llm_response >> upload_to_gcs >> load_to_bigquery_task >> trigger_dag_run
+    (
+        sample_count 
+        >> bq_data 
+        >> initial_queries 
+        >> similarity_search_results 
+        >> llm_response 
+        >> upload_to_gcs 
+        >> load_to_bigquery_task 
+        >> trigger_dag_run
+        >> success_email_task
+    )

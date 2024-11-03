@@ -12,12 +12,15 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
 from google.cloud import storage
 
+from airflow.operators.email import EmailOperator
+
 import logging
 logging.basicConfig(level=logging.INFO)
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
+    'email': ['mlopsggmu@gmail.com'],
     'email_on_failure': True,
     'email_on_retry': False,
     'retries': 0,
@@ -132,7 +135,32 @@ with DAG(
         dag=dag,
     )
 
+        
+    success_email_task = EmailOperator(
+        task_id='success_email',
+        to='mlopsggmu@gmail.com',
+        subject='DAG pdf_processing_pipeline Succeeded',
+        html_content="""<p>Dear User,</p>
+                        <p>The DAG <strong>{{ dag.dag_id }}</strong> was copleted successfully on {{ ds }}.</p>
+                        <p><strong>Execution Date:</strong> {{ execution_date }}</p>
+                        <p>Please check the <a href="{{ task_instance.log_url }}">task logs</a> for more details.</p>
+                        <br/><br/>
+                        <p>Best regards,</p>
+                        <p>Airflow Notifications</p>""",
+        trigger_rule='all_success',
+        dag=dag,
+    )
+
 
 
     # Set task dependencies
-    select_distinct_crn >> get_crn_list_task >> unique_blobs >> process_pdfs >> preproceess_pdfs >> upload_to_gcs_task >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+    (
+        select_distinct_crn 
+        >> get_crn_list_task 
+        >> unique_blobs 
+        >> process_pdfs 
+        >> preproceess_pdfs 
+        >> upload_to_gcs_task 
+        >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+        >> success_email_task
+    )
