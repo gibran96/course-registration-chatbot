@@ -134,7 +134,7 @@ def parallel_faculty_info(**context):
         if not results:
             raise ValueError("Error in parallel_faculty_info")
         
-        return json.dumps(results)
+        return results
     
     except Exception as e:
         logging.error(f"Error in parallel_faculty_info: {str(e)}")
@@ -166,7 +166,7 @@ def parallel_course_description(**context):
         if not results:
             raise ValueError("Error in parallel_course_description")
         
-        return json.dumps(results)
+        return results
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
         raise
@@ -195,7 +195,7 @@ def parallel_prerequisites(**context):
         if not results:
             raise ValueError("Error in parallel_prerequisites")
         
-        return json.dumps(results)
+        return results
     except Exception as e:
         logging.error(f"Error in parallel_prerequisites: {e}")
         raise
