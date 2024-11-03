@@ -128,6 +128,8 @@ def get_courses_list(cookie_output):
             "subject_course": course["subjectCourse"],
             "term": term_desc,
         }
+    
+    logging.info(f"Number of courses fetched: {len(course_data)}")    
 
     return course_data
 
@@ -158,7 +160,7 @@ def get_faculty_info(cookie_output, course_list):
         
         try:  
             response = requests.post(url, headers=headers, params=params)
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
         
         data = response.json()["fmt"][0]
@@ -297,8 +299,7 @@ def dump_to_csv(course_data, **context):
     course_data = ast.literal_eval(course_data)
     
     if not course_data:
-        logging.error("course_data is None or empty, unable to dump to CSV.")
-        return
+        raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
     # print the length of the course_data
     logging.info(f"Length of course_data: {len(course_data)}")
