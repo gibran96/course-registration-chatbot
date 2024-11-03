@@ -37,23 +37,22 @@ The processed data is stored for easy access and analysis:
 
 ## Airflow DAGs Overview
 
-### 1. **Train Data DAG** (`train_data_dag`)
+### 1. **Banner Data DAG Pipeline** (`banner_dag_pipeline`)
+This Airflow DAG focuses on fetching data from the NEU Banner system, processing it, and storing it in BigQuery. The steps are as follows:
 
-![Train Data DAG](./assets/imgs/Train_Data_DAG.png)
+![Banner Data DAG](./assets/imgs/Banner_Data_DAG.png)
 
-This Airflow Directed Acyclic Graph (DAG) is responsible for generating seed queries to train a model. It involves several steps:
 
-- **check_sample_count**: Ensures that there are enough samples available for training.
-- **get_bq_data**: Retrieves data from BigQuery to be used for training.
-- **get_initial_queries**: Generates initial queries based on the data retrieved.
-- **bq_similarity_search**: Uses BigQuery to perform similarity searches, which help in refining the data for training.
-- **generate_llm_response**: Generates responses from a language model based on the seed data.
-- **upload_to_gcs**: Uploads processed data to Google Cloud Storage.
-- **upload_gcs_to_bq**: Loads the data from Google Cloud Storage back into BigQuery.
-- **trigger_dag_run**: Triggers additional DAG runs if necessary.
-- **success_email**: Sends an email notification upon successful completion of the pipeline.
+- **get_cookies_task**: Retrieves authentication cookies to access Banner data.
+- **get_course_list_task**: Obtains a list of courses from the Banner system.
+- **get_faculty_info_parallel**: Collects faculty information for each course, running tasks in parallel.
+- **get_course_description_parallel**: Fetches course descriptions in parallel for efficiency.
+- **dump_to_csv_task**: Converts the data into a CSV format for easier handling and debugging.
+- **upload_to_gcs**: Uploads the CSV file to Google Cloud Storage.
+- **load_banner_data_to_bq**: Loads the Banner data from GCS into BigQuery.
+- **Success Email**: Sends an email notification upon successful data loading.
 
-This DAG is designed to automate the preparation and processing of training data in a systematic way.
+This pipeline streamlines the process of gathering and storing course and faculty information from the Banner system. 
 
 ### 2. **PDF Processing Pipeline** (`pdf_processing_pipeline`)
 This Airflow DAG is set up to process NEU Trace course review data. It fetches data, processes it, and then stores it in a BigQuery table. Here’s how it works:
@@ -73,22 +72,25 @@ This Airflow DAG is set up to process NEU Trace course review data. It fetches d
 This pipeline is essential for organizing and storing course review data in a structured format for analysis.
 
 
-### 3. **Banner Data DAG Pipeline** (`banner_dag_pipeline`)
-This Airflow DAG focuses on fetching data from the NEU Banner system, processing it, and storing it in BigQuery. The steps are as follows:
+### 3. **Train Data DAG** (`train_data_dag`)
 
-![Banner Data DAG](./assets/imgs/Banner_Data_DAG.png)
+![Train Data DAG](./assets/imgs/Train_Data_DAG.png)
 
+This Airflow Directed Acyclic Graph (DAG) is responsible for generating seed queries to train a model. It involves several steps:
 
-- **get_cookies_task**: Retrieves authentication cookies to access Banner data.
-- **get_course_list_task**: Obtains a list of courses from the Banner system.
-- **get_faculty_info_parallel**: Collects faculty information for each course, running tasks in parallel.
-- **get_course_description_parallel**: Fetches course descriptions in parallel for efficiency.
-- **dump_to_csv_task**: Converts the data into a CSV format for easier handling and debugging.
-- **upload_to_gcs**: Uploads the CSV file to Google Cloud Storage.
-- **load_banner_data_to_bq**: Loads the Banner data from GCS into BigQuery.
-- **Success Email**: Sends an email notification upon successful data loading.
+- **check_sample_count**: Ensures that there are enough samples available for training.
+- **get_bq_data**: Retrieves data from BigQuery to be used for training.
+- **get_initial_queries**: Generates initial queries based on the data retrieved.
+- **bq_similarity_search**: Uses BigQuery to perform similarity searches, which help in refining the data for training.
+- **generate_llm_response**: Generates responses from a language model based on the seed data.
+- **upload_to_gcs**: Uploads processed data to Google Cloud Storage.
+- **upload_gcs_to_bq**: Loads the data from Google Cloud Storage back into BigQuery.
+- **trigger_dag_run**: Triggers additional DAG runs if necessary.
+- **success_email**: Sends an email notification upon successful completion of the pipeline.
 
-This pipeline streamlines the process of gathering and storing course and faculty information from the Banner system. These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
+This DAG is designed to automate the preparation and processing of training data in a systematic way.
+
+These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
 
 
 ## Tools and Technologies
