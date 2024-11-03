@@ -10,29 +10,38 @@ from scripts.constants import TARGET_SAMPLE_COUNT
 
 
 
-def check_sample_count_from_bq(**context):
-    """
-    Checks the number of rows in the BigQuery table and compares it to the target sample count.
-    If the target sample count is reached, the DAG run is stopped. Otherwise, it proceeds to generate samples.
-
-    :param context: Context object containing task instance and other metadata
-    :return: "stop_task" to stop the DAG run or "generate_samples" to continue
-    """
-    client = bigquery.Client()
-    table_id = Variable.get("train_data_table_name")
-    
-    query = f"SELECT COUNT(*) AS sample_count FROM `{table_id}`"
-    result = client.query(query).result()
-    sample_count = list(result)[0]["sample_count"]
-    
-    if sample_count >= TARGET_SAMPLE_COUNT:
-        logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached in BigQuery. Ending DAG run.")
-        context['ti'].xcom_push(key='task_status', value="stop_task")
-        return "stop_task"
-    else:
-        logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+def check_sample_count(**context):
+    #get xcom from last dag run task_status
+    previous_dag_run = context['dag_run'].get_previous_dagrun()
+    if previous_dag_run is None:
+        logging.info("No previous dag run found. Proceeding with sample generation.")
         context['ti'].xcom_push(key='task_status', value="generate_samples")
+
+        sample_count = 0
+        
+        context['ti'].xcom_push(key='sample_count', value=sample_count)
         return "generate_samples"
+    
+    else:
+        last_run_task_status = previous_dag_run.get_task_instance('check_sample_count').xcom_pull(key='task_status')
+        if last_run_task_status == "stop_task":
+            logging.info("Last DAG execution was successful. Generating new samples.")
+            context['ti'].xcom_push(key='task_status', value="generate_samples")
+            sample_count = 0
+            context['ti'].xcom_push(key='sample_count', value=sample_count)
+            return "generate_samples"
+        else:
+            sample_count = previous_dag_run.get_task_instance('check_sample_count').xcom_pull(key='sample_count')
+            if sample_count >= TARGET_SAMPLE_COUNT:
+                logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached. Ending DAG run.")
+                context['ti'].xcom_push(key='task_status', value="stop_task")
+                context['ti'].xcom_push(key='sample_count', value=sample_count)
+                return "stop_task"
+            else:
+                logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+                context['ti'].xcom_push(key='task_status', value="generate_samples")
+                context['ti'].xcom_push(key='sample_count', value=sample_count)
+                return "generate_samples"
 
 def get_bq_data(**context):
     """
