@@ -1,4 +1,3 @@
-from google.cloud import storage
 import pandas as pd
 import os
 import logging
@@ -14,6 +13,8 @@ from datetime import datetime
 from ml_metadata import metadata_store
 from ml_metadata.proto import metadata_store_pb2
 from airflow.models import Variable
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+
 
 
 # Question mapping
@@ -571,8 +572,13 @@ def get_crn_list(**context):
         query = f"""
             SELECT DISTINCT crn
             FROM {Variable.get('review_table_name')}
+            ORDER BY crn
+            LIMIT 1000
         """
+        logging.info(f"Executing query: {query}")
+        logging.info(f"Len of result: {len(client.query(query).result())}")
         crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        client.close()
         context['ti'].xcom_push(key='crn_list', value=crn_list)
         return crn_list
     except Exception as e:
