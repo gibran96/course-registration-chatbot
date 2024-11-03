@@ -114,7 +114,7 @@ def parallel_faculty_info(**context):
             json.dumps(cookie_output),
             course_list
         )
-        
+        logging.info(f"Length of results: {len(results)}")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_faculty_info: {e}")
@@ -136,7 +136,7 @@ def parallel_course_description(**context):
             json.dumps(cookie_output),
             course_list
         )
-        
+        logging.info(f"Length of results: {len(results)}")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
@@ -157,7 +157,7 @@ def parallel_prerequisites(**context):
             json.dumps(cookie_output),
             course_list
         )
-        
+        logging.info(f"Length of results: {len(results)}")
         return json.dumps(results)
     except Exception as e:
         logging.error(f"Error in parallel_prerequisites: {e}")

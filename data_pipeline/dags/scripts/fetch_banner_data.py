@@ -128,6 +128,8 @@ def get_courses_list(cookie_output):
             "subject_course": course["subjectCourse"],
             "term": term_desc,
         }
+    
+    logging.info(f"Number of courses fetched: {len(course_data)}")    
 
     return course_data
 
