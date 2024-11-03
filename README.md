@@ -1,23 +1,26 @@
-# Course Registration Chatbot Data Pipeline
+# Course Registration Chatbot - Data Pipeline
 
 ## Overview
-This repository hosts a comprehensive data pipeline designed to collect, process, and store data related to university course offerings and student feedback. The primary objective is to generate insights useful for prospective students when selecting courses to register for.
+This repository hosts the data pipeline designed to collect, process, and store data related to Northeastern University course offerings and student feedback.
+
+The primary objective of the project is to generate insights useful for prospective students when selecting courses to register for.
 
 ## Key Components
 
 ### 1. Data Collection
+
 The pipeline collects two types of data:
-- **Course Information**: Scraped from university systems via web scraping techniques.
-- **Student Feedback**: Extracted from PDF documents containing detailed course evaluations.
+- **Course Information**: Scrapes course offering details from the NEU Banner system.
+- **Student Feedback**: Extracts student feedback from NEU Trace instructor comments reports available as PDF documents.
 
 ### 2. Data Processing
 The collected data undergoes several stages of processing:
-- **PDF Data Extraction**: Utilizes Optical Character Recognition (OCR) tools to convert PDF content into machine-readable format.
-- **Data Cleaning**: Removes irrelevant information and formats data consistently across different sources.
-- **Structured Data Creation**: Organizes extracted data into well-structured datasets suitable for analysis.
+- **PDF Data Extraction**: Uses Python-based extraction techniques to obtain student feedback from the NEU Trace instructor comments PDF reports.
+- **Data Cleaning**: Standardizes the data by removing irrelevant details and ensuring consistency across sources.
+- **Structured Data Creation**: Formats the data into well-structured datasets optimized for analysis.
 
 ### 3. Storage
-Processed data is stored in Google Cloud Storage (GCS) buckets and BigQuery databases for easy access and further analysis.
+The processed data is stored in Google Cloud Storage (GCS) buckets and BigQuery databases, enabling easy access and analysis.
 
 ## Main Workflow
 
@@ -35,8 +38,9 @@ Processed data is stored in Google Cloud Storage (GCS) buckets and BigQuery data
 
 ## Tools and Technologies
 - **Python**: Core programming language for development.
-- **Airflow**: Orchestration tool managing the data pipeline workflow.
 - **Google Cloud Platform (GCP)**: Provides cloud infrastructure for storage and computation.
+- **Cloud Composer**: Managed workflow orchestration tool on Google Cloud that uses Apache Airflow to automate, schedule, and monitor complex data pipelines.
+- **Google Cloud Storage:** Cloud-based storage solution used to store, manage, and retrieve large volumes of structured and unstructured data, making it ideal for data warehousing and big data analytics tasks.
 - **BigQuery**: Used for storing and analyzing large datasets.
 
 ## Getting Started
@@ -55,8 +59,12 @@ We welcome contributions to improve the data pipeline. If you wish to contribute
 This project is licensed under the MIT License. See LICENSE for details.
 
 ## Contact
-For any inquiries or issues regarding the data pipeline, please contact us at <EMAIL>.
+For any inquiries or issues regarding the data pipeline, please reach out to one of the repository owners:
+
+- **Gibran** - owner1@neu.edu
+- **Goutham** - owner2@neu.edu
+- **Kishore Sampath** - kishore.sampath@neu.edu
+- **Mihir** - owner4@neu.edu
+- **Rishi** - owner5@neu.edu
 
 ---
-
-This markdown format provides a clear and concise overview of the course registration chatbot data pipeline project, detailing its purpose, components, workflow, technologies used, and instructions for getting started and contributing to the project. It adheres to best practices for README files, making it easy for others to understand and use the data pipeline effectively.
