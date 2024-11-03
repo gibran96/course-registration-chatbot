@@ -71,18 +71,18 @@ with DAG(
         dag=dag
     )
     
-    remove_courses_without_faculty_task = PythonOperator(
-        task_id='remove_courses_without_faculty_task',
-        python_callable=remove_courses_without_faculty,
-        provide_context=True,
-        dag=dag
-    )
+    # remove_courses_without_faculty_task = PythonOperator(
+    #     task_id='remove_courses_without_faculty_task',
+    #     python_callable=remove_courses_without_faculty,
+    #     provide_context=True,
+    #     dag=dag
+    # )
     
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
         op_kwargs={
-            'course_data': "{{ task_instance.xcom_pull(task_ids='remove_courses_without_faculty_task') }}"
+            'course_data': "{{ task_instance.xcom_pull(task_ids='get_prerequisites_task') }}"
         },
         provide_context=True,
         dag=dag
@@ -127,7 +127,6 @@ with DAG(
         >> get_faculty_info_task
         >> get_course_description_task
         >> get_prerequisites_task
-        >> remove_courses_without_faculty_task
         >> dump_to_csv_task
         >> upload_to_gcs_task
         >> load_banner_data_to_bq_task

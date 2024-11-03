@@ -288,16 +288,16 @@ def get_course_prerequisites(cookie_output, course_list):
     
     return course_list
 
-# Function to remove courses without faculty info
-def remove_courses_without_faculty(**context):
-    course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
-    if isinstance(course_data, str):
-        course_data = ast.literal_eval(course_data)
-    logging.info(f"Length of course_data: {len(course_data)}")
-    # Remove courses without faculty info
-    course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
+# # Function to remove courses without faculty info
+# def remove_courses_without_faculty(**context):
+#     course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
+#     if isinstance(course_data, str):
+#         course_data = ast.literal_eval(course_data)
+#     logging.info(f"Length of course_data: {len(course_data)}")
+#     # Remove courses without faculty info
+#     course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
     
-    return course_data
+#     return course_data
 
 # Function to dump the course data to a CSV file
 def dump_to_csv(course_data, **context):
