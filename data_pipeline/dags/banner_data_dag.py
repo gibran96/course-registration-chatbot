@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, dump_to_csv
+from scripts.fetch_banner_data import get_courses_list, get_cookies, dump_to_csv, remove_courses_without_faculty
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
 )
@@ -71,6 +71,13 @@ with DAG(
         dag=dag
     )
     
+    remove_courses_without_faculty_task = PythonOperator(
+        task_id='remove_courses_without_faculty_task',
+        python_callable=remove_courses_without_faculty,
+        provide_context=True,
+        dag=dag
+    )
+    
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
@@ -120,6 +127,7 @@ with DAG(
         >> get_faculty_info_task
         >> get_course_description_task
         >> get_prerequisites_task
+        >> remove_courses_without_faculty_task
         >> dump_to_csv_task
         >> upload_to_gcs_task
         >> load_banner_data_to_bq_task
