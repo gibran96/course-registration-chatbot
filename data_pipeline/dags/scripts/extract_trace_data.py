@@ -576,8 +576,9 @@ def get_crn_list(**context):
             LIMIT 1000
         """
         logging.info(f"Executing query: {query}")
-        logging.info(f"Len of result: {len(client.query(query).result())}")
+        # logging.info(f"Len of result: {len(client.query(query).result())}")
         crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        logging.info(f"CRN List: {crn_list}")
         client.close()
         context['ti'].xcom_push(key='crn_list', value=crn_list)
         return crn_list
