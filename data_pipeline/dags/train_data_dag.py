@@ -295,6 +295,7 @@ def generate_llm_response(**context):
             train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
 
     logging.info(f'Generated {len(train_data_df)} samples')
+    logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
     train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
     return "generate_samples"
 
