@@ -58,6 +58,8 @@ def process_description_batch(cookie_output, course_batch):
         return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
     except Exception as e:
         logging.error(f"Error processing course description batch: {str(e)}")
+        logging.error(f"Course batch: {course_batch}")
+        logging.error(f"Cookie output: {cookie_output}")
 
 # Process prerequisites in parallel
 def process_prerequisites_batch(cookie_output, course_batch):
@@ -146,6 +148,8 @@ def parallel_course_description(**context):
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
+        
+        logging.info(f"Length of course list: {len(course_list)}")
         
         if isinstance(course_list, str):
             course_list = json.loads(course_list)
