@@ -128,6 +128,8 @@ def get_courses_list(cookie_output):
             "subject_course": course["subjectCourse"],
             "term": term_desc,
         }
+    
+    logging.info(f"Number of courses fetched: {len(course_data)}")    
 
     return course_data
 
@@ -164,7 +166,12 @@ def get_faculty_info(cookie_output, course_list):
         data = response.json()["fmt"][0]
         
         if response.status_code == 200:
-            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if len(data["faculty"]) != 0 else ""
+            # if faculty name is not present, remove the course from the list
+            if not data["faculty"]:
+                logging.warning(f"No faculty found for course: {course_ref_num}")
+                del course_list[course]
+                continue
+            course_list[course]["faculty_name"] = data["faculty"]["name"]
             course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
             course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
             course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
