@@ -2,6 +2,10 @@ import logging
 from google.cloud import bigquery
 from airflow.models import Variable
 from data_processing import remove_punctuation
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
+    GCSToBigQueryOperator
+)
+from llm_utils import generate_sample_queries
 
 TARGET_SAMPLE_COUNT = Variable.get("target_sample_count")
 
@@ -50,6 +54,7 @@ def get_bq_data(**context):
 def perform_similarity_search(**context):
     """Perform similarity search in BigQuery using embeddings"""
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    logging.info(f"Task status: {task_status}")
     if task_status == "stop_task":
         return "stop_task"
     queries = context['ti'].xcom_pull(task_ids='get_initial_queries', key='initial_queries')

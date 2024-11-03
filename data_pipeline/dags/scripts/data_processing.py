@@ -1,19 +1,16 @@
-import os
 import logging
 import random
-import pandas as pd
-from typing import List, Dict
 from scripts.seed_data import topics, seed_query_list
-from constants import GENERATED_SAMPLE_COUNT, LLM_PROMPT_TEMPLATE
-from llm_utils import get_llm_response, generate_sample_queries
-from data_utils import remove_punctuation
 
 
 def get_initial_queries(**context):
     """Generate initial queries based on topics, courses, and professors"""
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    logging.info(f"Task status: {task_status}")
+
     if task_status == "stop_task":
         return "stop_task"
+    
     else:
 
         course_list = context['ti'].xcom_pull(task_ids='get_bq_data', key='course_list')
