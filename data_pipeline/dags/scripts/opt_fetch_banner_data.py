@@ -33,21 +33,21 @@ def merge_course_data(batch_results):
 # Process faculty info in parallel
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses."""
-    try:
-        # Ensure JSON strings are parsed into dictionaries
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
-        if isinstance(course_batch, str):
-            course_batch = json.loads(course_batch)
+    # try:
+    # Ensure JSON strings are parsed into dictionaries
+    if isinstance(cookie_output, str):
+        cookie_output = json.loads(cookie_output)
+    if isinstance(course_batch, str):
+        course_batch = json.loads(course_batch)
 
-        # Call the faculty info processing function
-        return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
+    # Call the faculty info processing function
+    return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
     
-    except (TypeError, ValueError) as e:
-        logging.error(f"Error processing faculty info batch: {e}")
-        logging.error(f"cookie_output: {cookie_output}")
-        logging.error(f"course_batch: {course_batch}")
-        return None
+    # except (TypeError, ValueError) as e:
+    #     logging.error(f"Error processing faculty info batch: {e}")
+    #     logging.error(f"cookie_output: {cookie_output}")
+    #     logging.error(f"course_batch: {course_batch}")
+    #     return None
 
 # Process course descriptions in parallel
 def process_description_batch(cookie_output, course_batch):
