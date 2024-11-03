@@ -36,6 +36,27 @@ def get_crn_list(**context):
     context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
     return list((distinct_values_list))
 
+def check_number_of_new_rows_added(**context):
+    new_rows = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
+    logging.info(f"Number of new rows added: {len(new_rows)}")
+    
+    # Number of rows already in the table
+    crn_list = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
+    logging.info(f"Number of rows already in the table: {len(crn_list)}")
+
+    # Check if the new rows added are more than 10% of the existing rows
+    if len(new_rows) > 0.1 * len(crn_list):
+        # Trigger the next DAG
+        trigger_train_data_pipeline = TriggerDagRunOperator(
+            task_id='trigger_train_data_pipeline',
+            trigger_dag_id='train_data_dag',
+            dag=dag
+        )
+        logging.info("Triggering the train_data_dag")
+        trigger_train_data_pipeline.execute(context=context)
+    else:
+        logging.info("Not triggering the train_data_dag")
+
 
 def get_unique_blobs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
@@ -151,6 +172,13 @@ with DAG(
         dag=dag,
     )
 
+    trigger_train_data_pipeline = PythonOperator(
+        task_id='trigger_train_data_pipeline',
+        python_callable=check_number_of_new_rows_added,
+        provide_context=True,
+        dag=dag
+    )
+
 
 
     # Set task dependencies
@@ -163,4 +191,5 @@ with DAG(
         >> upload_to_gcs_task 
         >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
         >> success_email_task
+        >> trigger_train_data_pipeline
     )

@@ -336,7 +336,7 @@ def preprocess_data(**context):
 
         if flag:
             logging.warning("Sensitive data found in responses")
-            logging.warning(sensitive_data_found)
+            logging.warning(len(sensitive_data_found))
 
         # Record final counts
         metadata_values["processed_reviews_count"] = len(reviews_df)
