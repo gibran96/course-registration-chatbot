@@ -36,9 +36,9 @@ def clean_response(response):
 def clean_text(text):
     """Clean and standardize text."""
     text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace())
+    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
     text = text.lower()
-    text = clean_response(text)
+    # text = clean_response(text)
     return text
 
 
@@ -139,7 +139,7 @@ def process_pdf_files(**context):
     unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
     
     # Initialize DataFrames
-    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response", "term"])
+    reviews_df = pd.DataFrame(columns=["review_id", "crn", "question", "response"])
     courses_df = pd.DataFrame(columns=["crn", "course_code", "course_title", "instructor"])
 
     storage_client = storage.Client()
