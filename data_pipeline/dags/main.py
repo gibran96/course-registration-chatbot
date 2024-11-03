@@ -10,7 +10,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
-from google.cloud import storage
+from google.cloud import storage, bigquery
 
 from airflow.operators.email import EmailOperator
 
@@ -29,12 +29,38 @@ default_args = {
 }
 
 def get_crn_list(**context):
-    distinct_values = context['ti'].xcom_pull(task_ids='select_distinct_crn')
-    distinct_values_list = [row[0] for row in distinct_values]
-    logging.info("Distinct values:", distinct_values_list)
-    distinct_values_list = set(distinct_values_list)
-    context['ti'].xcom_push(key='crn_list', value=distinct_values_list)
-    return list((distinct_values_list))
+    try :
+        client = bigquery.Client()
+        query = f"""
+            SELECT DISTINCT crn
+            FROM {Variable.get('review_table_name')}
+        """
+        crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        context['ti'].xcom_push(key='crn_list', value=crn_list)
+        return crn_list
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return []
+
+def check_number_of_new_rows_added(**context):
+    new_rows = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
+    logging.info(f"Number of new rows added: {len(new_rows)}")
+    
+    # Number of rows already in the table
+    crn_list = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
+    logging.info(f"Number of rows already in the table: {len(crn_list)}")
+
+    # Check if the new rows added are more than 10% of the existing rows
+    if len(new_rows) > 0.1 * len(crn_list):
+        # Trigger the next DAG
+        trigger_train_data_pipeline = TriggerDagRunOperator(
+            task_id='trigger_train_data_pipeline',
+            trigger_dag_id='train_data_dag'
+        )
+        logging.info("Triggering the train_data_dag")
+        trigger_train_data_pipeline.execute(context=context)
+    else:
+        logging.info("Not triggering the train_data_dag")
 
 
 def get_unique_blobs(**context):
@@ -56,6 +82,20 @@ def get_unique_blobs(**context):
 
     return unique_blobs
 
+def get_distinct_crn(**context):
+    try :
+        client = bigquery.Client()
+        query = f"""
+            SELECT DISTINCT crn
+            FROM {Variable.get('review_table_name')}
+        """
+        query_job = client.query(query)
+        results = query_job.result()
+        return results
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return []
+
 # Create DAG
 with DAG(
     'pdf_processing_pipeline',
@@ -67,14 +107,6 @@ with DAG(
     tags=['pdf', 'processing', 'gcs'],
     max_active_runs=1
 ) as dag:
-    
-    select_distinct_crn = BigQueryGetDataOperator(
-        task_id='select_distinct_crn',
-        dataset_id=Variable.get('review_table_name').split('.')[1],
-        table_id=Variable.get('review_table_name').split('.')[-1], 
-        selected_fields='crn',  
-        gcp_conn_id='bigquery_default',
-    )
 
     get_crn_list_task = PythonOperator(
         task_id='get_crn_list',
@@ -151,16 +183,23 @@ with DAG(
         dag=dag,
     )
 
+    trigger_train_data_pipeline = PythonOperator(
+        task_id='trigger_train_data_pipeline',
+        python_callable=check_number_of_new_rows_added,
+        provide_context=True,
+        dag=dag
+    )
+
 
 
     # Set task dependencies
     (
-        select_distinct_crn 
-        >> get_crn_list_task 
+        get_crn_list_task 
         >> unique_blobs 
         >> process_pdfs 
         >> preproceess_pdfs 
         >> upload_to_gcs_task 
         >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+        >> trigger_train_data_pipeline
         >> success_email_task
     )
