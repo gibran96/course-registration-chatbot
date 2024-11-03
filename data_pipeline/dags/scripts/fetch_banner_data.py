@@ -166,7 +166,11 @@ def get_faculty_info(cookie_output, course_list):
         data = response.json()["fmt"][0]
         
         if response.status_code == 200:
-            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if data["faculty"] else ""
+            if not data["faculty"]:
+                logging.warning(f"No faculty found for course: {course_ref_num}")
+                del course_list[course]
+                continue
+            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"]
             course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
             course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
             course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
