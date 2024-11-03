@@ -40,6 +40,7 @@ default_args = {
 }
 
 TARGET_SAMPLE_COUNT = 500
+GENERATED_SAMPLE_COUNT = 100
 
 
 def exponential_backoff(
@@ -354,11 +355,15 @@ def generate_llm_response(**context):
             llm_res = get_llm_response(input_prompt)
             train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [content], 'response': [llm_res]})], ignore_index=True)
             logging.info(f'Generated {len(train_data_df)} samples')
+            if len(train_data_df) > GENERATED_SAMPLE_COUNT:
+                break
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
-    train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
+    # train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
+    context['ti'].xcom_push(key='llm_train_data', value=train_data_df)
     return "generate_samples"
+
 
 def upload_gcs_to_bq(**context):
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
