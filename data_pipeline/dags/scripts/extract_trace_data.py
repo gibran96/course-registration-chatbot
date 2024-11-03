@@ -127,8 +127,7 @@ def process_data(structured_data, reviews_df, courses_df):
                     "review_id": uuid.uuid4().hex,
                     "crn": crn,
                     "question": question,
-                    "response": response,
-                    "term": term
+                    "response": response
                 }
                 reviews_df = reviews_df._append(new_review_row, ignore_index=True)
                 
@@ -342,10 +341,10 @@ def preprocess_data(**context):
         metadata_values["processed_courses_count"] = len(courses_df)
 
         # Save preprocessed data
-        reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.pq"
-        courses_preprocessed_path = f"{output_path}/courses_preprocessed.pq"
-        reviews_df.astype(str).to_parquet(reviews_preprocessed_path, index=False)
-        courses_df.astype(str).to_parquet(courses_preprocessed_path, index=False)
+        reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
+        courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
+        reviews_df.astype(str).to_csv(reviews_preprocessed_path, index=False)
+        courses_df.astype(str).to_csv(courses_preprocessed_path, index=False)
         
 
         # Update metadata with success status
