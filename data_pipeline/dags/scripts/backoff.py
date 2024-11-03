@@ -24,6 +24,10 @@ def exponential_backoff(
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """
+            Internal wrapper function that implements the retry logic.
+            """
+            
             retries = 0
             while True:
                 try:

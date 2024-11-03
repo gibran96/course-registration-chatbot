@@ -11,7 +11,13 @@ from scripts.constants import TARGET_SAMPLE_COUNT
 
 
 def check_sample_count_from_bq(**context):
-    """Check if target sample count has been reached in BigQuery"""
+    """
+    Checks the number of rows in the BigQuery table and compares it to the target sample count.
+    If the target sample count is reached, the DAG run is stopped. Otherwise, it proceeds to generate samples.
+
+    :param context: Context object containing task instance and other metadata
+    :return: "stop_task" to stop the DAG run or "generate_samples" to continue
+    """
     client = bigquery.Client()
     table_id = Variable.get("train_data_table_name")
     
@@ -29,7 +35,10 @@ def check_sample_count_from_bq(**context):
         return "generate_samples"
 
 def get_bq_data(**context):
-    """Retrieve professor and course data from BigQuery"""
+    """
+    Retrieves distinct professor names and course titles from the BigQuery table specified by Variable.get('banner_table_name').
+    These are used to generate sample queries for the LLM.
+    """
     sample_count = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     if sample_count == "stop_task":
         return "stop_task"
@@ -52,7 +61,21 @@ def get_bq_data(**context):
     return "generate_samples"
 
 def perform_similarity_search(**context):
-    """Perform similarity search in BigQuery using embeddings"""
+    """
+    Perform similarity search between course-prof pairs and PDF content using a vector search model.
+
+    This DAG task retrieves the initial queries from the previous task and generates new queries using the LLM.
+    It then performs a vector search on the generated queries to find the closest matching courses in the
+    BigQuery table specified by Variable.get('banner_table_name'). The results of the vector search are
+    then processed and saved to the 'similarity_results' XCom key.
+
+    Args:
+        **context: Arbitrary keyword arguments. This can include Airflow context variables.
+
+    Returns:
+        str: "stop_task" if the target sample count has been reached, or "generate_samples" to continue
+        with the DAG run.
+    """
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"Task status: {task_status}")
     if task_status == "stop_task":
@@ -152,7 +175,18 @@ def perform_similarity_search(**context):
     return "generate_samples"
 
 def upload_gcs_to_bq(**context):
-    """Upload data from GCS to BigQuery"""
+    """
+    Uploads the generated sample data from GCS to BigQuery.
+
+    This task will only run if the "check_sample_count" task does not return "stop_task".
+    Otherwise, this task will return "stop_task" without performing any actions.
+
+    The sample data is loaded from the 'processed_trace_data' folder in the default GCS bucket.
+    The data is uploaded to the table specified in the 'train_data_table_name' variable.
+
+    :param context: Airflow context object
+    :return: "generate_samples" if successful, "stop_task" if not
+    """
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     
     if task_status == "stop_task":
