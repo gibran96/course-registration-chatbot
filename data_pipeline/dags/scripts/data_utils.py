@@ -14,7 +14,7 @@ def remove_punctuation(text):
 
 
 def upload_train_data_to_gcs(**context):
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     logging.info(f"task_status: {task_status}")
     if task_status == "stop_task":
         return "stop_task"
