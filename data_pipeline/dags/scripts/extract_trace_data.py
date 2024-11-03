@@ -171,8 +171,22 @@ def process_pdf_files(**context):
         
         # Save processed data
         os.makedirs(output_path, exist_ok=True)
+        # Check if the file exists
+        reviews_path = f"{output_path}/reviews.csv"
+        courses_path = f"{output_path}/courses.csv"
+
+        if os.path.exists(reviews_path):
+            os.remove(reviews_path)
+            logging.info(f"Removed existing reviews file at {reviews_path}")
+        if os.path.exists(courses_path):
+            os.remove(courses_path)
+            logging.info(f"Removed existing courses file at {courses_path}")
+        
         reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
         courses_df.to_csv(f"{output_path}/courses.csv", index=False)
+        
+        logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+
         
         # Create question mapping
         question_df = pd.DataFrame(list(question_map.items()), columns=["q_desc", "q_num"])
