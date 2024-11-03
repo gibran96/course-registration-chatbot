@@ -1,28 +1,13 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.models import Variable
-from google.cloud import storage, bigquery
-import vertexai.generative_models
-from scripts.data_utils import upload_train_data_to_gcs, remove_punctuation  # Reusing existing utility
-import pandas as pd
-from scripts.seed_data import topics, seed_query_list
+from scripts.data_utils import upload_train_data_to_gcs  # Reusing existing utility
 import logging
-import random
-import re
-import ast
-import time
-from random import uniform
-from functools import wraps
 import logging
-from typing import Optional, Callable, Any
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
-import os
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.models import Variable
+
 from scripts.bigquery_utils import (
     check_sample_count_from_bq,
     get_bq_data,
@@ -37,10 +22,6 @@ from scripts.data_processing import (
 from scripts.data_utils import (
     upload_to_gcs
 )       
-
-from airflow.operators.bash import BashOperator
-
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 logging.basicConfig(level=logging.INFO)
 
