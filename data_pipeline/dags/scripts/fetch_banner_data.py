@@ -270,7 +270,6 @@ def get_course_prerequisites(cookie_output, course_list):
         table = soup.find("table", class_="basePreqTable")
         
         if table:
-            logging.info(f"Prerequisites found for CRN: {course_ref_num}")
             # Parse each row in the table body
             for row in table.find("tbody").find_all("tr"):
                 cells = row.find_all("td")
@@ -293,7 +292,7 @@ def get_course_prerequisites(cookie_output, course_list):
 def remove_courses_without_faculty(**context):
     course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
     course_data = ast.literal_eval(course_data)
-    
+    logging.info(f"Length of course_data: {len(course_data)}")
     # Remove courses without faculty info
     course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
     
