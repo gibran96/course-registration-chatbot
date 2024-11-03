@@ -1,4 +1,4 @@
-from google.cloud.storage import storage
+from google.cloud import storage
 import pandas as pd
 import os
 import logging

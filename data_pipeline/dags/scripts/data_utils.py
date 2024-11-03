@@ -1,6 +1,6 @@
 import logging
 
-from google.cloud.storage import storage
+from google.cloud import storage
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import os
