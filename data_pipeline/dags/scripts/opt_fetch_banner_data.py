@@ -133,7 +133,7 @@ def parallel_faculty_info(**context):
 def parallel_course_description(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_parallel')
+        course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_task')
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
@@ -157,7 +157,7 @@ def parallel_course_description(**context):
 def parallel_prerequisites(**context):
     try:
         cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_parallel')
+        course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_task')
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
