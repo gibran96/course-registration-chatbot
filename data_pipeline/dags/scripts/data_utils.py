@@ -1,4 +1,6 @@
 import logging
+
+from google.cloud import storage
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.models import Variable
 import os
@@ -11,7 +13,11 @@ def remove_punctuation(text):
     return new_text
 
 
-def upload_train_data_to_gcs():
+def upload_train_data_to_gcs(**context):
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
+    logging.info(f"task_status: {task_status}")
+    if task_status == "stop_task":
+        return "stop_task"
     try:
         bucket_name = Variable.get('default_bucket_name')
         output_path = '/tmp'
@@ -36,10 +42,13 @@ def upload_train_data_to_gcs():
                 filename=local_path
             )
             logging.info(f"Uploaded {filename} to GCS at {gcs_path}")
+
+            return 'generate_samples'
         else:
             logging.warning(f"File {local_path} does not exist.")
     except Exception as e:
         logging.error(f"Failed to upload file to GCS: {str(e)}")
+
 
 def upload_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
@@ -59,6 +68,9 @@ def upload_to_gcs(**context):
                 filename=local_path
             )
             logging.info(f"Uploaded {filename} to GCS")
+
+            # Remove the local file
+            os.remove(local_path)
             
 def upload_banner_data_to_gcs(**context):
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
@@ -77,3 +89,38 @@ def upload_banner_data_to_gcs(**context):
             filename=local_path
         )
         logging.info(f"Uploaded banner_course_data.csv to GCS")
+
+
+def get_unique_blobs(**context):
+    """
+    Retrieves unique blobs from a Google Cloud Storage bucket that are not present in the provided CRN list.
+
+    Args:
+        **context: A dictionary containing context information for the DAG run. It should include:
+            - 'dag_run': The current DAG run object, which should have a 'conf' attribute containing the configuration.
+            - 'ti': The task instance object, which should have an 'xcom_pull' method to retrieve XCom values.
+
+    Returns:
+        list: A list of unique blob names (without the '.pdf' extension) that are not present in the CRN list.
+
+    XCom Push:
+        - key: 'unique_blobs'
+        - value: The list of unique blob names.
+    """
+    bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
+    all_gcs_crns = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix='course_review_dataset/')
+
+    unique_blobs = []
+    # blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
+    for blob in blobs:
+        blob_name = blob.name.split('/')[-1].replace('.pdf', '')
+        if blob_name not in all_gcs_crns:
+            unique_blobs.append(blob_name)
+
+    context['ti'].xcom_push(key='unique_blobs', value=unique_blobs)
+
+    return unique_blobs

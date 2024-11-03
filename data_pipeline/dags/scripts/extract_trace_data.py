@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import logging
-from google.cloud import storage
+from google.cloud import storage, bigquery
 from airflow.models import Variable
 import fitz
 import gc
@@ -13,6 +13,8 @@ from datetime import datetime
 from ml_metadata import metadata_store
 from ml_metadata.proto import metadata_store_pb2
 from airflow.models import Variable
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+
 
 
 # Question mapping
@@ -43,6 +45,21 @@ def clean_text(text):
 
 
 def extract_data_from_pdf(pdf_file):
+    """
+    Extracts structured data from a PDF file containing course information and responses.
+    Args:
+        pdf_file (list): A list of PDF pages, where each page is an object that has a `get_text` method.
+    Returns:
+        dict: A dictionary containing the extracted data with the following keys:
+            - "crn" (str): Course Registration Number.
+            - "course_title" (str): Title of the course.
+            - "course_code" (str): Code of the course.
+            - "instructor" (str): Name of the instructor.
+            - "term" (str): Term during which the course is offered.
+            - "responses" (list): A list of dictionaries, each containing:
+                - "question" (str): The question text.
+                - "responses" (list): A list of responses to the question.
+    """
     structured_data = {
         "crn": "",
         "course_title": "",
@@ -100,7 +117,25 @@ def extract_data_from_pdf(pdf_file):
 
     return structured_data
 
-def process_data(structured_data, reviews_df, courses_df):
+def parse_data(structured_data, reviews_df, courses_df):
+    """
+    Parses structured data and updates the reviews and courses dataframes.
+    Args:
+        structured_data (dict): A dictionary containing course and review information.
+            Expected keys are:
+                - "crn" (str): Course Reference Number.
+                - "course_code" (str): Code of the course.
+                - "course_title" (str): Title of the course.
+                - "instructor" (str): Name of the instructor.
+                - "term" (str): Term in which the course is offered.
+                - "responses" (list): A list of dictionaries, each containing:
+                    - "question" (str): The question asked.
+                    - "responses" (list): A list of responses to the question.
+        reviews_df (pandas.DataFrame): DataFrame containing existing reviews data.
+        courses_df (pandas.DataFrame): DataFrame containing existing courses data.
+    Returns:
+        tuple: A tuple containing updated reviews_df and courses_df.
+    """
     crn = structured_data["crn"]
     course_code = structured_data["course_code"]
     course_title = structured_data["course_title"]
@@ -133,7 +168,29 @@ def process_data(structured_data, reviews_df, courses_df):
                 
     return reviews_df, courses_df
 
-def process_pdf_files(**context):
+def read_and_parse_pdf_files(**context):
+    """
+    Reads and parses PDF files from a specified Google Cloud Storage bucket, extracts data, and saves it to CSV files.
+    Args:
+        **context: A dictionary containing context information passed from the DAG run. Expected keys include:
+            - 'dag_run': The DAG run object, which should contain 'conf' with 'bucket_name' and 'output_path'.
+            - 'ti': The task instance object, used to pull XCom data.
+    Returns:
+        dict: A dictionary containing the counts of reviews and courses processed, with keys:
+            - 'reviews_count': The number of reviews processed.
+            - 'courses_count': The number of courses processed.
+    Raises:
+        Exception: If there is an error during the processing of PDFs.
+    The function performs the following steps:
+        1. Initializes empty DataFrames for reviews and courses.
+        2. Connects to the specified Google Cloud Storage bucket.
+        3. Iterates over the blobs in the bucket, processing only PDF files that match the unique blobs.
+        4. Downloads and processes each PDF file, extracting structured data.
+        5. Parses the extracted data and appends it to the DataFrames.
+        6. Logs the length of the DataFrames.
+        7. Saves the processed data to CSV files, removing any existing files with the same name.
+        8. Creates and saves a question mapping to a CSV file.
+    """
     bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     unique_blobs = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
@@ -158,7 +215,7 @@ def process_pdf_files(**context):
                 
                 # Extract and process data
                 structured_data = extract_data_from_pdf(pdf_file)
-                reviews_df, courses_df = process_data(structured_data, reviews_df, courses_df)
+                reviews_df, courses_df = parse_data(structured_data, reviews_df, courses_df)
                 
                 pdf_file.close()
                 gc.collect()
@@ -170,22 +227,26 @@ def process_pdf_files(**context):
         logging.info(f"Length of courses: {courses_df.shape[0]}")
         
         # Save processed data
-        os.makedirs(output_path, exist_ok=True)
-        # Check if the file exists
-        reviews_path = f"{output_path}/reviews.csv"
-        courses_path = f"{output_path}/courses.csv"
+        # os.makedirs(output_path, exist_ok=True)
+        # # Check if the file exists
+        # reviews_path = f"{output_path}/reviews.csv"
+        # courses_path = f"{output_path}/courses.csv"
 
-        if os.path.exists(reviews_path):
-            os.remove(reviews_path)
-            logging.info(f"Removed existing reviews file at {reviews_path}")
-        if os.path.exists(courses_path):
-            os.remove(courses_path)
-            logging.info(f"Removed existing courses file at {courses_path}")
+        # if os.path.exists(reviews_path):
+        #     os.remove(reviews_path)
+        #     logging.info(f"Removed existing reviews file at {reviews_path}")
+        # if os.path.exists(courses_path):
+        #     os.remove(courses_path)
+        #     logging.info(f"Removed existing courses file at {courses_path}")
         
-        reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
-        courses_df.to_csv(f"{output_path}/courses.csv", index=False)
+        # reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
+        # courses_df.to_csv(f"{output_path}/courses.csv", index=False)
         
-        logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+        # logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+
+        # Push the data frames to xcom
+        context['ti'].xcom_push(key='reviews_df', value=reviews_df)
+        context['ti'].xcom_push(key='courses_df', value=courses_df)
 
         
         # Create question mapping
@@ -301,6 +362,35 @@ def record_preprocessing_metadata(store, execution_id, metadata_values):
     return artifact_id
 
 def preprocess_data(**context):
+    """
+    Preprocesses review and course data, records metadata, and handles errors.
+    Args:
+        context (dict): Context information, including 'dag_run' configuration.
+    Returns:
+        dict: Contains 'reviews_count', 'courses_count', 'metadata', 'execution_id', 'artifact_id'.
+    Raises:
+        Exception: Logs error, updates metadata with failure status, and raises the exception.
+    Metadata Values:
+        - raw_reviews_count (int): Initial count of raw reviews.
+        - raw_courses_count (int): Initial count of raw courses.
+        - processed_reviews_count (int): Final count of processed reviews.
+        - processed_courses_count (int): Final count of processed courses.
+        - null_responses_removed (int): Count of null responses removed.
+        - sensitive_data_flags (int): Count of sensitive data flags found.
+        - timestamp (str): Timestamp of the execution.
+        - status (str): Status of the execution ('processing', 'completed', 'failed').
+    Steps:
+        1. Setup ML Metadata store and create execution.
+        2. Load data from CSV files.
+        3. Record initial counts.
+        4. Remove null responses and record the count.
+        5. Preprocess text data.
+        6. Check for sensitive data and record the count.
+        7. Save preprocessed data to CSV files.
+        8. Update metadata with success status and final counts.
+        9. Update execution end time and log summary.
+        10. Handle errors by updating metadata with failure status and logging the error.
+    """
     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
     
     # Setup ML Metadata
@@ -320,9 +410,9 @@ def preprocess_data(**context):
     }
 
     try:
-        # Load data
-        reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
-        courses_df = pd.read_csv(f"{output_path}/courses.csv")
+        # Load data from xcom 
+        reviews_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='reviews_df')
+        courses_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='courses_df')
         
         # Record initial counts
         metadata_values["raw_reviews_count"] = len(reviews_df)
@@ -374,6 +464,7 @@ def preprocess_data(**context):
         
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
+
         
         return {
             'reviews_count': len(reviews_df),
@@ -423,47 +514,18 @@ def get_preprocessing_metadata(store, execution_id):
         
         return metadata
     return None
-# def preprocess_data(**context):
-#     output_path = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
-    
-
-
-#     # Load data
-#     reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
-#     courses_df = pd.read_csv(f"{output_path}/courses.csv")
-
-    
-#     # # Preprocess data
-#     reviews_df["response"] = reviews_df["response"].apply(clean_text)
-#     courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
-
-#     # Remove rows with null responses
-#     reviews_df = reviews_df[reviews_df["response"].notnull()]
-
-#     # Check for sensitive data
-#     flag, sensitive_data_found = check_for_gender_bias(reviews_df, "response")
-
-#     # if flag is True, send a notification with the sensitive data found
-#     if flag:
-#         logging.warning("Sensitive data found in responses")
-#         logging.warning(sensitive_data_found)
-
-#     # Save preprocessed data
-#     reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"
-#     courses_preprocessed_path = f"{output_path}/courses_preprocessed.csv"
-
-#     # Save preprocessed data
-#     reviews_df.to_csv(reviews_preprocessed_path, index=False)
-#     courses_df.to_csv(courses_preprocessed_path, index=False)
-
-    
-    
-#     return {
-#         'reviews_count': len(reviews_df),
-#         'courses_count': len(courses_df)
-#     }
 
 def check_for_gender_bias(df, column_name):
+    """
+    Check for gender bias in the specified column of the DataFrame by identifying and replacing gender-specific pronouns.
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data to be checked.
+        column_name (str): The name of the column in the DataFrame to check for gender-specific pronouns.
+    Returns:
+        tuple: A tuple containing:
+            - flag (bool): True if any gender-specific pronouns were found and replaced, False otherwise.
+            - sensitive_data_found (pd.DataFrame): A DataFrame containing the rows where gender-specific pronouns were found, with columns ["crn", "question", "response"].
+    """
     # Check for gender bias in the df for the given column
     # Check for any gender specific pronouns in the responses and replace it with the professor.
 
@@ -494,5 +556,109 @@ def check_for_gender_bias(df, column_name):
     
     return flag, sensitive_data_found
     return flag, sensitive_data_found
+
+
+def get_crn_list(**context):
+    """
+    Retrieves a distinct list of CRNs (Course Reference Numbers) from a specified BigQuery table
+    and pushes the list to XCom for further use in the Airflow DAG.
+
+    Args:
+        **context: Airflow context dictionary containing task instance (ti) and other metadata.
+
+    Returns:
+        list: A list of distinct CRNs retrieved from the BigQuery table. Returns an empty list if an error occurs.
+
+    Raises:
+        Exception: If there is an error during the BigQuery client query execution.
+    """
+    try :
+        client = bigquery.Client()
+        query = f"""
+            SELECT DISTINCT crn
+            FROM {Variable.get('review_table_name')}
+            ORDER BY crn
+            LIMIT 1000
+        """
+        logging.info(f"Executing query: {query}")
+        # logging.info(f"Len of result: {len(client.query(query).result())}")
+        crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        logging.info(f"CRN List: {crn_list}")
+        client.close()
+        context['ti'].xcom_push(key='crn_list', value=crn_list)
+        return crn_list
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return []
+
+
+def monitor_new_rows_and_trigger(**context):
+    """
+    Checks the number of new rows added to the table and triggers the next DAG if the new rows 
+    exceed 10% of the existing rows.
+
+    Args:
+        context (dict): The context dictionary provided by Airflow, containing task instance 
+                        and other metadata.
+
+    The function performs the following steps:
+    1. Retrieves the number of new rows added from the XCom of the 'get_unique_blobs' task.
+    2. Logs the number of new rows added.
+    3. Retrieves the number of rows already in the table from the XCom of the 'get_crn_list' task.
+    4. Logs the number of rows already in the table.
+    5. Checks if the number of new rows added is more than 10% of the existing rows.
+    6. If the condition is met, triggers the 'train_data_dag' DAG.
+    7. Logs whether the 'train_data_dag' was triggered or not.
+    """
+    new_rows = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
+    logging.info(f"Number of new rows added: {len(new_rows)}")
+
+    # Number of rows already in the table
+    crn_list = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
+    logging.info(f"Number of rows already in the table: {len(crn_list)}")
+
+    # Check if the new rows added are more than 10% of the existing rows
+    if len(new_rows) > 0.1 * len(crn_list):
+        # Trigger the next DAG
+        trigger_train_data_pipeline = TriggerDagRunOperator(
+            task_id='trigger_train_data_pipeline',
+            trigger_dag_id='train_data_dag'
+        )
+        logging.info("Triggering the train_data_dag")
+        trigger_train_data_pipeline.execute(context=context)
+    else:
+        logging.info("Not triggering the train_data_dag")
+
+
+def get_distinct_crn(**context):
+    """
+    Retrieves distinct CRN (Course Reference Number) values from a specified BigQuery table.
+    This function connects to a BigQuery client, executes a query to fetch distinct CRN values
+    from the table specified by the 'review_table_name' variable, and returns the results.
+    Args:
+        **context: Arbitrary keyword arguments. This can include Airflow context variables.
+    Returns:
+        google.cloud.bigquery.table.RowIterator: An iterator over the query results containing distinct CRN values.
+        If an exception occurs, an empty list is returned.
+    Raises:
+        google.cloud.exceptions.GoogleCloudError: If there is an error with the BigQuery client or query execution.
+    """
+    try :
+        client = bigquery.Client()
+        query = f"""
+            SELECT DISTINCT crn
+            FROM {Variable.get('review_table_name')}
+            ORDER BY crn
+            LIMIT 1000
+        """
+        query_job = client.query(query)
+        crn_list = list(set(row["crn"] for row in client.query(query).result()))
+        logging.info(f"CRN List: {crn_list}")
+        client.close()
+        context['ti'].xcom_push(key='crn_list', value=crn_list)
+        return crn_list
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return []
 
 

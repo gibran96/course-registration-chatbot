@@ -1,10 +1,11 @@
 import re
 import ast
 import logging
-import vertexai
 from vertexai.generative_models import HarmCategory, HarmBlockThreshold, GenerationConfig
 from scripts.backoff import exponential_backoff
-from scripts.constants import CLIENT_MODEL, QUERY_GENERATION_PROMPT
+from scripts.constants import CLIENT_MODEL, QUERY_GENERATION_PROMPT, GENERATED_SAMPLE_COUNT
+import os
+import pandas as pd
 
 @exponential_backoff()
 def get_llm_response(input_prompt: str) -> str:
@@ -43,7 +44,8 @@ def generate_sample_queries(query):
     return queries
 
 def generate_llm_response(**context):
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
+    logging.info(f"task_status: {task_status}")
     if task_status == "stop_task":
         return "stop_task"
     query_responses = context['ti'].xcom_pull(task_ids='bq_similarity_search', key='similarity_results')
