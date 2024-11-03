@@ -9,7 +9,7 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 from scripts.bigquery_utils import (
-    check_sample_count_from_bq,
+    check_sample_count,
     get_bq_data,
     perform_similarity_search,
     upload_gcs_to_bq
@@ -70,7 +70,7 @@ with DAG(
     
     sample_count = PythonOperator(
         task_id='check_sample_count',
-        python_callable=check_sample_count_from_bq,
+        python_callable=check_sample_count,
         provide_context=True,
         dag=dag
     )
