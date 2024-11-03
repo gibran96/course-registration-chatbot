@@ -9,7 +9,6 @@ from airflow.models import Variable
 import ast
 
 from scripts.extract_trace_data import clean_response
-from scripts.opt_fetch_banner_data import parse_json_safely
 
 semester_map = {
     "10": "Fall",
@@ -292,7 +291,8 @@ def get_course_prerequisites(cookie_output, course_list):
 # Function to remove courses without faculty info
 def remove_courses_without_faculty(**context):
     course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
-    course_data = parse_json_safely(course_data)
+    if isinstance(course_data, str):
+        course_data = ast.literal_eval(course_data)
     logging.info(f"Length of course_data: {len(course_data)}")
     # Remove courses without faculty info
     course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
