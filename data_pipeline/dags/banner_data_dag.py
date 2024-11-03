@@ -2,20 +2,19 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, get_course_description, dump_to_csv, get_faculty_info, get_course_prerequisites
-from scripts.extract_trace_data import process_pdf_files
-from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
+from scripts.fetch_banner_data import get_courses_list, get_cookies, dump_to_csv
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
 )
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
+from airflow.operators.email import EmailOperator
 
 from scripts.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
+    'email': ['mlopsggmu@gmail.com'],
     'email_on_failure': True,
     'email_on_retry': False,
     'retries': 0,
@@ -51,21 +50,21 @@ with DAG(
         dag=dag
     )
     
-    get_faculty_info_parallel = PythonOperator(
+    get_faculty_info_task = PythonOperator(
         task_id='get_faculty_info_parallel',
         python_callable=parallel_faculty_info,
         provide_context=True,
         dag=dag
     )
     
-    get_course_description_parallel = PythonOperator(
+    get_course_description_task = PythonOperator(
         task_id='get_course_description_parallel',
         python_callable=parallel_course_description,
         provide_context=True,
         dag=dag
     )
     
-    get_prerequisites_parallel = PythonOperator(
+    get_prerequisites_task = PythonOperator(
         task_id='get_prerequisites_parallel',
         python_callable=parallel_prerequisites,
         provide_context=True,
@@ -100,10 +99,24 @@ with DAG(
         dag=dag,
     )
     
-    get_cookies_task >> get_course_list_task >> get_faculty_info_parallel >> get_course_description_parallel >> get_prerequisites_parallel >> dump_to_csv_task >> upload_to_gcs_task >> load_banner_data_to_bq_task
+    # Email notification for successful DAG completion
+    success_email_task = EmailOperator(
+        task_id='success_email',
+        to='mlopsggmu@gmail.com',
+        subject='DAG banner_dag_pipeline Succeeded',
+        html_content='<p>The DAG <strong>banner_dag_pipeline</strong> has completed successfully.</p>',
+        trigger_rule='all_success',
+        dag=dag,
+    )
     
-    
-    
-    
-    
-    
+    (
+        get_cookies_task
+        >> get_course_list_task
+        >> get_faculty_info_task
+        >> get_course_description_task
+        >> get_prerequisites_task
+        >> dump_to_csv_task
+        >> upload_to_gcs_task
+        >> load_banner_data_to_bq_task
+        >> success_email_task
+    )

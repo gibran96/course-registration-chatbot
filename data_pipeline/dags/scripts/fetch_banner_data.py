@@ -5,8 +5,6 @@ from bs4 import BeautifulSoup
 import requests
 import csv
 import os
-import pandas as pd
-import numpy as np
 from airflow.models import Variable
 import ast
 
