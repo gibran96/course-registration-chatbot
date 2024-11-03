@@ -40,10 +40,6 @@ def process_faculty_info_batch(cookie_output, course_batch):
         if isinstance(course_batch, str):
             course_batch = json.loads(course_batch)
 
-        logging.info(f"Processing faculty info batch... length: {len(course_batch)}")
-        logging.info(f"cookie_output: {cookie_output}")
-        logging.info(f"course_batch: {course_batch}")
-
         # Call the faculty info processing function
         return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
     
@@ -117,6 +113,9 @@ def parallel_faculty_info(**context):
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
+        
+        logging.info(f"Length of course list: {len(course_list)}")
+        logging.info(f"cookie_output: {cookie_output}")
         
         # Ensure proper JSON formatting
         if isinstance(course_list, str):
