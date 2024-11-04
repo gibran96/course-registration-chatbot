@@ -56,7 +56,7 @@ def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses."""
     cookie_output = parse_json_safely(cookie_output)
     course_batch = parse_json_safely(course_batch)
-    return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
+    return get_faculty_info(cookie_output, course_batch)
 
 # Process course descriptions in parallel
 @validate_input
