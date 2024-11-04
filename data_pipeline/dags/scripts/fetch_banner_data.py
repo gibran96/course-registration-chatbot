@@ -189,12 +189,8 @@ def get_faculty_info(cookie_output, course_list_df):
 
 
 # Function to fetch the course description from the Banner API
-def get_course_description(cookie_output, course_list_df):
-    cookie_output = ast.literal_eval(cookie_output)
-    course_list = ast.literal_eval(course_list)
-    
+def get_course_description(cookie_output, course_list_df):    
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getCourseDescription"
     

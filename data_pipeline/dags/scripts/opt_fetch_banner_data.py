@@ -58,7 +58,11 @@ def parallel_process_with_threads_df(process_func, cookie_output, course_list_df
                     batch = future_to_batch[future]
                     logging.error(f"Batch processing failed {batch.index}: {str(e)}")
 
-        return merge_course_data_df(results)
+        # Ensure there are objects to concatenate
+        if results:
+            return merge_course_data_df(results)
+        else:
+            raise ValueError("No valid DataFrames to concatenate")
 
     except Exception as e:
         logging.error(f"Error in parallel processing with DataFrames: {e}")
