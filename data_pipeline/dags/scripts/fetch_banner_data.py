@@ -73,11 +73,11 @@ def get_cookies(**context):
         "base_url": base_url
     }
 
-    return cookie_output
+    context['ti'].xcom_push(key='cookie_output', value=cookie_output)
 
 # Function to fetch the list of courses from the Banner API
-def get_courses_list(cookie_output):
-    cookie_output = ast.literal_eval(cookie_output)
+def get_courses_list(**context):
+    cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     base_url = cookie_output["base_url"]
     url = base_url + "searchResults/searchResults"
@@ -131,12 +131,12 @@ def get_courses_list(cookie_output):
     
     logging.info(f"Number of courses fetched: {len(course_data)}")    
 
-    return course_data
+    context['ti'].xcom_push(key='course_data', value=course_data)
 
 # Function to fetch the faculty info from the Banner API
 def get_faculty_info(cookie_output, course_list):
-    cookie_output = ast.literal_eval(cookie_output)
-    course_list = ast.literal_eval(course_list)
+    # cookie_output = ast.literal_eval(cookie_output)
+    # course_list = ast.literal_eval(course_list)
     
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
 
@@ -288,19 +288,21 @@ def get_course_prerequisites(cookie_output, course_list):
     
     return course_list
 
-# Function to remove courses without faculty info
-def remove_courses_without_faculty(**context):
-    course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
-    course_data = ast.literal_eval(course_data)
-    logging.info(f"Length of course_data: {len(course_data)}")
-    # Remove courses without faculty info
-    course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
+# # Function to remove courses without faculty info
+# def remove_courses_without_faculty(**context):
+#     course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
+#     if isinstance(course_data, str):
+#         course_data = ast.literal_eval(course_data)
+#     logging.info(f"Length of course_data: {len(course_data)}")
+#     # Remove courses without faculty info
+#     course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
     
-    return course_data
+#     return course_data
 
 # Function to dump the course data to a CSV file
-def dump_to_csv(course_data, **context):
-    course_data = ast.literal_eval(course_data)
+def dump_to_csv(**context):
+    
+    course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
     
     if not course_data:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")

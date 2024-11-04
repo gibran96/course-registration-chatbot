@@ -14,6 +14,7 @@ from ml_metadata import metadata_store
 from ml_metadata.proto import metadata_store_pb2
 from airflow.models import Variable
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.email import EmailOperator
 
 
 
@@ -227,22 +228,26 @@ def read_and_parse_pdf_files(**context):
         logging.info(f"Length of courses: {courses_df.shape[0]}")
         
         # Save processed data
-        os.makedirs(output_path, exist_ok=True)
-        # Check if the file exists
-        reviews_path = f"{output_path}/reviews.csv"
-        courses_path = f"{output_path}/courses.csv"
+        # os.makedirs(output_path, exist_ok=True)
+        # # Check if the file exists
+        # reviews_path = f"{output_path}/reviews.csv"
+        # courses_path = f"{output_path}/courses.csv"
 
-        if os.path.exists(reviews_path):
-            os.remove(reviews_path)
-            logging.info(f"Removed existing reviews file at {reviews_path}")
-        if os.path.exists(courses_path):
-            os.remove(courses_path)
-            logging.info(f"Removed existing courses file at {courses_path}")
+        # if os.path.exists(reviews_path):
+        #     os.remove(reviews_path)
+        #     logging.info(f"Removed existing reviews file at {reviews_path}")
+        # if os.path.exists(courses_path):
+        #     os.remove(courses_path)
+        #     logging.info(f"Removed existing courses file at {courses_path}")
         
-        reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
-        courses_df.to_csv(f"{output_path}/courses.csv", index=False)
+        # reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
+        # courses_df.to_csv(f"{output_path}/courses.csv", index=False)
         
-        logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+        # logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
+
+        # Push the data frames to xcom
+        context['ti'].xcom_push(key='reviews_df', value=reviews_df)
+        context['ti'].xcom_push(key='courses_df', value=courses_df)
 
         
         # Create question mapping
@@ -258,6 +263,24 @@ def read_and_parse_pdf_files(**context):
         logging.error(f"Error processing PDFs: {str(e)}")
         raise
 
+def check_unknown_text(reviews_df, courses_df):
+    """
+    Checks for unknown text in the reviews and courses DataFrames.
+    Args:
+        reviews_df (pandas.DataFrame): DataFrame containing reviews data.
+        courses_df (pandas.DataFrame): DataFrame containing courses data.
+    Returns:
+        tuple: A tuple containing:
+            - unknown_reviews (pandas.DataFrame): DataFrame containing reviews with unknown text.
+            - unknown_courses (pandas.DataFrame): DataFrame containing courses with unknown text.
+    """
+    # Check for unknown text in reviews
+    unknown_reviews = reviews_df[reviews_df["question"] == "unknown"]
+    
+    # Check for unknown text in courses
+    unknown_courses = courses_df[courses_df["crn"] == ""]
+    
+    return unknown_reviews, unknown_courses
 
 def setup_mlmd():
     """
@@ -406,9 +429,9 @@ def preprocess_data(**context):
     }
 
     try:
-        # Load data
-        reviews_df = pd.read_csv(f"{output_path}/reviews.csv")
-        courses_df = pd.read_csv(f"{output_path}/courses.csv")
+        # Load data from xcom 
+        reviews_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='reviews_df')
+        courses_df = context['ti'].xcom_pull(task_ids='process_pdfs', key='courses_df')
         
         # Record initial counts
         metadata_values["raw_reviews_count"] = len(reviews_df)
@@ -426,7 +449,6 @@ def preprocess_data(**context):
         # Preprocess data
         reviews_df["response"] = reviews_df["response"].apply(clean_text)
         courses_df["course_title"] = courses_df["course_title"].apply(clean_text)
-        # courses_df["instructor"] = courses_df["instructor"].apply(clean_text)
 
 
         # Check for sensitive data
@@ -437,6 +459,15 @@ def preprocess_data(**context):
         if flag:
             logging.warning("Sensitive data found in responses")
             logging.warning(len(sensitive_data_found))
+
+        anomaly_review_df, anomaly_course_df = check_unknown_text(reviews_df, courses_df)
+
+        if not anomaly_review_df.empty:
+            logging.warning(f"Unknown text found in reviews: {anomaly_review_df}")
+            send_anomaly_email(f"Unknown text found in reviews: {anomaly_review_df}")
+        if not anomaly_course_df.empty:
+            logging.warning(f"Unknown text found in courses: {anomaly_course_df}")
+            send_anomaly_email(f"Unknown text found in courses: {anomaly_course_df}")
 
         # Record final counts
         metadata_values["processed_reviews_count"] = len(reviews_df)
@@ -461,10 +492,6 @@ def preprocess_data(**context):
         # Log metadata summary
         logging.info(f"Preprocessing metadata: {metadata_values}")
 
-        # Delete the original files
-        os.remove(f"{output_path}/reviews.csv")
-        os.remove(f"{output_path}/courses.csv")
-
         
         return {
             'reviews_count': len(reviews_df),
@@ -486,6 +513,28 @@ def preprocess_data(**context):
         
         logging.error(f"Error in preprocessing: {str(e)}")
         raise
+
+def send_anomaly_email(anomaly_text):
+    """
+    Send an email with the anomaly text to the specified email address.
+    Args:
+        anomaly_text (str): The text to include in the email.
+    """
+    # Send an email with the anomaly text
+    
+    email_task = EmailOperator(
+        task_id='anomaly_email',
+        to='mlopsggmu@gmail.com',
+        subject='Anomalies have been detected in your data',
+        html_content=f"""<p>Dear User,</p>
+                        <p>Anomalies have been detected in your data:</p>
+                        <p>{anomaly_text}</p>
+                        <p>Kind regards,<br/>Your Data Pipeline</p>""",
+
+    )
+    email_task.execute(context=None)
+
+
 
 def get_preprocessing_metadata(store, execution_id):
     """
@@ -583,7 +632,7 @@ def get_crn_list(**context):
         logging.info(f"Executing query: {query}")
         # logging.info(f"Len of result: {len(client.query(query).result())}")
         crn_list = list(set(row["crn"] for row in client.query(query).result()))
-        logging.info(f"CRN List: {crn_list}")
+        logging.info(f"CRN List: {len(crn_list)}")
         client.close()
         context['ti'].xcom_push(key='crn_list', value=crn_list)
         return crn_list
@@ -628,32 +677,3 @@ def monitor_new_rows_and_trigger(**context):
         trigger_train_data_pipeline.execute(context=context)
     else:
         logging.info("Not triggering the train_data_dag")
-
-
-def get_distinct_crn(**context):
-    """
-    Retrieves distinct CRN (Course Reference Number) values from a specified BigQuery table.
-    This function connects to a BigQuery client, executes a query to fetch distinct CRN values
-    from the table specified by the 'review_table_name' variable, and returns the results.
-    Args:
-        **context: Arbitrary keyword arguments. This can include Airflow context variables.
-    Returns:
-        google.cloud.bigquery.table.RowIterator: An iterator over the query results containing distinct CRN values.
-        If an exception occurs, an empty list is returned.
-    Raises:
-        google.cloud.exceptions.GoogleCloudError: If there is an error with the BigQuery client or query execution.
-    """
-    try :
-        client = bigquery.Client()
-        query = f"""
-            SELECT DISTINCT crn
-            FROM {Variable.get('review_table_name')}
-        """
-        query_job = client.query(query)
-        results = query_job.result()
-        return results
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return []
-
-

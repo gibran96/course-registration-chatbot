@@ -52,6 +52,9 @@ This Airflow DAG focuses on fetching data from the NEU Banner system, processing
 - **load_banner_data_to_bq**: Loads the Banner data from GCS into BigQuery.
 - **Success Email**: Sends an email notification upon successful data loading.
 
+![image](https://github.com/user-attachments/assets/21b726d8-d294-44a5-a39b-d9ec28b4a64d)
+
+
 This pipeline streamlines the process of gathering and storing course and faculty information from the Banner system. 
 
 ### 2. **PDF Processing Pipeline** (`pdf_processing_pipeline`)
@@ -68,6 +71,9 @@ This Airflow DAG is set up to process NEU Trace course review data. It fetches d
 - **load_courses_to_bigquery** and **load_to_bigquery**: Loads processed course and review data into specific BigQuery tables.
 - **Success Email**: Notifies the team upon successful completion of the data processing.
 - **trigger_train_data_pipeline**: Triggers the training data pipeline once PDF processing is complete.
+
+![image](https://github.com/user-attachments/assets/77d2511b-a7e0-42c0-9bfc-fe2e3d6d0d94)
+
 
 This pipeline is essential for organizing and storing course review data in a structured format for analysis.
 
@@ -88,9 +94,178 @@ This Airflow Directed Acyclic Graph (DAG) is responsible for generating seed que
 - **trigger_dag_run**: Triggers additional DAG runs if necessary.
 - **success_email**: Sends an email notification upon successful completion of the pipeline.
 
+![image](https://github.com/user-attachments/assets/9b59415b-47c9-4ed2-a50d-bf5b00c40fef)
+
+
 This DAG is designed to automate the preparation and processing of training data in a systematic way.
 
 These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
+
+## Project Directory Structure and Description
+```
+├── .github
+│   └── workflows
+│       ├── gcd-upload.yaml: This workflow defines a CI/CD pipeline to upload the data pipeline code to Google Cloud Storage. 
+│            It triggers on pushes to the main and workflow-testing branches and uses gsutil to copy the files.
+│       └── python-tests.yaml: This workflow runs Python tests using pytest. It is triggered by pushes to the main, 
+│            fix-testcases-import-error, and gibran/banner-dag branches and sets up a Python environment with the 
+│            necessary dependencies.
+│
+├── .gitignore: This file specifies files and directories that should be ignored by Git. It includes common Python artifacts, 
+│    build directories, test results, and various IDE configuration files.
+│
+├── README.md: This file provides documentation for the project, including an overview, architecture diagrams, and instructions 
+│    for contributing. It explains the purpose of the project and its different components.
+│
+├── assets
+│   └── imgs: This directory contains images used in the README.md file, including visualizations of the Airflow DAGs. 
+│        These images help illustrate the workflow of the data pipeline.
+│
+├── data_pipeline
+│   ├── __init__.py: This file initializes the data_pipeline package. It makes the package importable and can be used 
+│        to define any package-level initialization logic.
+│
+│   ├── dags
+│       ├── __init__.py: This file initializes the dags package within the data pipeline. Similar to other __init__.py files, 
+│            it makes the dags directory a package.
+│       ├── banner_data_dag.py: This file defines the Airflow DAG for fetching course data from the NEU Banner system. 
+│            It scrapes course details, faculty information, and prerequisites, then uploads the data to GCS and BigQuery.
+│       ├── main.py: This file defines the Airflow DAG that processes PDF files from GCS. It extracts, preprocesses, 
+│            and loads course review data into BigQuery, and subsequently triggers the training data pipeline.
+│
+│       ├── scripts
+│           ├── __init__.py: This file initializes the scripts package within the dags directory. It allows for modularization 
+│                and easier management of scripts used by the DAGs.
+│           ├── backoff.py: This file defines a decorator for implementing exponential backoff retry logic. It's used to handle 
+│                transient errors during API calls or other operations.
+│           ├── bigquery_utils.py: This file contains utility functions for interacting with BigQuery, such as checking sample counts 
+│                and retrieving data. It handles tasks such as data extraction, similarity search, and data loading.
+│           ├── constants.py: This file defines constants used throughout the data pipeline scripts. It centralizes configuration parameters 
+│                like project ID, sample counts, and LLM prompts.
+│           ├── data_processing.py: This file contains functions for processing data, specifically for generating initial queries for the LLM. 
+│                It prepares data before it is used in other parts of the pipeline.
+│           ├── data_utils.py: This file defines utility functions for data manipulation, such as uploading data to GCS and removing punctuation. 
+│                These functions are reused across multiple DAGs.
+│           ├── extract_data.py: This file contains functions for extracting course and review data. It processes files, parses data, 
+│                and updates dataframes for processing and storage.
+│           ├── extract_trace_data.py: This file contains functions for extracting, preprocessing, and validating the extracted TRACE instructor 
+│                comments data from PDF files. This includes handling null responses, checking for sensitive information, and metadata recording.
+│           ├── fetch_banner_data.py: This file defines functions for fetching course information from the NEU Banner system, including cookies, 
+│                course lists, descriptions, and prerequisites. It interacts with the Banner API and parses the HTML responses.
+│           ├── llm_utils.py: This file provides functions for interacting with the Large Language Model (LLM). It handles prompt generation, 
+│                response retrieval, parsing, and generation of training data.
+│           ├── opt_fetch_banner_data.py: This file optimizes the fetching of Banner data by implementing parallel processing. 
+│                It uses multithreading to speed up the data retrieval process.
+│           └── seed_data.py: This file contains seed data, including topic lists and query templates. It provides initial input 
+│                and guides the LLM in generating relevant responses.
+│
+│       ├── tests
+│           ├── __init__.py: This file initializes the tests package within the dags directory. It allows for running tests 
+│                specifically for the DAG scripts.
+│           ├── test_extract_data.py: This file contains unit tests for functions defined in extract_trace_data.py. 
+│                It helps ensure the correctness of the data extraction process.
+│           └── test_fetch_banner_data.py: This file contains unit tests for the Banner data fetching functions. 
+│                It validates the behavior of the API interaction and data parsing logic.
+│
+│       └── train_data_dag.py: This file defines the Airflow DAG for generating synthetic training data. 
+│            It retrieves data from BigQuery, generates queries using an LLM, performs similarity searches, and uploads 
+│            the results to GCS and BigQuery.
+│
+│   ├── data
+│       └── dag_3.py: This file contains another Airflow DAG (course_review_llm_pipeline). This appears to be a deprecated file 
+│            or earlier version of the main processing DAG or train data DAG since its functionality appears to be redundant.
+│
+│   └── logs
+│       └── __init__.py: This file initializes the logs package within the data pipeline. It may contain utilities for logging 
+│            or is simply a placeholder for future logging functionality.
+│
+└── requirements.txt: This file lists the project dependencies required to run the data pipelines. It's used by pip 
+     to install the necessary packages.
+```
+
+## Instruction to Reproduce
+To reproduce this data pipeline on Google Cloud Platform (GCP), follow these instructions:
+
+### Prerequisites
+
+1. **Google Cloud Account**: Make sure you have an active Google Cloud account.
+2. **Project Setup**: Create a new GCP project or use an existing one. Note down the `PROJECT_ID`.
+3. **Billing Enabled**: Ensure billing is enabled for your project.
+4. **Google Cloud SDK**: Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) to interact with GCP resources.
+5. **Python 3.x**: Make sure Python 3.10 is installed.
+
+### Step 1: Set Up GCP Services and Resources
+
+#### 1.1. Enable Required APIs
+
+Go to GCP Console - 
+1. BigQuery - Enable API
+2. Cloud Composer - Enable API
+3. VertexAI - Enable API
+
+
+#### 1.2. Set Up Cloud Storage Buckets
+
+1. Create a Cloud Storage bucket to store data and pipeline artifacts. Replace `BUCKET_NAME` and `PROJECT_ID` with your values.
+
+   ```bash
+   export BUCKET_NAME=<your-bucket-name>
+   gcloud storage buckets create gs://$BUCKET_NAME --project $PROJECT_ID --location=<region>
+   ```
+   Make sure the region is coherent with the composer region, or select multi-region bucket.
+
+2. Create folders inside the bucket for organizing data and other artefacts:
+
+   ```bash
+   gsutil mkdir gs://$BUCKET_NAME/data
+   ```
+
+#### 1.3. Set Up BigQuery Dataset
+
+1. Create a BigQuery dataset to store processed data.
+
+   ```bash
+   export DATASET_NAME=<your-dataset-name>
+   bq --location=<region> mk --dataset $PROJECT_ID:$DATASET_NAME
+   ```
+
+### Step 2: Configure Airflow with Cloud Composer
+
+1. **Create a Cloud Composer Environment**:
+   - Go to the **Cloud Composer** page in the GCP Console.
+   - Create a new Composer environment, specify Python 3 as the runtime, and select the same region as the other resources.
+   - Note the `Composer Environment Name` and `GCS Bucket` associated with Composer for later steps.
+
+2. **Upload DAGs and Scripts**:
+   - Update the github workflows to match your GCP environment (Project, Bucket, etc). The workflow will take care of uploading the files to the bucket.
+
+4. **Update Environment Variables** in Composer to reference the GCS bucket, BigQuery dataset, and other configurations. These can be set in the Airflow `Variables` section within the Composer UI.
+   - You can use the environment file provided to setup the composer environment. Go to the Composer -> Airflow UI -> Admin -> Variables -> Import Variables
+   - Upload the file.
+
+6. **Python Package Dependencies**:
+   - Update the `requirements.txt` file with the necessary dependencies.
+   - Install the dependencies in Composer by specifying the path to `requirements.txt` in the Composer environment configuration.
+
+### Step 3: CI/CD Pipeline Setup with GitHub Actions
+
+1. **GitHub Actions Workflow**:
+   - The `gcd-upload.yaml` file should handle uploading code to GCS on pushes to specific branches.
+   - The `python-tests.yaml` file should handle unit tests and linting.
+
+### Step 4: Testing the Pipeline
+
+1. **Trigger the Pipeline**:
+   - You can trigger your pipeline by running the Airflow DAGs through the Composer UI or setting specific schedules for each DAG as defined in the code.
+   
+2. **Verify Data in BigQuery**:
+   - After successful DAG runs, check your BigQuery dataset for expected tables and data to ensure the pipeline processed and loaded data correctly.
+
+3. **Logs and Debugging**:
+   - Monitor logs from Airflow in the Composer environment to debug issues. Logs are available for each task within the DAG.
+
+4. **Alerts and Anomaly Detection**:
+   - Change the environment variable for email in the composer environment to receive alerts regarding any anomaly detected, errors in the code and the status of the DAG run.
 
 
 ## Tools and Technologies

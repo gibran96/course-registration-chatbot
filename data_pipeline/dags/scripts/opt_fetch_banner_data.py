@@ -1,9 +1,24 @@
+import ast
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 
 from scripts.fetch_banner_data import get_course_description, get_course_prerequisites, get_faculty_info
+
+
+
+def validate_input(func):
+    def wrapper(*args, **kwargs):
+        for arg in args:
+            if not isinstance(arg, dict):
+                raise ValueError(f"Expected dict, got {type(arg)}")
+        for key, value in kwargs.items():
+            if not isinstance(value, dict):
+                raise ValueError(f"Expected dict for {key}, got {type(value)}")
+        return func(*args, **kwargs)
+    return wrapper
+
 
 # Helper functions for parallel processing
 def split_course_list(course_list, batch_size=10):
@@ -31,47 +46,28 @@ def merge_course_data(batch_results):
     return merged_data
 
 # Process faculty info in parallel
+@validate_input
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses."""
-    try:
-        # Ensure JSON strings are parsed into dictionaries
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
-        if isinstance(course_batch, str):
-            course_batch = json.loads(course_batch)
-
-        # Call the faculty info processing function
-        return get_faculty_info(json.dumps(cookie_output), json.dumps(course_batch))
-    
-    except (TypeError, ValueError) as e:
-        logging.error(f"Error processing faculty info batch: {str(e)}")
-        return None
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
+    return get_faculty_info(cookie_output, course_batch)
 
 # Process course descriptions in parallel
+@validate_input
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
-    try:
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
-        if isinstance(course_batch, str):
-            course_batch = json.loads(course_batch)
-        return get_course_description(json.dumps(cookie_output), json.dumps(course_batch))
-    except Exception as e:
-        logging.error(f"Error processing course description batch: {str(e)}")
-        logging.error(f"Course batch: {course_batch}")
-        logging.error(f"Cookie output: {cookie_output}")
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
+    return get_course_description(cookie_output, course_batch)
 
 # Process prerequisites in parallel
+@validate_input
 def process_prerequisites_batch(cookie_output, course_batch):
     """Process prerequisites for a batch of courses"""
-    try:
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
-        if isinstance(course_batch, str):
-            course_batch = json.loads(course_batch)
-        return get_course_prerequisites(json.dumps(cookie_output), json.dumps(course_batch))
-    except Exception as e:
-        logging.error(f"Error processing prerequisites batch: {str(e)}")
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
+    return get_course_prerequisites(cookie_output, course_batch)
 
 # Generic function for parallel processing
 def parallel_process_with_threads(process_func, cookie_output, course_list, max_workers=5):
@@ -80,8 +76,7 @@ def parallel_process_with_threads(process_func, cookie_output, course_list, max_
     """
     try:
         # Ensure course_list is a dictionary
-        if isinstance(course_list, str):
-            course_list = json.loads(course_list)
+        course_list = parse_json_safely(course_list)
             
         batches = list(split_course_list(course_list))
         results = []
@@ -100,7 +95,8 @@ def parallel_process_with_threads(process_func, cookie_output, course_list, max_
                     if result:
                         results.append(result)
                 except Exception as e:
-                    logging.error(f"Batch processing failed: {e}")
+                    batch = future_to_batch[future]
+                    logging.error(f"Batch processing failed {batch}: {str(e)}")
         
         return merge_course_data(results)
     except Exception as e:
@@ -110,8 +106,8 @@ def parallel_process_with_threads(process_func, cookie_output, course_list, max_
 # DAG tasks for faculty info
 def parallel_faculty_info(**context):
     try:
-        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        course_list = context['task_instance'].xcom_pull(task_ids='get_course_list_task')
+        cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
+        course_list = context['ti'].xcom_pull(task_ids='get_course_list_task', key='course_data')
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
@@ -119,10 +115,10 @@ def parallel_faculty_info(**context):
         logging.info(f"Length of course list: {len(course_list)}")
         
         # Ensure proper JSON formatting
-        if isinstance(course_list, str):
-            course_list = json.loads(course_list)
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
+        # if isinstance(course_list, str):
+        #     course_list = json.loads(course_list)
+        # if isinstance(cookie_output, str):
+        #     cookie_output = json.loads(cookie_output)
         
         results = parallel_process_with_threads(
             process_faculty_info_batch,
@@ -134,7 +130,7 @@ def parallel_faculty_info(**context):
         if not results:
             raise ValueError("Error in parallel_faculty_info")
         
-        return results
+        context['ti'].xcom_push(key='course_list', value=results)
     
     except Exception as e:
         logging.error(f"Error in parallel_faculty_info: {str(e)}")
@@ -143,18 +139,18 @@ def parallel_faculty_info(**context):
 # DAG tasks for course description
 def parallel_course_description(**context):
     try:
-        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        course_list = context['task_instance'].xcom_pull(task_ids='get_faculty_info_task')
+        cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
+        course_list = context['ti'].xcom_pull(task_ids='get_faculty_info_task', key='course_list')
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
         
         logging.info(f"Length of course list: {len(course_list)}")
         
-        if isinstance(course_list, str):
-            course_list = json.loads(course_list)
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
+        # if isinstance(course_list, str):
+        #     course_list = ast.literal_eval(course_list)
+        # if isinstance(cookie_output, str):
+        #     cookie_output = ast.literal_eval(cookie_output)
         
         results = parallel_process_with_threads(
             process_description_batch,
@@ -166,7 +162,7 @@ def parallel_course_description(**context):
         if not results:
             raise ValueError("Error in parallel_course_description")
         
-        return results
+        context['ti'].xcom_push(key='course_list', value=results)
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
         raise
@@ -174,16 +170,18 @@ def parallel_course_description(**context):
 # DAG tasks for prerequisites
 def parallel_prerequisites(**context):
     try:
-        cookie_output = context['task_instance'].xcom_pull(task_ids='get_cookies_task')
-        course_list = context['task_instance'].xcom_pull(task_ids='get_course_description_task')
+        cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
+        course_list = context['ti'].xcom_pull(task_ids='get_course_description_task', key='course_list')
         
         if not course_list:
             raise ValueError("Course list is empty. Aborting.")
         
-        if isinstance(course_list, str):
-            course_list = json.loads(course_list)
-        if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
+        logging.info(f"Length of course list: {len(course_list)}")
+        
+        # if isinstance(course_list, str):
+        #     course_list = json.loads(course_list)
+        # if isinstance(cookie_output, str):
+        #     cookie_output = json.loads(cookie_output)
         
         results = parallel_process_with_threads(
             process_prerequisites_batch,
@@ -195,7 +193,16 @@ def parallel_prerequisites(**context):
         if not results:
             raise ValueError("Error in parallel_prerequisites")
         
-        return results
+        context['ti'].xcom_push(key='course_list', value=results)
     except Exception as e:
         logging.error(f"Error in parallel_prerequisites: {e}")
         raise
+
+def parse_json_safely(data):
+    if isinstance(data, str):
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            logging.error(f"Failed to parse JSON: {data[:100]}...")  # Log first 100 chars
+            return {}
+    return data
