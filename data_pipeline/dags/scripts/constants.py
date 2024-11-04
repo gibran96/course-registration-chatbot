@@ -2,8 +2,8 @@ import vertexai
 from vertexai.generative_models import GenerativeModel
 
 PROJECT_ID = "coursecompass"
-TARGET_SAMPLE_COUNT = 500
-GENERATED_SAMPLE_COUNT = 100
+TARGET_SAMPLE_COUNT = 100
+GENERATED_SAMPLE_COUNT = 20
 
 # Initialize Vertex AI
 vertexai.init(project=PROJECT_ID, location="us-central1")
