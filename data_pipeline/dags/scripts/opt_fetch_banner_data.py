@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -154,9 +155,9 @@ def parallel_course_description(**context):
         logging.info(f"Length of course list: {len(course_list)}")
         
         if isinstance(course_list, str):
-            course_list = json.loads(course_list)
+            course_list = ast.literal_eval(course_list)
         if isinstance(cookie_output, str):
-            cookie_output = json.loads(cookie_output)
+            cookie_output = ast.literal_eval(cookie_output)
         
         results = parallel_process_with_threads(
             process_description_batch,
