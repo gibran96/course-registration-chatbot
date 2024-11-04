@@ -32,15 +32,30 @@ def check_sample_count(**context):
             context['ti'].xcom_push(key='sample_count', value=sample_count)
             return "generate_samples"
         else:
-            sample_count = previous_dag_run.get_task_instance('check_sample_count').xcom_pull(key='sample_count')
-            if sample_count >= TARGET_SAMPLE_COUNT:
-                logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached. Ending DAG run.")
-                context['ti'].xcom_push(key='task_status', value="stop_task")
-                context['ti'].xcom_push(key='sample_count', value=sample_count)
-                return "stop_task"
+            if last_run_task_status:
+                sample_count = previous_dag_run.get_task_instance('check_sample_count').xcom_pull(key='sample_count')
+                if sample_count:
+                    logging.info(f"Current sample count: {sample_count}. Checking if target sample count ({TARGET_SAMPLE_COUNT}) has been reached.")
+                    if sample_count >= TARGET_SAMPLE_COUNT:
+                        logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached. Ending DAG run.")
+                        context['ti'].xcom_push(key='task_status', value="stop_task")
+                        context['ti'].xcom_push(key='sample_count', value=sample_count)
+                        return "stop_task"
+                    else:
+                        logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+                        context['ti'].xcom_push(key='task_status', value="generate_samples")
+                        context['ti'].xcom_push(key='sample_count', value=sample_count)
+                        return "generate_samples"
+                else:
+                    logging.info("No sample count found. Proceeding with sample generation.")
+                    context['ti'].xcom_push(key='task_status', value="generate_samples")
+                    sample_count = 0
+                    context['ti'].xcom_push(key='sample_count', value=sample_count)
+                    return "generate_samples"
             else:
-                logging.info(f"Current sample count: {sample_count}. Proceeding with sample generation.")
+                logging.info("No previous task status found. Proceeding with sample generation.")
                 context['ti'].xcom_push(key='task_status', value="generate_samples")
+                sample_count = 0
                 context['ti'].xcom_push(key='sample_count', value=sample_count)
                 return "generate_samples"
 
