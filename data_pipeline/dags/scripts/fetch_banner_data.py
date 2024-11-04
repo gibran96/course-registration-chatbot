@@ -289,7 +289,7 @@ def get_course_prerequisites(cookie_output, course_list_df):
 def dump_to_csv(**context):
     course_list_df = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_list_df')
     
-    if not course_list_df:
+    if course_list_df.empty:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
     # print the length of the course_data
