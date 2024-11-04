@@ -167,3 +167,5 @@ cython_debug/
 data_pipeline/docker-compose.yaml
 data_pipeline/dags/scripts/test.py
 data_pipeline/dags/scripts/test2.py
+
+.vscode/

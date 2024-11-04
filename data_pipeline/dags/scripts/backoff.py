@@ -2,7 +2,7 @@ import time
 import logging
 from random import uniform
 from functools import wraps
-from typing import Optional, Callable, Any
+from typing import Callable, Any
 
 def exponential_backoff(
     max_retries: int = 10,
