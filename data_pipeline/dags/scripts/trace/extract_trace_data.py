@@ -1,20 +1,19 @@
 import pandas as pd
-import os
 import logging
 from google.cloud import storage, bigquery
 from airflow.models import Variable
 import fitz
 import gc
-import re
-import string
 import uuid
-from google.cloud import aiplatform
 from datetime import datetime
-from ml_metadata import metadata_store
-from ml_metadata.proto import metadata_store_pb2
 from airflow.models import Variable
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.operators.email import EmailOperator
+
+
+from scripts.data.data_anomalies import check_for_gender_bias
+from scripts.data.data_utils import check_unknown_text, clean_response, clean_text
+from scripts.email_triggers import send_anomaly_email
+from scripts.mlmd.mlmd_preprocessing import create_preprocessing_execution, record_preprocessing_metadata, setup_mlmd
 
 
 
@@ -26,24 +25,6 @@ question_map = {
     "Please comment on your experience of the online course environment in the open-ended text box.": "Q4",
     "What I could have done to make this course better for myself.": "Q5"
 }
-
-def clean_response(response):
-    """Remove leading index numbers from a response."""
-    response = re.sub(r"^\d+\s*", "", response.strip())
-    # remove next line characters
-    response = response.replace("\n", " ")
-    response = response.replace("\r", " ")
-    response = response.replace("\t", " ")
-    return response
-
-def clean_text(text):
-    """Clean and standardize text."""
-    text = text.strip()
-    text = ''.join(e for e in text if e.isalnum() or e.isspace() or e in string.punctuation)
-    text = text.lower()
-    # text = clean_response(text)
-    return text
-
 
 def extract_data_from_pdf(pdf_file):
     """
@@ -226,24 +207,6 @@ def read_and_parse_pdf_files(**context):
         # print length of the dataframes
         logging.info(f"Length of reviews: {reviews_df.shape[0]}")
         logging.info(f"Length of courses: {courses_df.shape[0]}")
-        
-        # Save processed data
-        # os.makedirs(output_path, exist_ok=True)
-        # # Check if the file exists
-        # reviews_path = f"{output_path}/reviews.csv"
-        # courses_path = f"{output_path}/courses.csv"
-
-        # if os.path.exists(reviews_path):
-        #     os.remove(reviews_path)
-        #     logging.info(f"Removed existing reviews file at {reviews_path}")
-        # if os.path.exists(courses_path):
-        #     os.remove(courses_path)
-        #     logging.info(f"Removed existing courses file at {courses_path}")
-        
-        # reviews_df.to_csv(f"{output_path}/reviews.csv", index=False)
-        # courses_df.to_csv(f"{output_path}/courses.csv", index=False)
-        
-        # logging.info(f"Saved reviews and courses data exists : {os.path.exists(reviews_path)} and {os.path.exists(courses_path)}")
 
         # Push the data frames to xcom
         context['ti'].xcom_push(key='reviews_df', value=reviews_df)
@@ -262,123 +225,6 @@ def read_and_parse_pdf_files(**context):
     except Exception as e:
         logging.error(f"Error processing PDFs: {str(e)}")
         raise
-
-def check_unknown_text(reviews_df, courses_df):
-    """
-    Checks for unknown text in the reviews and courses DataFrames.
-    Args:
-        reviews_df (pandas.DataFrame): DataFrame containing reviews data.
-        courses_df (pandas.DataFrame): DataFrame containing courses data.
-    Returns:
-        tuple: A tuple containing:
-            - unknown_reviews (pandas.DataFrame): DataFrame containing reviews with unknown text.
-            - unknown_courses (pandas.DataFrame): DataFrame containing courses with unknown text.
-    """
-    # Check for unknown text in reviews
-    unknown_reviews = reviews_df[reviews_df["question"] == "unknown"]
-    
-    # Check for unknown text in courses
-    unknown_courses = courses_df[courses_df["crn"] == ""]
-    
-    return unknown_reviews, unknown_courses
-
-def setup_mlmd():
-    """
-    Setup ML Metadata connection and create necessary types.
-    """
-    # Create connection config for metadata store
-    config = metadata_store_pb2.ConnectionConfig()
-    config.mysql.host = Variable.get("metadata_db_host")
-    config.mysql.port = 3306
-    config.mysql.database = Variable.get("metadata_db_name")
-    config.mysql.user = Variable.get("metadata_db_user")
-    config.mysql.password = Variable.get("metadata_db_password")
-
-    logging.info(f"Connecting to MLMD: {config}")
-    
-
-# Initialize the metadata store
-    store = metadata_store.MetadataStore(config)
-
-    # Create ArtifactTypes if they don't exist
-    try:
-        preprocessing_dataset_type = store.get_artifact_type("PreprocessingDataset")
-    except:
-        preprocessing_dataset_type = metadata_store_pb2.ArtifactType()
-        preprocessing_dataset_type.name = "PreprocessingDataset"
-        preprocessing_dataset_type.properties["raw_reviews_count"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["raw_courses_count"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["processed_reviews_count"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["processed_courses_count"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["null_responses_removed"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["sensitive_data_flags"] = metadata_store_pb2.INT
-        preprocessing_dataset_type.properties["timestamp"] = metadata_store_pb2.STRING
-        preprocessing_dataset_type.properties["status"] = metadata_store_pb2.STRING
-        preprocessing_dataset_type_id = store.put_artifact_type(preprocessing_dataset_type)
-
-    # Create ExecutionType if it doesn't exist
-    try:
-        preprocessing_execution_type = store.get_execution_type("Preprocessing")
-    except:
-        preprocessing_execution_type = metadata_store_pb2.ExecutionType()
-        preprocessing_execution_type.name = "Preprocessing"
-        preprocessing_execution_type.properties["dag_run_id"] = metadata_store_pb2.STRING
-        preprocessing_execution_type.properties["output_path"] = metadata_store_pb2.STRING
-        preprocessing_execution_type.properties["start_time"] = metadata_store_pb2.STRING
-        preprocessing_execution_type.properties["end_time"] = metadata_store_pb2.STRING
-        preprocessing_execution_type_id = store.put_execution_type(preprocessing_execution_type)
-
-    return store
-
-
-def create_preprocessing_execution(store, **context):
-    """
-    Create an execution in MLMD for tracking the preprocessing run.
-    """
-    # Create execution
-    execution = metadata_store_pb2.Execution()
-    preprocessing_execution_type = store.get_execution_type("Preprocessing")
-    execution.type_id = preprocessing_execution_type.id
-
-    execution.properties["dag_run_id"].string_value = context['dag_run'].run_id
-    execution.properties["output_path"].string_value = context['dag_run'].conf.get('output_path', '/tmp/processed_data')
-    execution.properties["start_time"].string_value = datetime.utcnow().isoformat()
-    
-    execution_id = store.put_executions([execution])[0]
-    return execution_id
-
-def record_preprocessing_metadata(store, execution_id, metadata_values):
-    """
-    Record preprocessing metadata as artifacts in MLMD.
-    """
-    # Create artifact
-    artifact = metadata_store_pb2.Artifact()
-    preprocessing_artifact_type = store.get_artifact_type("PreprocessingDataset")
-    artifact.type_id = preprocessing_artifact_type.id
-
-    
-    # Set properties
-    artifact.properties["raw_reviews_count"].int_value = metadata_values["raw_reviews_count"]
-    artifact.properties["raw_courses_count"].int_value = metadata_values["raw_courses_count"]
-    artifact.properties["processed_reviews_count"].int_value = metadata_values["processed_reviews_count"]
-    artifact.properties["processed_courses_count"].int_value = metadata_values["processed_courses_count"]
-    artifact.properties["null_responses_removed"].int_value = metadata_values["null_responses_removed"]
-    artifact.properties["sensitive_data_flags"].int_value = metadata_values["sensitive_data_flags"]
-    artifact.properties["timestamp"].string_value = metadata_values["timestamp"]
-    artifact.properties["status"].string_value = metadata_values["status"]
-    
-    # Put artifact in store
-    artifact_id = store.put_artifacts([artifact])[0]
-    
-    # Create event to link execution and artifact
-    event = metadata_store_pb2.Event()
-    event.execution_id = execution_id
-    event.artifact_id = artifact_id
-    event.type = metadata_store_pb2.Event.Type.OUTPUT
-    
-    store.put_events([event])
-    
-    return artifact_id
 
 def preprocess_data(**context):
     """
@@ -514,99 +360,6 @@ def preprocess_data(**context):
         logging.error(f"Error in preprocessing: {str(e)}")
         raise
 
-def send_anomaly_email(anomaly_text):
-    """
-    Send an email with the anomaly text to the specified email address.
-    Args:
-        anomaly_text (str): The text to include in the email.
-    """
-    # Send an email with the anomaly text
-    
-    email_task = EmailOperator(
-        task_id='anomaly_email',
-        to='mlopsggmu@gmail.com',
-        subject='Anomalies have been detected in your data',
-        html_content=f"""<p>Dear User,</p>
-                        <p>Anomalies have been detected in your data:</p>
-                        <p>{anomaly_text}</p>
-                        <p>Kind regards,<br/>Your Data Pipeline</p>""",
-
-    )
-    email_task.execute(context=None)
-
-
-
-def get_preprocessing_metadata(store, execution_id):
-    """
-    Utility function to retrieve preprocessing metadata for a given execution.
-    """
-    execution = store.get_executions_by_id([execution_id])[0]
-    events = store.get_events_by_execution_ids([execution_id])
-    
-    if events:
-        artifact_id = events[0].artifact_id
-        artifact = store.get_artifacts_by_id([artifact_id])[0]
-        
-        metadata = {
-            "raw_reviews_count": artifact.properties["raw_reviews_count"].int_value,
-            "raw_courses_count": artifact.properties["raw_courses_count"].int_value,
-            "processed_reviews_count": artifact.properties["processed_reviews_count"].int_value,
-            "processed_courses_count": artifact.properties["processed_courses_count"].int_value,
-            "null_responses_removed": artifact.properties["null_responses_removed"].int_value,
-            "sensitive_data_flags": artifact.properties["sensitive_data_flags"].int_value,
-            "status": artifact.properties["status"].string_value,
-            "timestamp": artifact.properties["timestamp"].string_value,
-            "dag_run_id": execution.properties["dag_run_id"].string_value,
-            "start_time": execution.properties["start_time"].string_value,
-            "end_time": execution.properties.get("end_time", metadata_store_pb2.Value()).string_value
-        }
-        
-        return metadata
-    return None
-
-def check_for_gender_bias(df, column_name):
-    """
-    Check for gender bias in the specified column of the DataFrame by identifying and replacing gender-specific pronouns.
-    Args:
-        df (pd.DataFrame): The DataFrame containing the data to be checked.
-        column_name (str): The name of the column in the DataFrame to check for gender-specific pronouns.
-    Returns:
-        tuple: A tuple containing:
-            - flag (bool): True if any gender-specific pronouns were found and replaced, False otherwise.
-            - sensitive_data_found (pd.DataFrame): A DataFrame containing the rows where gender-specific pronouns were found, with columns ["crn", "question", "response"].
-    """
-    # Check for gender bias in the df for the given column
-    # Check for any gender specific pronouns in the responses and replace it with the professor.
-
-    gender_sensitive_pronouns = [" he " , " him ", " his ", " she ", " her ", " hers ", " they ", " them ", " theirs "]
-
-    flag = False
-
-    sensitive_data_found = pd.DataFrame(columns=["crn", "question", "response"])
-    # Keep a track of all the rows that have the gender specific pronouns
-    # Check each row in the specified column for gender-specific pronouns
-    for index, row in df.iterrows():
-        response_text = f" {row[column_name]} "  # Adding spaces around the text to handle word boundaries
-        found_pronouns = any(pronoun in response_text.lower() for pronoun in gender_sensitive_pronouns)
-        
-        if found_pronouns:
-            # Set flag to True if any sensitive data is found
-            flag = True
-            
-            # Append row to sensitive_data_found DataFrame
-            sensitive_data_found[-1] = [row["crn"], row["question"], row[column_name]]
-            
-            # Replace pronouns with "the professor" in the response text
-            for pronoun in gender_sensitive_pronouns:
-                response_text = response_text.replace(pronoun, " the professor ")
-            
-            # Update the original DataFrame with the modified text
-            df.at[index, column_name] = response_text.strip()
-    
-    return flag, sensitive_data_found
-    return flag, sensitive_data_found
-
-
 def get_crn_list(**context):
     """
     Retrieves a distinct list of CRNs (Course Reference Numbers) from a specified BigQuery table
@@ -630,7 +383,6 @@ def get_crn_list(**context):
             LIMIT 1000
         """
         logging.info(f"Executing query: {query}")
-        # logging.info(f"Len of result: {len(client.query(query).result())}")
         crn_list = list(set(row["crn"] for row in client.query(query).result()))
         logging.info(f"CRN List: {len(crn_list)}")
         client.close()
@@ -639,7 +391,6 @@ def get_crn_list(**context):
     except Exception as e:
         logging.error(f"Error: {e}")
         return []
-
 
 def monitor_new_rows_and_trigger(**context):
     """

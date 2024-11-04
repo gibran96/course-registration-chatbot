@@ -1,19 +1,12 @@
 import sys
 import os
 
+from scripts.banner.fetch_banner_data import get_cookies, get_course_description, get_courses_list
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import pytest
-from unittest.mock import patch, Mock, mock_open, MagicMock
+from unittest.mock import patch, Mock
 import requests
-import airflow
-import ast
-import csv
-
-from scripts.fetch_banner_data import get_cookies
-from scripts.fetch_banner_data import get_courses_list
-from scripts.fetch_banner_data import get_course_description
-from scripts.fetch_banner_data import dump_to_csv
 
 
 

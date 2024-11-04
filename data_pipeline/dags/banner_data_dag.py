@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, dump_to_csv
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
 )
 from airflow.models import Variable
 from airflow.operators.email import EmailOperator
 
-from scripts.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
+from scripts.banner.fetch_banner_data import dump_to_csv, get_cookies, get_courses_list
+from scripts.banner.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
+from scripts.gcs.gcs_utils import upload_banner_data_to_gcs
+
 
 default_args = {
     'owner': 'airflow',

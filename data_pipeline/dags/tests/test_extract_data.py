@@ -8,11 +8,11 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
-from scripts.extract_trace_data import clean_text
-from scripts.extract_trace_data import clean_response
+from scripts.trace.extract_trace_data import clean_text
+from scripts.trace.extract_trace_data import clean_response
 
-from scripts.extract_trace_data import parse_data
-from scripts.extract_trace_data import extract_data_from_pdf
+from scripts.trace.extract_trace_data import parse_data
+from scripts.trace.extract_trace_data import extract_data_from_pdf
 
 
 class TestCleanResponse:
