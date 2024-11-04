@@ -5,16 +5,8 @@ import requests
 import os
 from airflow.models import Variable
 
-from scripts.data.data_utils import clean_response
-
-
-semester_map = {
-    "10": "Fall",
-    "30": "Spring",
-    "40": "Summer 1",
-    "50": "Summer Full",
-    "60": "Summer 2"
-}
+from scripts.data.data_anomalies import check_missing_faculty
+from scripts.data.data_utils import clean_response, get_days, get_semester_name
 
 def get_cookies(**context):
     """
@@ -343,6 +335,9 @@ def dump_to_csv(**context):
     if course_list_df.empty:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
+    # Check for missing faculty names
+    course_list_df = check_missing_faculty(course_list_df)
+    
     course_list_df_filled = course_list_df.fillna("")
     
     course_list_df_filled["prereq"] = course_list_df_filled["prereq"].apply(
@@ -357,46 +352,4 @@ def dump_to_csv(**context):
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
     course_list_df_filled.to_csv(file_path, index=False, na_rep="", quoting=1)    
-                
-                
-# Function to get the semester name from the term
-def get_semester_name(term):
-    """
-    Extracts and returns the semester name from a given term code.
 
-    Args:
-        term (str): A term code string where the last two characters represent the semester 
-                    and the first four characters represent the year.
-
-    Returns:
-        str: The semester name followed by the year (e.g., "Fall 2023").
-
-    Raises:
-        KeyError: If the extracted semester code is not found in the semester_map.
-    """
-    semester = term[-2:]
-    return semester_map[semester] + " " + term[:4]
-
-# Function to get the days of the course lecture
-def get_days(meeting_time):
-    """
-    Extracts and returns the days of the week a course is held.
-
-    Args:
-        meeting_time (dict or tuple): A dictionary where the keys are the days of the week and the values
-            are booleans indicating whether the course is held on that day. If a tuple is provided, it is
-            assumed to contain a single dictionary element.
-
-    Returns:
-        str: A string containing the days of the week the course is held, separated by semicolons.
-
-    """
-    if isinstance(meeting_time, tuple):
-        meeting_time = meeting_time[0]
-    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
-            if meeting_time.get(day, False)]
-    return ";".join(days)
-
-# TODO - Implement this function
-def get_next_term(cookie_output):
-    pass

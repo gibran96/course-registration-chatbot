@@ -1,4 +1,7 @@
+import logging
 import pandas as pd
+
+from scripts.email_triggers import send_missing_faculty_mail
 
 
 def check_for_gender_bias(df, column_name):
@@ -41,3 +44,31 @@ def check_for_gender_bias(df, column_name):
             df.at[index, column_name] = response_text.strip()
     
     return flag, sensitive_data_found
+
+def check_missing_faculty(course_list_df):
+    """
+    Checks if there are any missing faculty names in the course list DataFrame.
+
+    Args:
+        course_list_df (pd.DataFrame): The DataFrame containing the course list data.
+
+    Returns:
+        pd.DataFrame: The course_list_df with rows containing missing faculty names dropped.
+    """
+    missing_faculty_df = course_list_df[course_list_df['faculty_name'].isnull() | (course_list_df['faculty_name'] == '')]
+    
+    if not missing_faculty_df.empty:
+        logging.warning(f"Missing faculty names detected in the course list. Sent email with details.")
+        
+        missing_courses = [
+            f"CRN: {row['crn']}, Course: {row['subject_course']}, Term: {row['term']}"
+            for _, row in missing_faculty_df.iterrows()
+        ]
+        
+        course_list_df = course_list_df.drop(missing_faculty_df.index)
+        
+        course_list_str = "\n".join(missing_courses)
+        
+        send_missing_faculty_mail(course_list_str)
+    
+    return course_list_df
