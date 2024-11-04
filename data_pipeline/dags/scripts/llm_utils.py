@@ -99,6 +99,7 @@ def generate_llm_response(**context):
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
+    context['ti'].xcom_push(key='generated_samples_count', value=len(train_data_df))
 
     if os.path.exists('/tmp/llm_train_data.pq'):
         logging.info("llm_train_data.pq exists, removing...")

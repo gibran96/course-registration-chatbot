@@ -32,9 +32,11 @@ def check_sample_count(**context):
             context['ti'].xcom_push(key='sample_count', value=sample_count)
             return "generate_samples"
         else:
-            if last_run_task_status:
+            if last_run_task_status == "generate_samples":
+                generated_samples_count = previous_dag_run.get_task_instance('generate_llm_response').xcom_pull(key='generated_samples_count')
                 sample_count = previous_dag_run.get_task_instance('check_sample_count').xcom_pull(key='sample_count')
-                if sample_count:
+                sample_count += generated_samples_count
+                if generated_samples_count:
                     logging.info(f"Current sample count: {sample_count}. Checking if target sample count ({TARGET_SAMPLE_COUNT}) has been reached.")
                     if sample_count >= TARGET_SAMPLE_COUNT:
                         logging.info(f"Target sample count ({TARGET_SAMPLE_COUNT}) reached. Ending DAG run.")
