@@ -52,6 +52,9 @@ This Airflow DAG focuses on fetching data from the NEU Banner system, processing
 - **load_banner_data_to_bq**: Loads the Banner data from GCS into BigQuery.
 - **Success Email**: Sends an email notification upon successful data loading.
 
+![image](https://github.com/user-attachments/assets/21b726d8-d294-44a5-a39b-d9ec28b4a64d)
+
+
 This pipeline streamlines the process of gathering and storing course and faculty information from the Banner system. 
 
 ### 2. **PDF Processing Pipeline** (`pdf_processing_pipeline`)
@@ -68,6 +71,9 @@ This Airflow DAG is set up to process NEU Trace course review data. It fetches d
 - **load_courses_to_bigquery** and **load_to_bigquery**: Loads processed course and review data into specific BigQuery tables.
 - **Success Email**: Notifies the team upon successful completion of the data processing.
 - **trigger_train_data_pipeline**: Triggers the training data pipeline once PDF processing is complete.
+
+![image](https://github.com/user-attachments/assets/77d2511b-a7e0-42c0-9bfc-fe2e3d6d0d94)
+
 
 This pipeline is essential for organizing and storing course review data in a structured format for analysis.
 
@@ -87,6 +93,9 @@ This Airflow Directed Acyclic Graph (DAG) is responsible for generating seed que
 - **upload_gcs_to_bq**: Loads the data from Google Cloud Storage back into BigQuery.
 - **trigger_dag_run**: Triggers additional DAG runs if necessary.
 - **success_email**: Sends an email notification upon successful completion of the pipeline.
+
+![image](https://github.com/user-attachments/assets/9b59415b-47c9-4ed2-a50d-bf5b00c40fef)
+
 
 This DAG is designed to automate the preparation and processing of training data in a systematic way.
 
