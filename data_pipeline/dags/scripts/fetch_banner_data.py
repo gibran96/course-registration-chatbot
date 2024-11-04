@@ -136,7 +136,7 @@ def get_courses_list(**context):
                                   "course_description", "term", "begin_time", "end_time", "days", "prereq")
     
     for course in course_data:
-        course_df = course_df.append({
+        course_list_df = course_list_df.append({
             "crn": course_data[course]["crn"],
             "campus_description": course_data[course]["campus_description"],
             "course_title": course_data[course]["course_title"],
