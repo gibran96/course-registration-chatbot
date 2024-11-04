@@ -137,7 +137,7 @@ def perform_similarity_search(**context):
                             'ml_generate_embedding_result',
                             TABLE query_embedding,
                             distance_type => 'COSINE',
-                            top_k => 10,
+                            top_k => 5,
                             options => '{"use_brute_force": true}'
                         )
                     ),
