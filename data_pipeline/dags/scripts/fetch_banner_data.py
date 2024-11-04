@@ -294,7 +294,9 @@ def dump_to_csv(**context):
     
     course_list_df_filled = course_list_df.fillna("")
     
-    course_list_df_filled["prereq"] = course_list_df_filled["prereq"].apply(lambda x: json.dumps(x) if x else "")
+    course_list_df_filled["prereq"] = course_list_df_filled["prereq"].apply(
+        lambda x: str(x).replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    )
     
     # print the length of the course_data
     logging.info(f"Length of course_data: {course_list_df.shape[0]}")
