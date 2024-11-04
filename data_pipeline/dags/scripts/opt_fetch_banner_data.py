@@ -109,7 +109,7 @@ def parallel_course_description(**context):
         )
         logging.info(f"Length of results: {len(results_df)}")
         
-        if not results_df:
+        if results_df.empty:
             raise ValueError("Error in parallel_course_description")
         
         context['ti'].xcom_push(key='course_list_df', value=results_df)
