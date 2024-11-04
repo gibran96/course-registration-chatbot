@@ -182,6 +182,92 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 └── requirements.txt: This file lists the project dependencies required to run the data pipelines. It's used by pip 
      to install the necessary packages.
 ```
+
+## Instruction to Reproduce
+To reproduce this data pipeline on Google Cloud Platform (GCP), follow these instructions:
+
+### Prerequisites
+
+1. **Google Cloud Account**: Make sure you have an active Google Cloud account.
+2. **Project Setup**: Create a new GCP project or use an existing one. Note down the `PROJECT_ID`.
+3. **Billing Enabled**: Ensure billing is enabled for your project.
+4. **Google Cloud SDK**: Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) to interact with GCP resources.
+5. **Python 3.x**: Make sure Python 3.10 is installed.
+
+### Step 1: Set Up GCP Services and Resources
+
+#### 1.1. Enable Required APIs
+
+Go to GCP Console - 
+1. BigQuery - Enable API
+2. Cloud Composer - Enable API
+3. VertexAI - Enable API
+
+
+#### 1.2. Set Up Cloud Storage Buckets
+
+1. Create a Cloud Storage bucket to store data and pipeline artifacts. Replace `BUCKET_NAME` and `PROJECT_ID` with your values.
+
+   ```bash
+   export BUCKET_NAME=<your-bucket-name>
+   gcloud storage buckets create gs://$BUCKET_NAME --project $PROJECT_ID --location=<region>
+   ```
+   Make sure the region is coherent with the composer region, or select multi-region bucket.
+
+2. Create folders inside the bucket for organizing data and other artefacts:
+
+   ```bash
+   gsutil mkdir gs://$BUCKET_NAME/data
+   ```
+
+#### 1.3. Set Up BigQuery Dataset
+
+1. Create a BigQuery dataset to store processed data.
+
+   ```bash
+   export DATASET_NAME=<your-dataset-name>
+   bq --location=<region> mk --dataset $PROJECT_ID:$DATASET_NAME
+   ```
+
+### Step 2: Configure Airflow with Cloud Composer
+
+1. **Create a Cloud Composer Environment**:
+   - Go to the **Cloud Composer** page in the GCP Console.
+   - Create a new Composer environment, specify Python 3 as the runtime, and select the same region as the other resources.
+   - Note the `Composer Environment Name` and `GCS Bucket` associated with Composer for later steps.
+
+2. **Upload DAGs and Scripts**:
+   - Update the github workflows to match your GCP environment (Project, Bucket, etc). The workflow will take care of uploading the files to the bucket.
+
+4. **Update Environment Variables** in Composer to reference the GCS bucket, BigQuery dataset, and other configurations. These can be set in the Airflow `Variables` section within the Composer UI.
+   - You can use the environment file provided to setup the composer environment. Go to the Composer -> Airflow UI -> Admin -> Variables -> Import Variables
+   - Upload the file.
+
+6. **Python Package Dependencies**:
+   - Update the `requirements.txt` file with the necessary dependencies.
+   - Install the dependencies in Composer by specifying the path to `requirements.txt` in the Composer environment configuration.
+
+### Step 3: CI/CD Pipeline Setup with GitHub Actions
+
+1. **GitHub Actions Workflow**:
+   - The `gcd-upload.yaml` file should handle uploading code to GCS on pushes to specific branches.
+   - The `python-tests.yaml` file should handle unit tests and linting.
+
+### Step 4: Testing the Pipeline
+
+1. **Trigger the Pipeline**:
+   - You can trigger your pipeline by running the Airflow DAGs through the Composer UI or setting specific schedules for each DAG as defined in the code.
+   
+2. **Verify Data in BigQuery**:
+   - After successful DAG runs, check your BigQuery dataset for expected tables and data to ensure the pipeline processed and loaded data correctly.
+
+3. **Logs and Debugging**:
+   - Monitor logs from Airflow in the Composer environment to debug issues. Logs are available for each task within the DAG.
+
+4. **Alerts and Anomaly Detection**:
+   - Change the environment variable for email in the composer environment to receive alerts regarding any anomaly detected, errors in the code and the status of the DAG run.
+
+
 ## Tools and Technologies
 - **Python**: Core programming language for development.
 - **Google Cloud Platform (GCP)**: Provides cloud infrastructure for storage and computation.
