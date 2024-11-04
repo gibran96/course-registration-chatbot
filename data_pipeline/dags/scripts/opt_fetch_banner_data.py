@@ -58,7 +58,11 @@ def parallel_process_with_threads_df(process_func, cookie_output, course_list_df
                     batch = future_to_batch[future]
                     logging.error(f"Batch processing failed {batch.index}: {str(e)}")
 
-        return merge_course_data_df(results)
+        # Ensure there are objects to concatenate
+        if results:
+            return merge_course_data_df(results)
+        else:
+            raise ValueError("No valid DataFrames to concatenate")
 
     except Exception as e:
         logging.error(f"Error in parallel processing with DataFrames: {e}")
@@ -70,19 +74,20 @@ def parallel_faculty_info(**context):
         cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
         course_list_df = context['ti'].xcom_pull(task_ids='get_course_list_task', key='course_list_df')
 
-        logging.info(f"Length of course list: {len(course_list_df)}")
+        course_list_df = course_list_df.copy()  # Avoid SettingWithCopyWarning
+        logging.info(f"Length of course list DataFrame: {len(course_list_df)}")
         
-        results = parallel_process_with_threads_df(
+        results_df = parallel_process_with_threads_df(
             process_faculty_info_batch_df,
             cookie_output,
             course_list_df
         )
-        logging.info(f"Length of results: {len(results)}")
+        logging.info(f"Length of results: {len(results_df)}")
         
-        if not results:
+        if results_df.empty:
             raise ValueError("Error in parallel_faculty_info")
         
-        context['ti'].xcom_push(key='course_list_df', value=results)
+        context['ti'].xcom_push(key='course_list_df', value=results_df)
     
     except Exception as e:
         logging.error(f"Error in parallel_faculty_info: {str(e)}")
@@ -94,22 +99,20 @@ def parallel_course_description(**context):
         cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
         course_list_df = context['ti'].xcom_pull(task_ids='get_faculty_info_task', key='course_list_df')
         
-        if not course_list_df:
-            raise ValueError("Course list is empty. Aborting.")
+        course_list_df = course_list_df.copy()  # Avoid SettingWithCopyWarning
+        logging.info(f"Length of course list DataFrame: {len(course_list_df)}")
         
-        logging.info(f"Length of course list: {len(course_list_df)}")
-        
-        results = parallel_process_with_threads_df(
+        results_df = parallel_process_with_threads_df(
             process_description_batch_df,
             cookie_output,
             course_list_df
         )
-        logging.info(f"Length of results: {len(results)}")
+        logging.info(f"Length of results: {len(results_df)}")
         
-        if not results:
+        if results_df.empty:
             raise ValueError("Error in parallel_course_description")
         
-        context['ti'].xcom_push(key='course_list_df', value=results)
+        context['ti'].xcom_push(key='course_list_df', value=results_df)
     except Exception as e:
         logging.error(f"Error in parallel_course_description: {e}")
         raise
@@ -120,22 +123,20 @@ def parallel_prerequisites(**context):
         cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
         course_list_df = context['ti'].xcom_pull(task_ids='get_course_description_task', key='course_list_df')
         
-        if not course_list_df:
-            raise ValueError("Course list is empty. Aborting.")
+        course_list_df = course_list_df.copy()  # Avoid SettingWithCopyWarning
+        logging.info(f"Length of course list DataFrame: {len(course_list_df)}")
         
-        logging.info(f"Length of course list: {len(course_list_df)}")
-        
-        results = parallel_process_with_threads_df(
+        results_df = parallel_process_with_threads_df(
             process_prerequisites_batch_df,
             cookie_output,
             course_list_df
         )
-        logging.info(f"Length of results: {len(results)}")
+        logging.info(f"Length of results: {len(results_df)}")
         
-        if not results:
+        if results_df.empty:
             raise ValueError("Error in parallel_prerequisites")
         
-        context['ti'].xcom_push(key='course_list_df', value=results)
+        context['ti'].xcom_push(key='course_list_df', value=results_df)
     except Exception as e:
         logging.error(f"Error in parallel_prerequisites: {e}")
         raise

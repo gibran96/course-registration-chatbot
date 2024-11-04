@@ -189,12 +189,8 @@ def get_faculty_info(cookie_output, course_list_df):
 
 
 # Function to fetch the course description from the Banner API
-def get_course_description(cookie_output, course_list_df):
-    cookie_output = ast.literal_eval(cookie_output)
-    course_list = ast.literal_eval(course_list)
-    
+def get_course_description(cookie_output, course_list_df):    
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getCourseDescription"
     
@@ -209,7 +205,7 @@ def get_course_description(cookie_output, course_list_df):
         "courseReferenceNumber": ""
     }
     
-    for index, row in course_list_df.iter():
+    for index, row in course_list_df.iterrows():
         course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
@@ -252,7 +248,7 @@ def get_course_prerequisites(cookie_output, course_list_df):
         "courseReferenceNumber": ""
     }
     
-    for index, row in course_list_df.iter():
+    for index, row in course_list_df.iterrows():
         course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
@@ -293,17 +289,23 @@ def get_course_prerequisites(cookie_output, course_list_df):
 def dump_to_csv(**context):
     course_list_df = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_list_df')
     
-    if not course_list_df:
+    if course_list_df.empty:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
+    course_list_df_filled = course_list_df.fillna("")
+    
+    course_list_df_filled["prereq"] = course_list_df_filled["prereq"].apply(
+        lambda x: str(x).replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    )
+    
     # print the length of the course_data
-    logging.info(f"Length of course_data: {len(course_list_df)}")
+    logging.info(f"Length of course_data: {course_list_df.shape[0]}")
 
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
     os.makedirs(output_path, exist_ok=True)
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
-    pd.to_csv(file_path, index=False)    
+    course_list_df_filled.to_csv(file_path, index=False, na_rep="", quoting=1)    
                 
                 
 # Function to get the semester name from the term
