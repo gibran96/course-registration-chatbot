@@ -267,6 +267,59 @@ Go to GCP Console -
 4. **Alerts and Anomaly Detection**:
    - Change the environment variable for email in the composer environment to receive alerts regarding any anomaly detected, errors in the code and the status of the DAG run.
 
+## BigQuery Data Schema
+1. Table 1 - Course Data Table 
+```
+| Field Name    | Type   |
+|---------------|--------|
+| crn           | STRING |
+| course_code   | STRING |
+| course_title  | STRING |
+| instructor    | STRING |
+| term          | STRING |
+```
+2. Table 2 - Banner Course Data Table
+
+```
+| Field Name           | Type   |
+|----------------------|--------|
+| crn                  | STRING |
+| course_title         | STRING |
+| subject_course       | STRING |
+| faculty_name         | STRING |
+| campus_description   | STRING |
+| course_description   | STRING |
+| term                 | STRING |
+| begin_time           | STRING |
+| end_time             | STRING |
+| days                 | STRING |
+| prereq               | STRING |
+```
+
+3. Table 3 - Review Data Table
+```
+| Field Name | Type   |
+|------------|--------|
+| review_id  | STRING |
+| crn        | STRING |
+| question   | STRING |
+| response   | STRING |
+```
+4. Table 4 - Train Data Table
+```
+| Field Name | Type   |
+|------------|--------|
+| question   | STRING |
+| context    | STRING |
+| response   | STRING |
+```
+
+
+## Data Version Control(DVC)
+We store all our data in Google Cloud Storage Bucket and use the versioning capability provided by GCS to maintain data versions. 
+![image](https://github.com/user-attachments/assets/1020a971-2c58-4fc3-b419-0da0f8c7c9ae)
+![image](https://github.com/user-attachments/assets/39aa025d-aaea-4de0-ade2-316653c65150)
+
 
 ## Tools and Technologies
 - **Python**: Core programming language for development.
