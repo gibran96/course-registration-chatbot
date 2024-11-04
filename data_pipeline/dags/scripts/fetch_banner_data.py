@@ -205,7 +205,7 @@ def get_course_description(cookie_output, course_list_df):
         "courseReferenceNumber": ""
     }
     
-    for index, row in course_list_df.iter():
+    for index, row in course_list_df.iterrows():
         course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
@@ -248,7 +248,7 @@ def get_course_prerequisites(cookie_output, course_list_df):
         "courseReferenceNumber": ""
     }
     
-    for index, row in course_list_df.iter():
+    for index, row in course_list_df.iterrows():
         course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
