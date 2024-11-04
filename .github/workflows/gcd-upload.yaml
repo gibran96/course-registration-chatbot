@@ -5,6 +5,7 @@ on:
     branches:
       - workflow-testing
       - main
+      - gibran/logs-and-alerts
 
 jobs:
   upload_to_gcs:
