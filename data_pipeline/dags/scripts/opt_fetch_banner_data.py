@@ -49,24 +49,24 @@ def merge_course_data(batch_results):
 @validate_input
 def process_faculty_info_batch(cookie_output, course_batch):
     """Process faculty info for a batch of courses."""
-    cookie_output = parse_json_safely(cookie_output)
-    course_batch = parse_json_safely(course_batch)
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
     return get_faculty_info(cookie_output, course_batch)
 
 # Process course descriptions in parallel
 @validate_input
 def process_description_batch(cookie_output, course_batch):
     """Process course descriptions for a batch of courses"""
-    cookie_output = parse_json_safely(cookie_output)
-    course_batch = parse_json_safely(course_batch)
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
     return get_course_description(cookie_output, course_batch)
 
 # Process prerequisites in parallel
 @validate_input
 def process_prerequisites_batch(cookie_output, course_batch):
     """Process prerequisites for a batch of courses"""
-    cookie_output = parse_json_safely(cookie_output)
-    course_batch = parse_json_safely(course_batch)
+    # cookie_output = parse_json_safely(cookie_output)
+    # course_batch = parse_json_safely(course_batch)
     return get_course_prerequisites(cookie_output, course_batch)
 
 # Generic function for parallel processing
