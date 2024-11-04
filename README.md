@@ -92,7 +92,87 @@ This DAG is designed to automate the preparation and processing of training data
 
 These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
 
-
+## Project Directory Structure and Description
+```
+├── .github
+│   └── workflows
+│       ├── gcd-upload.yaml: This workflow defines a CI/CD pipeline to upload the data pipeline code to Google Cloud Storage. 
+│            It triggers on pushes to the main and workflow-testing branches and uses gsutil to copy the files.
+│       └── python-tests.yaml: This workflow runs Python tests using pytest. It is triggered by pushes to the main, 
+│            fix-testcases-import-error, and gibran/banner-dag branches and sets up a Python environment with the 
+│            necessary dependencies.
+│
+├── .gitignore: This file specifies files and directories that should be ignored by Git. It includes common Python artifacts, 
+│    build directories, test results, and various IDE configuration files.
+│
+├── README.md: This file provides documentation for the project, including an overview, architecture diagrams, and instructions 
+│    for contributing. It explains the purpose of the project and its different components.
+│
+├── assets
+│   └── imgs: This directory contains images used in the README.md file, including visualizations of the Airflow DAGs. 
+│        These images help illustrate the workflow of the data pipeline.
+│
+├── data_pipeline
+│   ├── __init__.py: This file initializes the data_pipeline package. It makes the package importable and can be used 
+│        to define any package-level initialization logic.
+│
+│   ├── dags
+│       ├── __init__.py: This file initializes the dags package within the data pipeline. Similar to other __init__.py files, 
+│            it makes the dags directory a package.
+│       ├── banner_data_dag.py: This file defines the Airflow DAG for fetching course data from the NEU Banner system. 
+│            It scrapes course details, faculty information, and prerequisites, then uploads the data to GCS and BigQuery.
+│       ├── main.py: This file defines the Airflow DAG that processes PDF files from GCS. It extracts, preprocesses, 
+│            and loads course review data into BigQuery, and subsequently triggers the training data pipeline.
+│
+│       ├── scripts
+│           ├── __init__.py: This file initializes the scripts package within the dags directory. It allows for modularization 
+│                and easier management of scripts used by the DAGs.
+│           ├── backoff.py: This file defines a decorator for implementing exponential backoff retry logic. It's used to handle 
+│                transient errors during API calls or other operations.
+│           ├── bigquery_utils.py: This file contains utility functions for interacting with BigQuery, such as checking sample counts 
+│                and retrieving data. It handles tasks such as data extraction, similarity search, and data loading.
+│           ├── constants.py: This file defines constants used throughout the data pipeline scripts. It centralizes configuration parameters 
+│                like project ID, sample counts, and LLM prompts.
+│           ├── data_processing.py: This file contains functions for processing data, specifically for generating initial queries for the LLM. 
+│                It prepares data before it is used in other parts of the pipeline.
+│           ├── data_utils.py: This file defines utility functions for data manipulation, such as uploading data to GCS and removing punctuation. 
+│                These functions are reused across multiple DAGs.
+│           ├── extract_data.py: This file contains functions for extracting course and review data. It processes files, parses data, 
+│                and updates dataframes for processing and storage.
+│           ├── extract_trace_data.py: This file contains functions for extracting, preprocessing, and validating the extracted TRACE instructor 
+│                comments data from PDF files. This includes handling null responses, checking for sensitive information, and metadata recording.
+│           ├── fetch_banner_data.py: This file defines functions for fetching course information from the NEU Banner system, including cookies, 
+│                course lists, descriptions, and prerequisites. It interacts with the Banner API and parses the HTML responses.
+│           ├── llm_utils.py: This file provides functions for interacting with the Large Language Model (LLM). It handles prompt generation, 
+│                response retrieval, parsing, and generation of training data.
+│           ├── opt_fetch_banner_data.py: This file optimizes the fetching of Banner data by implementing parallel processing. 
+│                It uses multithreading to speed up the data retrieval process.
+│           └── seed_data.py: This file contains seed data, including topic lists and query templates. It provides initial input 
+│                and guides the LLM in generating relevant responses.
+│
+│       ├── tests
+│           ├── __init__.py: This file initializes the tests package within the dags directory. It allows for running tests 
+│                specifically for the DAG scripts.
+│           ├── test_extract_data.py: This file contains unit tests for functions defined in extract_trace_data.py. 
+│                It helps ensure the correctness of the data extraction process.
+│           └── test_fetch_banner_data.py: This file contains unit tests for the Banner data fetching functions. 
+│                It validates the behavior of the API interaction and data parsing logic.
+│
+│       └── train_data_dag.py: This file defines the Airflow DAG for generating synthetic training data. 
+│            It retrieves data from BigQuery, generates queries using an LLM, performs similarity searches, and uploads 
+│            the results to GCS and BigQuery.
+│
+│   ├── data
+│       └── dag_3.py: This file contains another Airflow DAG (course_review_llm_pipeline). This appears to be a deprecated file 
+│            or earlier version of the main processing DAG or train data DAG since its functionality appears to be redundant.
+│
+│   └── logs
+│       └── __init__.py: This file initializes the logs package within the data pipeline. It may contain utilities for logging 
+│            or is simply a placeholder for future logging functionality.
+│
+└── requirements.txt: This file lists the project dependencies required to run the data pipelines. It's used by pip 
+     to install the necessary packages.
+```
 ## Tools and Technologies
 - **Python**: Core programming language for development.
 - **Google Cloud Platform (GCP)**: Provides cloud infrastructure for storage and computation.
