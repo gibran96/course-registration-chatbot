@@ -107,43 +107,41 @@ def get_courses_list(**context):
     
     try:
         response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()  # Ensure we catch any HTTP errors
         logging.info("Request made successfully")
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch course list: {e}")
-        return []
+        return pd.DataFrame()  # Return an empty DataFrame if the request fails
     
-    total_count = response.json()["totalCount"]
-    logging.info(f"Response: {response.status_code}")
-    logging.info(f"Number of courses: {total_count}")
-    
-    # Get the JSON response
     response_json = response.json()
     
-    course_data = {}
-
-    for course in response_json["data"]:
-        course_data[course["courseReferenceNumber"]] = {
+    if "totalCount" in response_json:
+        total_count = response_json["totalCount"]
+        logging.info(f"Response: {response.status_code}")
+        logging.info(f"Number of courses: {total_count}")
+    
+    # Prepare data for DataFrame
+    course_data = [
+        {
             "crn": course["courseReferenceNumber"],
             "campus_description": course["campusDescription"],
             "course_title": course["courseTitle"],
             "subject_course": course["subjectCourse"],
+            "faculty_name": "",  # Placeholder for now
+            "course_description": "",
             "term": term_desc,
+            "begin_time": "",
+            "end_time": "",
+            "days": "",
+            "prereq": ""
         }
+        for course in response_json.get("data", [])
+    ]
     
-    logging.info(f"Number of courses fetched: {len(course_data)}")    
+    course_list_df = pd.DataFrame(course_data)
+    logging.info(f"Number of courses fetched: {len(course_list_df)}")
     
-    course_list_df = pd.DataFrame("crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                                  "course_description", "term", "begin_time", "end_time", "days", "prereq")
-    
-    for course in course_data:
-        course_list_df = course_list_df.append({
-            "crn": course_data[course]["crn"],
-            "campus_description": course_data[course]["campus_description"],
-            "course_title": course_data[course]["course_title"],
-            "subject_course": course_data[course]["subject_course"],
-            "term": course_data[course]["term"]
-        }, ignore_index=True)
-
+    # Push DataFrame to XCom
     context['ti'].xcom_push(key='course_list_df', value=course_list_df)
 
 # Function to fetch the faculty info from the Banner API
