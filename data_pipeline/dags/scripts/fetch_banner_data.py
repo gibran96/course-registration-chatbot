@@ -299,7 +299,7 @@ def dump_to_csv(**context):
     os.makedirs(output_path, exist_ok=True)
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
-    pd.to_csv(file_path, index=False)    
+    course_list_df.to_csv(file_path, index=False)    
                 
                 
 # Function to get the semester name from the term
