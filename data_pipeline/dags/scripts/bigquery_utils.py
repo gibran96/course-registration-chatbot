@@ -7,12 +7,13 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 )
 from scripts.llm_utils import generate_sample_queries
 from scripts.constants import TARGET_SAMPLE_COUNT
+from airflow.models import DagRun
 
 
 
 def check_sample_count(**context):
     #get xcom from last dag run task_status
-    previous_dag_run = context['dag_run'].get_previous_dagrun()
+    previous_dag_run = DagRun.get_previous_dagrun(context['dag_run'])
     if previous_dag_run is None:
         logging.info("No previous dag run found. Proceeding with sample generation.")
         context['ti'].xcom_push(key='task_status', value="generate_samples")
