@@ -2,6 +2,7 @@
 import json
 import logging
 from bs4 import BeautifulSoup
+import pandas as pd
 import requests
 import csv
 import os
@@ -130,16 +131,24 @@ def get_courses_list(**context):
         }
     
     logging.info(f"Number of courses fetched: {len(course_data)}")    
+    
+    course_list_df = pd.DataFrame("crn", "course_title", "subject_course", "faculty_name", "campus_description", 
+                                  "course_description", "term", "begin_time", "end_time", "days", "prereq")
+    
+    for course in course_data:
+        course_df = course_df.append({
+            "crn": course_data[course]["crn"],
+            "campus_description": course_data[course]["campus_description"],
+            "course_title": course_data[course]["course_title"],
+            "subject_course": course_data[course]["subject_course"],
+            "term": course_data[course]["term"]
+        }, ignore_index=True)
 
-    context['ti'].xcom_push(key='course_data', value=course_data)
+    context['ti'].xcom_push(key='course_list_df', value=course_list_df)
 
 # Function to fetch the faculty info from the Banner API
-def get_faculty_info(cookie_output, course_list):
-    # cookie_output = ast.literal_eval(cookie_output)
-    # course_list = ast.literal_eval(course_list)
-    
+def get_faculty_info(cookie_output, course_list_df):
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getFacultyMeetingTimes"
     
@@ -154,34 +163,35 @@ def get_faculty_info(cookie_output, course_list):
         "courseReferenceNumber": ""
     }
     
-    for course in course_list:
-        course_ref_num = course_list[course]["crn"]
+    # loop through the course_list_df and fetch the faculty info for each crn
+    for index, row in course_list_df.iterrows():
+        course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
         try:  
             response = requests.post(url, headers=headers, params=params)
-        except Exception as e:
+            response.raise_for_status()  # Raises an exception for bad status codes
+            
+            data = response.json()["fmt"][0]
+            
+            course_list_df.loc[index, "faculty_name"] = data["faculty"][0]["displayName"] if data["faculty"] else ""
+            course_list_df.loc[index, "begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"]["beginTime"] else ""
+            course_list_df.loc[index, "end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"]["endTime"] else ""
+            course_list_df.loc[index, "days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
+            
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
-        
-        data = response.json()["fmt"][0]
-        
-        if response.status_code == 200:
-            course_list[course]["faculty_name"] = data["faculty"][0]["displayName"] if data["faculty"] else ""
-            course_list[course]["begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"] else ""
-            course_list[course]["end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"] else ""
-            course_list[course]["days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
-        else:
-            # Handle cases where the request was unsuccessful
-            course_list[course]["faculty_name"] = ""
-            course_list[course]["begin_time"] = ""
-            course_list[course]["end_time"] = ""
-            course_list[course]["days"] = ""
-            logging.error(f"Failed to fetch faculty and meeting info for course: {course_ref_num}")
-    
-    return course_list
+            # Set empty values for failed requests
+            course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
+        except (KeyError, IndexError) as e:
+            logging.error(f"Error parsing data for crn: {course_ref_num}. Error: {e}")
+            course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
+            
+    return course_list_df
+
 
 # Function to fetch the course description from the Banner API
-def get_course_description(cookie_output, course_list):
+def get_course_description(cookie_output, course_list_df):
     cookie_output = ast.literal_eval(cookie_output)
     course_list = ast.literal_eval(course_list)
     
@@ -201,42 +211,35 @@ def get_course_description(cookie_output, course_list):
         "courseReferenceNumber": ""
     }
     
-    for course in course_list:
-        course_ref_num = course_list[course]["crn"]
+    for index, row in course_list_df.iter():
+        course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
-        try:  
-            response = requests.post(url, headers=headers, params=params)
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Failed to fetch description for course: {course_ref_num}: {e}")
-            continue
         
-        if response.status_code == 200:
-            # Parse the HTML response to extract course description
-            soup = BeautifulSoup(response.text, "html.parser")
-            description_section = soup.find("section", {"aria-labelledby": "courseDescription"})
-            
-            if description_section:
-                # Extract and clean up the text
-                description_text = description_section.get_text(strip=True)
-                description_text = clean_response(description_text)
-                course_list[course]["course_description"] = description_text
-            else:
-                course_list[course]["course_description"] = "No description available."
-                logging.warning(f"No description found for course: {course_ref_num}")
-        else:
-            # Handle cases where the request was unsuccessful
-            course_list[course]["course_description"] = ""
-            logging.error(f"Failed to fetch description for course: {course_ref_num}")
+        try:
+            response = requests.post(url, headers=headers, params=params)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to fetch description for CRN: {course_ref_num} - {e}")
+            continue
 
-    return course_list
+        # Parse HTML response
+        soup = BeautifulSoup(response.text, 'html.parser')
+        description_section = soup.find("section", {"aria-labelledby": "courseDescription"})
+        
+        if description_section:
+            # Extract and clean up the text
+            description_text = description_section.get_text(strip=True)
+            description_text = clean_response(description_text)
+            course_list_df.loc[index, "course_description"] = description_text
+        else:
+            course_list_df.loc[index, "course_description"] = "No description available."
+            logging.warning(f"No description found for CRN: {course_ref_num}")
+
+    return course_list_df
 
 # Function to fetch the prerequisites for the courses from the Banner API
-def get_course_prerequisites(cookie_output, course_list):
-    cookie_output = ast.literal_eval(cookie_output)
-    course_list = ast.literal_eval(course_list)
-    
+def get_course_prerequisites(cookie_output, course_list_df):
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getSectionPrerequisites"
     
@@ -251,12 +254,12 @@ def get_course_prerequisites(cookie_output, course_list):
         "courseReferenceNumber": ""
     }
     
-    for course in course_list:
-        course_ref_num = course_list[course]["crn"]
+    for index, row in course_list_df.iter():
+        course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
         try:
-            response = requests.get(url, headers=headers, params=params)
+            response = requests.post(url, headers=headers, params=params)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to fetch prerequisites for CRN: {course_ref_num} - {e}")
@@ -284,50 +287,27 @@ def get_course_prerequisites(cookie_output, course_list):
         else:
             logging.warning(f"No prerequisites found for CRN: {course_ref_num}")
         
-        course_list[course]["prereq"] = prerequisites
+        course_list_df.loc[index, "prereq"] = prerequisites
     
-    return course_list
-
-# # Function to remove courses without faculty info
-# def remove_courses_without_faculty(**context):
-#     course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
-#     if isinstance(course_data, str):
-#         course_data = ast.literal_eval(course_data)
-#     logging.info(f"Length of course_data: {len(course_data)}")
-#     # Remove courses without faculty info
-#     course_data = {course: course_data[course] for course in course_data if course_data[course].get("faculty_name")}
-    
-#     return course_data
+    return course_list_df
 
 # Function to dump the course data to a CSV file
 def dump_to_csv(**context):
+    course_list_df = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_list_df')
     
-    course_data = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_data')
-    
-    if not course_data:
+    if not course_list_df:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
     # print the length of the course_data
-    logging.info(f"Length of course_data: {len(course_data)}")
+    logging.info(f"Length of course_data: {len(course_list_df)}")
 
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
-
     os.makedirs(output_path, exist_ok=True)
-
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
-    with open(file_path, "w") as file:
-            writer = csv.writer(file)
-            writer.writerow(["crn", "course_title", "subject_course", "faculty_name", "campus_description", 
-                             "course_description", "term", "begin_time", "end_time", "days", "prereq"])
-            for course in course_data:
-                writer.writerow([course_data[course]["crn"], course_data[course]["course_title"], 
-                                 course_data[course]["subject_course"], course_data[course]["faculty_name"], 
-                                 course_data[course]["campus_description"], course_data[course]["course_description"], 
-                                 course_data[course]["term"], course_data[course]["begin_time"],
-                                 course_data[course]["end_time"], course_data[course]["days"], course_data[course]["prereq"]])    
+    pd.to_csv(file_path, index=False)    
                 
-
+                
 # Function to get the semester name from the term
 def get_semester_name(term):
     semester = term[-2:]
