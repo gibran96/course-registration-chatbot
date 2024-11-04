@@ -292,14 +292,16 @@ def dump_to_csv(**context):
     if course_list_df.empty:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
     
+    course_list_df_filled = course_list_df.fillna("")
+    
     # print the length of the course_data
-    logging.info(f"Length of course_data: {len(course_list_df)}")
+    logging.info(f"Length of course_data: {course_list_df.shape[0]}")
 
     output_path = context['dag_run'].conf.get('output_path', '/tmp/banner_data')
     os.makedirs(output_path, exist_ok=True)
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
-    course_list_df.to_csv(file_path, index=False)    
+    course_list_df_filled.to_csv(file_path, index=False, chunksize=None)    
                 
                 
 # Function to get the semester name from the term
