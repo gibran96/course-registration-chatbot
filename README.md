@@ -317,6 +317,7 @@ Go to GCP Console -
 
 ## Data Version Control(DVC)
 We store all our data in Google Cloud Storage Bucket and use the versioning capability provided by GCS to maintain data versions. 
+
 ![image](https://github.com/user-attachments/assets/1020a971-2c58-4fc3-b419-0da0f8c7c9ae)
 ![image](https://github.com/user-attachments/assets/39aa025d-aaea-4de0-ade2-316653c65150)
 
