@@ -5,7 +5,7 @@ on:
     branches:
       - workflow-testing
       - main
-      - alerts-and-cleanup
+      - feature/alerts-and-cleanup
 
 jobs:
   upload_to_gcs:
