@@ -272,6 +272,7 @@ Go to GCP Console -
 
 4. **Alerts and Anomaly Detection**:
    - Change the environment variable for email in the composer environment to receive alerts regarding any anomaly detected, errors in the code and the status of the DAG run.
+  
 
 ## BigQuery Data Schema
 1. Table 1 - Course Data Table 
@@ -327,6 +328,21 @@ We store all our data in Google Cloud Storage Bucket and use the versioning capa
 ![image](https://github.com/user-attachments/assets/1020a971-2c58-4fc3-b419-0da0f8c7c9ae)
 ![image](https://github.com/user-attachments/assets/39aa025d-aaea-4de0-ade2-316653c65150)
 
+## Alerts and Anomaly Detection
+1. We have written custom code to detect any anomalies in our data pipeline. 
+2. In our PDF processing pipeline, we detect any changes in the PDF's format and validate whether all the fields are getting parsed as we expect them to. If we find any changes to the field names, we classify the PDF as an anomaly and trigger an alert to the user.
+3. For banner data, if we do not get any information about the faculty for any course, we send an alert and skip processing that entry.
+4. This pipeline also acts as our schema validation pipeline as we parse only the fields we want in our database.
+
+## MLMD
+1. We are capturing all the metadata based on the pre-processing pipeline which parses and processes the PDFs in our database. We store all the metadata in a Cloud SQL DB for proper tracking.
+   
+## Pipeline Flow Optimization
+1. We have tracked the Gantt chart for all the DAGs that we have created, we make sure that every task is modular and consumes minimal time for execution.
+2. We have also implemented parallelization in some of our pre-processing functions.
+3. We have optimized our resources to optimise the cost and wait time for each pipeline task.(for example, reducing time from 10min->3.5min for one of the DAGs)
+![image](https://github.com/user-attachments/assets/45481dc0-358c-441d-914c-027108dba488)
+
 
 ## Tools and Technologies
 - **Python**: Core programming language for development.
@@ -334,7 +350,8 @@ We store all our data in Google Cloud Storage Bucket and use the versioning capa
 - **Cloud Composer**: Managed workflow orchestration tool on Google Cloud that uses Apache Airflow to automate, schedule, and monitor complex data pipelines.
 - **Google Cloud Storage:** Cloud-based storage solution used to store, manage, and retrieve large volumes of structured and unstructured data, making it ideal for data warehousing and big data analytics tasks.
 - **BigQuery**: Used for storing and analyzing large datasets.
-
+- **CloudSQL**: Used for MLMD.
+- **VertexAI**: For LLM(Gemini) capabilities.
 
 ## Contributing
 We welcome contributions to improve the data pipeline. If you wish to contribute:
