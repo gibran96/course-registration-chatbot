@@ -276,7 +276,7 @@ Go to GCP Console -
 
 ## BigQuery Data Schema
 1. Table 1 - Course Data Table 
-```
+
 | Field Name    | Type   |
 |---------------|--------|
 | crn           | STRING |
@@ -284,10 +284,9 @@ Go to GCP Console -
 | course_title  | STRING |
 | instructor    | STRING |
 | term          | STRING |
-```
+
 2. Table 2 - Banner Course Data Table
 
-```
 | Field Name           | Type   |
 |----------------------|--------|
 | crn                  | STRING |
@@ -301,25 +300,23 @@ Go to GCP Console -
 | end_time             | STRING |
 | days                 | STRING |
 | prereq               | STRING |
-```
 
 3. Table 3 - Review Data Table
-```
+
 | Field Name | Type   |
 |------------|--------|
 | review_id  | STRING |
 | crn        | STRING |
 | question   | STRING |
 | response   | STRING |
-```
+
 4. Table 4 - Train Data Table
-```
+
 | Field Name | Type   |
 |------------|--------|
 | question   | STRING |
 | context    | STRING |
 | response   | STRING |
-```
 
 
 ## Data Version Control(DVC)
