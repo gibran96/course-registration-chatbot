@@ -24,4 +24,4 @@ jobs:
         run: |
           gcloud composer environments run data-pipeline-v3 \
             --location us-east1 \
-            trigger_dag -- banner_dag_pipeline
+            dags trigger -- banner_dag_pipeline
