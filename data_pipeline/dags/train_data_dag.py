@@ -1,29 +1,25 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.data_utils import upload_train_data_to_gcs  # Reusing existing utility
 import logging
 import logging
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
-from scripts.bigquery_utils import (
-    check_sample_count_from_bq,
+from scripts.bq.bigquery_utils import (
+    check_sample_count,
     get_bq_data,
     perform_similarity_search,
     upload_gcs_to_bq
 )
-from scripts.data_processing import (
+from scripts.data.data_processing import (
     get_initial_queries,
     
 )
 from scripts.llm_utils import generate_llm_response
 
-from scripts.data_utils import (
-    upload_to_gcs,
-    upload_train_data_to_gcs
-)       
+from scripts.gcs.gcs_utils import upload_train_data_to_gcs, upload_to_gcs     
 
 logging.basicConfig(level=logging.INFO)
 
@@ -39,6 +35,13 @@ default_args = {
 }
  
 def trigger_dag_run(**context):
+    """
+    Trigger the DAG run if the sample count has not reached the target.
+
+    If the sample count has reached the target, this function will return "stop_task" to
+    stop the DAG run. Otherwise, it will trigger the DAG run and return "generate_samples".
+    """
+    
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
@@ -63,7 +66,7 @@ with DAG(
     
     sample_count = PythonOperator(
         task_id='check_sample_count',
-        python_callable=check_sample_count_from_bq,
+        python_callable=check_sample_count,
         provide_context=True,
         dag=dag
     )

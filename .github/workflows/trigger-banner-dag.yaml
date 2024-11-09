@@ -1,0 +1,27 @@
+name: Trigger Airflow Banner DAG
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data_pipeline/**'
+
+jobs:
+  trigger-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
+
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            trigger_dag -- banner_dag_pipeline

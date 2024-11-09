@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.data_utils import upload_banner_data_to_gcs
-from scripts.fetch_banner_data import get_courses_list, get_cookies, dump_to_csv, remove_courses_without_faculty
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator,
 )
 from airflow.models import Variable
 from airflow.operators.email import EmailOperator
 
-from scripts.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
+from scripts.banner.fetch_banner_data import dump_to_csv, get_cookies, get_courses_list
+from scripts.banner.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
+from scripts.gcs.gcs_utils import upload_banner_data_to_gcs
+
 
 default_args = {
     'owner': 'airflow',
@@ -43,9 +44,6 @@ with DAG(
     get_course_list_task = PythonOperator(
         task_id='get_course_list_task',
         python_callable=get_courses_list,
-        op_kwargs={
-            'cookie_output': "{{ task_instance.xcom_pull(task_ids='get_cookies_task') }}"
-        },
         provide_context=True,
         dag=dag
     )
@@ -71,19 +69,9 @@ with DAG(
         dag=dag
     )
     
-    remove_courses_without_faculty_task = PythonOperator(
-        task_id='remove_courses_without_faculty_task',
-        python_callable=remove_courses_without_faculty,
-        provide_context=True,
-        dag=dag
-    )
-    
     dump_to_csv_task = PythonOperator(
         task_id='dump_to_csv_task',
         python_callable=dump_to_csv,
-        op_kwargs={
-            'course_data': "{{ task_instance.xcom_pull(task_ids='get_prerequisites_task') }}"
-        },
         provide_context=True,
         dag=dag
     )
@@ -127,7 +115,6 @@ with DAG(
         >> get_faculty_info_task
         >> get_course_description_task
         >> get_prerequisites_task
-        >> remove_courses_without_faculty_task
         >> dump_to_csv_task
         >> upload_to_gcs_task
         >> load_banner_data_to_bq_task
