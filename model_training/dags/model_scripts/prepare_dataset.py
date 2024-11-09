@@ -1,5 +1,5 @@
-from prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
-from config import PROJECT_ID, DATASET_ID, TABLE_ID
+from model_scripts.prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
+from model_scripts.config import PROJECT_ID, DATASET_ID, TABLE_ID
 from google.cloud import bigquery
 import pandas as pd
 import json
@@ -41,7 +41,7 @@ def clean_and_filter_Data(data):
 
 def format_training_data(df):
     jsonl_data = []
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         json_item = {
             "systemInstruction": {
                 "role": "system",
@@ -73,12 +73,15 @@ def format_training_data(df):
         jsonl_data.append(json.dumps(json_item))
     return "\n".join(jsonl_data)
 
-if __name__ == "__main__":
+def prepare_training_data(**context):
     bigquery_client = init_bq_client('us-east1', PROJECT_ID)
 
     data = get_training_data(bigquery_client)
     data = extract_training_data(data)
     data = clean_and_filter_Data(data)
     training_data = format_training_data(data)
-    with open("finetuning_data.jsonl", "w") as f:
+    with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)
+
+    logging.info("Training data prepared and saved to tmp/finetuning_data.jsonl")
+    context['ti'].xcom_push(key='training_data_file_path', value="tmp/finetuning_data.jsonl")
