@@ -15,7 +15,7 @@ def init_bq_client(location, project):
 
 def get_training_data(bigquery_client):
 
-    query_job = bigquery_client.query(f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}`")
+    query_job = bigquery_client.query(f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}` LIMIT 50")
     logging.info(f"Selecting data from {PROJECT_ID}.{DATASET_ID}.{TABLE_ID}")
     return query_job
 
