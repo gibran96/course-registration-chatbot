@@ -176,9 +176,6 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 │              It retrieves data from BigQuery, generates queries using an LLM, performs similarity searches, and uploads 
 │              the results to GCS and BigQuery.
 │
-│   ├── data
-│       └── dag_3.py: Contains an older or deprecated version of a DAG, possibly an early iteration of the main or training data DAG.
-│
 │   ├── logs
 │       └── __init__.py: Initializes the logs package; may be used for logging or reserved for future functionality.
 │
