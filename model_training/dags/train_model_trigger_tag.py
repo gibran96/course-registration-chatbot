@@ -60,7 +60,7 @@ with DAG(
         tuned_model_display_name=TUNED_MODEL_DISPLAY_NAME + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")),
         epochs=1,
         adapter_size=1,
-        learning_multiplier_rate=1.0,
+        learning_rate_multiplier=1.0,
     )
 
     prepare_training_data_task >> upload_to_gcs_task >> sft_train_task
