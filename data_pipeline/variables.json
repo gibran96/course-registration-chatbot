@@ -1,0 +1,21 @@
+{
+    "banner_base_url": "https://nubanner.neu.edu/StudentRegistrationSsb/ssb/",
+    "banner_table_name": "",
+    "course_table_name": "",
+    "default_bucket_name": "",
+    "email_backend": "airflow.utils.email.send_email_smtp",
+    "metadata_db_host": "",
+    "metadata_db_name": "",
+    "metadata_db_password": "",
+    "metadata_db_user": "",
+    "review_table_name": "",
+    "smtp_host": "",
+    "smtp_mail_from": "",
+    "smtp_port": 587,
+    "smtp_retry_limit": 5,
+    "smtp_ssl": "False",
+    "smtp_starttls": "True",
+    "smtp_timeout": 30,
+    "smtp_user": "",
+    "train_data_table_name": ""
+}

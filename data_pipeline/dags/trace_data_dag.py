@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.data_utils import upload_to_gcs
-from scripts.extract_trace_data import process_pdf_files, preprocess_data
+from scripts.gcs.gcs_utils import get_unique_blobs, upload_to_gcs
+from scripts.trace.extract_trace_data import (
+    read_and_parse_pdf_files, 
+    preprocess_data, 
+    get_crn_list, 
+    monitor_new_rows_and_trigger
+)
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor, GCSObjectsWithPrefixExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
 )
 from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOperator
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.models import Variable
-from google.cloud import storage, bigquery
 
 from airflow.operators.email import EmailOperator
 
@@ -27,74 +30,6 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=2),
 }
-
-def get_crn_list(**context):
-    try :
-        client = bigquery.Client()
-        query = f"""
-            SELECT DISTINCT crn
-            FROM {Variable.get('review_table_name')}
-        """
-        crn_list = list(set(row["crn"] for row in client.query(query).result()))
-        context['ti'].xcom_push(key='crn_list', value=crn_list)
-        return crn_list
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return []
-
-def check_number_of_new_rows_added(**context):
-    new_rows = context['ti'].xcom_pull(task_ids='get_unique_blobs', key='unique_blobs')
-    logging.info(f"Number of new rows added: {len(new_rows)}")
-    
-    # Number of rows already in the table
-    crn_list = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
-    logging.info(f"Number of rows already in the table: {len(crn_list)}")
-
-    # Check if the new rows added are more than 10% of the existing rows
-    if len(new_rows) > 0.1 * len(crn_list):
-        # Trigger the next DAG
-        trigger_train_data_pipeline = TriggerDagRunOperator(
-            task_id='trigger_train_data_pipeline',
-            trigger_dag_id='train_data_dag'
-        )
-        logging.info("Triggering the train_data_dag")
-        trigger_train_data_pipeline.execute(context=context)
-    else:
-        logging.info("Not triggering the train_data_dag")
-
-
-def get_unique_blobs(**context):
-    bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
-    all_gcs_crns = context['ti'].xcom_pull(task_ids='get_crn_list', key='crn_list')
-
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blobs = bucket.list_blobs(prefix='course_review_dataset/')
-
-    unique_blobs = []
-    # blob_names = [blob.name.split('/')[-1].replace('.pdf', '') for blob in blobs]
-    for blob in blobs:
-        blob_name = blob.name.split('/')[-1].replace('.pdf', '')
-        if blob_name not in all_gcs_crns:
-            unique_blobs.append(blob_name)
-
-    context['ti'].xcom_push(key='unique_blobs', value=unique_blobs)
-
-    return unique_blobs
-
-def get_distinct_crn(**context):
-    try :
-        client = bigquery.Client()
-        query = f"""
-            SELECT DISTINCT crn
-            FROM {Variable.get('review_table_name')}
-        """
-        query_job = client.query(query)
-        results = query_job.result()
-        return results
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return []
 
 # Create DAG
 with DAG(
@@ -125,7 +60,7 @@ with DAG(
     # Task to process PDFs and create CSVs
     process_pdfs = PythonOperator(
         task_id='process_pdfs',
-        python_callable=process_pdf_files,
+        python_callable=read_and_parse_pdf_files,
         provide_context=True,
         dag=dag
     )
@@ -185,7 +120,7 @@ with DAG(
 
     trigger_train_data_pipeline = PythonOperator(
         task_id='trigger_train_data_pipeline',
-        python_callable=check_number_of_new_rows_added,
+        python_callable=monitor_new_rows_and_trigger,
         provide_context=True,
         dag=dag
     )

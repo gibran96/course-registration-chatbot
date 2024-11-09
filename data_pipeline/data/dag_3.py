@@ -5,7 +5,7 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryGetDataOpe
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.models import Variable
 from google.cloud import storage, bigquery
-from scripts.data_utils import upload_to_gcs  # Reusing existing utility
+from scripts.data.data_utils import upload_to_gcs  # Reusing existing utility
 from scripts.fetch_banner_data import get_cookies, get_courses_list, get_course_description
 import pandas as pd
 import numpy as np

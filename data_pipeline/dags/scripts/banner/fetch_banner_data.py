@@ -1,35 +1,34 @@
-
-import json
 import logging
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
-import csv
 import os
 from airflow.models import Variable
-import ast
 
-from scripts.extract_trace_data import clean_response
+from scripts.data.data_anomalies import check_missing_faculty
+from scripts.data.data_utils import clean_response, get_days, get_semester_name
 
-semester_map = {
-    "10": "Fall",
-    "30": "Spring",
-    "40": "Summer 1",
-    "50": "Summer Full",
-    "60": "Summer 2"
-}
-
-# Function to fetch the cookies from the Banner API
 def get_cookies(**context):
-    # Fetching the base URL from the context
-    base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
+    """
+    Fetches the cookies from the Banner API, given a base URL and a term (currently hardcoded to 202530).
 
-    url = base_url + "term/search/"
-    
+    This function makes a POST request to the Banner API with the specified term and empty study path,
+    and then extracts the cookie, JSESSIONID, and nubanner-cookie from the response. The cookie is
+    stored in the XCom value `cookie_output` and can be accessed by other tasks in the DAG.
+
+    :param context: The Airflow context
+    :return: A dictionary containing the cookie, JSESSIONID, and nubanner-cookie, or None if the request fails.
+    """
+    # Get the base URL from the dag_run.conf or the Variable banner_base_url
+    base_url = context['dag_run'].conf.get('base_url', Variable.get('banner_base_url'))
+    url = base_url + "/term/search/"
+
+    # Set the headers for the POST request
     headers = {
         "Content-Type": "application/x-www-form-urlencoded; charset=UT"
     }
 
+    # Set the body for the POST request
     body = {
         "term": 202530,
         "studyPath" : "",
@@ -37,47 +36,46 @@ def get_cookies(**context):
         "startDatepicker" : "",
         "endDatepicker" : ""
     }
-    
     logging.info(f"Payload: {body}")
-    
+
+    # Make the POST request
     try:
         response = requests.post(url, headers=headers, params=body)
         logging.info(f"Request made successfully")
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to fetch cookies: {e}")
         return None
-    
+
     logging.info(f"Response: {response.status_code}")
-    
-    # if json contains key "regAllowed" then log error
+    # If the response contains the key "regAllowed", log an error
     if "regAllowed" in response.json():
         logging.error("Error in fetching cookies")
         return None
 
-    # Get the cookie from the response
+    # Get the cookie, JSESSIONID, and nubanner-cookie from the response
     cookie = response.headers["Set-Cookie"]
     cookie = cookie.split(";")[0]
-    
-    logging.info(f"Response Headers: {response.headers}")
-
-    # Get the JSESSIONID from the response
     jsessionid_ = response.headers["Set-Cookie"]
     jsessionid = jsessionid_.split(";")[0]
-
-    # Get the nubanner-cookie from the response
     nubanneXr_cookie = response.headers["Set-Cookie"].split(";")[3].split(", ")[1]
-    
+
+    # Store the cookie, JSESSIONID, and nubanner-cookie in the XCom value cookie_output
     cookie_output = {
         "cookie": cookie,
         "jsessionid": jsessionid,
         "nubanner_cookie": nubanneXr_cookie,
         "base_url": base_url
     }
-
     context['ti'].xcom_push(key='cookie_output', value=cookie_output)
 
-# Function to fetch the list of courses from the Banner API
+
 def get_courses_list(**context):
+    """
+    Fetches the list of courses from the Banner API using the provided cookie_output.
+    The task pushes the DataFrame of course data to XCom under the key course_list_df.
+    
+    :param context: The Airflow context
+    """
     cookie_output = context['ti'].xcom_pull(task_ids='get_cookies_task', key='cookie_output')
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     base_url = cookie_output["base_url"]
@@ -87,8 +85,8 @@ def get_courses_list(**context):
         "Cookie": jsessionid+"; "+nubanner_cookie
     }
     
-    term = 202530 # hardcoded for now TODO: Make this dynamic
-    
+    # hardcode the term for now TODO: Make this dynamic
+    term = 202530
     term_desc = get_semester_name(str(term))
     
     params = {
@@ -97,8 +95,9 @@ def get_courses_list(**context):
         "txt_term": term,
         "startDatepicker": "",
         "endDatepicker": "",
+        # Fetch the maximum number of courses in one request
         "pageOffset": 0,
-        "pageMaxSize": 501, # this is the maximum number of courses that can be fetched in one request
+        "pageMaxSize": 501,
         "sortColumn": "subjectDescription",
         "sortDirection": "asc"
     }
@@ -144,8 +143,16 @@ def get_courses_list(**context):
     # Push DataFrame to XCom
     context['ti'].xcom_push(key='course_list_df', value=course_list_df)
 
-# Function to fetch the faculty info from the Banner API
+
 def get_faculty_info(cookie_output, course_list_df):
+    """
+    Fetch the faculty information for a given course reference number
+    
+    :param cookie_output: The cookie output from the get_cookies function with the necessary cookies.
+    :param course_list_df: A DataFrame containing the course_list with the columns "crn", 
+                    "campus_description", "course_title", "subject_course", "faculty_name", "term".
+    :return: The course_list_df with additional columns "faculty_name", "begin_time", "end_time", "days".
+    """
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getFacultyMeetingTimes"
@@ -155,18 +162,18 @@ def get_faculty_info(cookie_output, course_list_df):
     }
     
     term = 202530 # hardcoded for now
-
+    
     params = {
         "term": term,
         "courseReferenceNumber": ""
     }
     
-    # loop through the course_list_df and fetch the faculty info for each crn
+    # Loop through the course_list_df and fetch the faculty info for each crn
     for index, row in course_list_df.iterrows():
         course_ref_num = row["crn"]
         params["courseReferenceNumber"] = course_ref_num       
         
-        try:  
+        try:
             response = requests.post(url, headers=headers, params=params)
             response.raise_for_status()  # Raises an exception for bad status codes
             
@@ -178,18 +185,30 @@ def get_faculty_info(cookie_output, course_list_df):
             course_list_df.loc[index, "days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
             
         except requests.exceptions.RequestException as e:
+            # Log the error but continue execution to fetch the next CRN
             logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
             # Set empty values for failed requests
             course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
         except (KeyError, IndexError) as e:
+            # Log the error but continue execution to fetch the next CRN
             logging.error(f"Error parsing data for crn: {course_ref_num}. Error: {e}")
             course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
-            
+    
     return course_list_df
 
 
-# Function to fetch the course description from the Banner API
-def get_course_description(cookie_output, course_list_df):    
+
+def get_course_description(cookie_output, course_list_df):
+    """
+    Fetches the course description from the Banner API for the given CRNs in the course_list_df.
+    
+    Args:
+        cookie_output (dict): The cookie output from the get_cookies function with the necessary cookies.
+        course_list_df (DataFrame): A DataFrame containing the course_list with the columns "crn", "campus_description", "course_title", "subject_course", "faculty_name", "term".
+        
+    Returns:
+        DataFrame: The course_list_df with an additional column "course_description" containing the course descriptions.
+    """
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getCourseDescription"
@@ -231,8 +250,18 @@ def get_course_description(cookie_output, course_list_df):
 
     return course_list_df
 
-# Function to fetch the prerequisites for the courses from the Banner API
+
 def get_course_prerequisites(cookie_output, course_list_df):
+    """
+    Fetches the course prerequisites from the Banner API for the given CRNs in the course_list_df.
+
+    Args:
+        cookie_output (dict): The cookie output from the get_cookies function with the necessary cookies.
+        course_list_df (DataFrame): A DataFrame containing the course_list with the columns "crn", "campus_description", "course_title", "subject_course", "faculty_name", "term".
+
+    Returns:
+        DataFrame: The course_list_df with an additional column "prereq" containing the course prerequisites.
+    """
     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
     base_url = cookie_output["base_url"]
     url = base_url + "/searchResults/getSectionPrerequisites"
@@ -285,12 +314,29 @@ def get_course_prerequisites(cookie_output, course_list_df):
     
     return course_list_df
 
-# Function to dump the course data to a CSV file
+
 def dump_to_csv(**context):
+    """
+    Dumps the course list DataFrame to a CSV file.
+
+    This function takes the course list DataFrame from the XCom context and dumps it to a CSV file. The
+    path to the file is determined by the 'output_path' key in the DAG run configuration. If the key is
+    not present, it defaults to /tmp/banner_data.
+
+    The function also replaces newline, tab, and carriage return characters with spaces in the 'prereq'
+    column, and fills NaN values with empty strings.
+
+    Raises:
+        ValueError: If the course_data is None or empty.
+
+    """
     course_list_df = context['ti'].xcom_pull(task_ids='get_prerequisites_task', key='course_list_df')
     
     if course_list_df.empty:
         raise ValueError("Course_data is None or empty, unable to dump to CSV.")
+    
+    # Check for missing faculty names
+    course_list_df = check_missing_faculty(course_list_df)
     
     course_list_df_filled = course_list_df.fillna("")
     
@@ -306,21 +352,4 @@ def dump_to_csv(**context):
     file_path = os.path.join(output_path, "banner_course_data.csv")
     
     course_list_df_filled.to_csv(file_path, index=False, na_rep="", quoting=1)    
-                
-                
-# Function to get the semester name from the term
-def get_semester_name(term):
-    semester = term[-2:]
-    return semester_map[semester] + " " + term[:4]
 
-# Function to get the days of the course lecture
-def get_days(meeting_time):
-    if isinstance(meeting_time, tuple):
-        meeting_time = meeting_time[0]
-    days = [day for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] 
-            if meeting_time.get(day, False)]
-    return ";".join(days)
-
-# TODO - Implement this function
-def get_next_term(cookie_output):
-    pass

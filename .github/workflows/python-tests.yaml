@@ -2,7 +2,7 @@ name: Python Tests
 
 on: 
   push:
-    branches: [main, fix-testcases-import-error, gibran/banner-dag]
+    branches: [main, fix-testcases-import-error, feature/*]
 
 jobs:
   test:

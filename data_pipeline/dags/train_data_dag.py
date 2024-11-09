@@ -1,46 +1,25 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.models import Variable
-from google.cloud import storage, bigquery
-import vertexai.generative_models
-from scripts.data_utils import upload_train_data_to_gcs, remove_punctuation  # Reusing existing utility
-import pandas as pd
-from scripts.seed_data import topics, seed_query_list
 import logging
-import random
-import re
-import ast
-import time
-from random import uniform
-from functools import wraps
 import logging
-from typing import Optional, Callable, Any
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
-import os
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.models import Variable
-from scripts.bigquery_utils import (
-    check_sample_count_from_bq,
+
+from scripts.bq.bigquery_utils import (
+    check_sample_count,
     get_bq_data,
     perform_similarity_search,
     upload_gcs_to_bq
 )
-from scripts.data_processing import (
+from scripts.data.data_processing import (
     get_initial_queries,
-    generate_llm_response,
-    upload_train_data_to_gcs
+    
 )
-from scripts.data_utils import (
-    upload_to_gcs
-)       
+from scripts.llm_utils import generate_llm_response
 
-from airflow.operators.bash import BashOperator
-
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from scripts.gcs.gcs_utils import upload_train_data_to_gcs, upload_to_gcs     
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,12 +33,16 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=2),
 }
-
-TARGET_SAMPLE_COUNT = 500
-GENERATED_SAMPLE_COUNT = 100
  
 def trigger_dag_run(**context):
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count_from_bq', key='task_status')
+    """
+    Trigger the DAG run if the sample count has not reached the target.
+
+    If the sample count has reached the target, this function will return "stop_task" to
+    stop the DAG run. Otherwise, it will trigger the DAG run and return "generate_samples".
+    """
+    
+    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
     if task_status == "stop_task":
         return "stop_task"
     trigger_dag_run = TriggerDagRunOperator(
@@ -83,20 +66,23 @@ with DAG(
     
     sample_count = PythonOperator(
         task_id='check_sample_count',
-        python_callable=check_sample_count_from_bq,
+        python_callable=check_sample_count,
         provide_context=True,
+        dag=dag
     )
 
     bq_data = PythonOperator(
         task_id='get_bq_data',
         python_callable=get_bq_data,
         provide_context=True,
+        dag=dag
     )
 
     initial_queries = PythonOperator(
         task_id='get_initial_queries',
         python_callable=get_initial_queries,
         provide_context=True,
+        dag=dag
     )
 
 
@@ -104,6 +90,7 @@ with DAG(
         task_id='bq_similarity_search',
         python_callable=perform_similarity_search,
         provide_context=True,
+        dag=dag
     )
 
     llm_response = PythonOperator(
