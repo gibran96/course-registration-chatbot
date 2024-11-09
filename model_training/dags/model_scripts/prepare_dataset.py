@@ -30,6 +30,7 @@ def extract_training_data(query_job):
         data['context'].append(res['context'])
         data['response'].append(res['response'])
     logging.info("Getting query results")
+    logging.info(f"{len(data['query'])} results found")
     return data
 
 def clean_and_filter_Data(data):
