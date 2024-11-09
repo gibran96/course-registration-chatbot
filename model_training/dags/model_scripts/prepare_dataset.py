@@ -4,6 +4,7 @@ from google.cloud import bigquery
 import pandas as pd
 import json
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -81,6 +82,7 @@ def prepare_training_data(**context):
     data = extract_training_data(data)
     data = clean_and_filter_Data(data)
     training_data = format_training_data(data)
+    os.makedirs("tmp", exist_ok=True)
     with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)
 
