@@ -34,7 +34,7 @@ TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_regis
 with DAG(
     "train_model_trigger_dag",
     schedule_interval=None,
-    start_date=datetime(2023, 1, 1),
+    start_date=datetime.datetime(2023, 1, 1),
     catchup=False,
     tags=["vertex-ai"],
 ) as dag:
