@@ -34,7 +34,7 @@ TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_regis
 with DAG(
     "train_model_trigger_dag",
     schedule_interval=None,
-    start_date=datetime(2023, 1, 1),
+    start_date=datetime.datetime(2023, 1, 1),
     catchup=False,
     tags=["vertex-ai"],
 ) as dag:
@@ -60,7 +60,7 @@ with DAG(
         tuned_model_display_name=TUNED_MODEL_DISPLAY_NAME + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")),
         epochs=1,
         adapter_size=1,
-        learning_multiplier_rate=1.0,
+        learning_rate_multiplier=1.0,
     )
 
     prepare_training_data_task >> upload_to_gcs_task >> sft_train_task
