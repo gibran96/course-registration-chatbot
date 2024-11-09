@@ -137,7 +137,7 @@ def get_courses_list(**context):
         for course in response_json.get("data", [])
     ]
     
-    # testing the action again
+    # testing the action again to see if it works
     
     course_list_df = pd.DataFrame(course_data)
     logging.info(f"Number of courses fetched: {len(course_list_df)}")
