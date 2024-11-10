@@ -1,12 +1,13 @@
-name: Trigger Airflow Banner DAG
+name: Trigger Airflow Trace DAG
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'data_pipeline/dags/banner_data_dag.py'
-      - 'data_pipeline/dags/scripts/banner/**'
+      - 'data_pipeline/dags/trace_data_dag.py'
+      - 'data_pipeline/dags/scripts/trace/**'
+      - 'data_pipeline/dags/scripts/mlmd/**'
 
 jobs:
   trigger-dag:

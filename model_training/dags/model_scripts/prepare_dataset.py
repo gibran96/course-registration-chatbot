@@ -5,6 +5,8 @@ import pandas as pd
 import json
 import logging
 import os
+from sklearn.model_selection import train_test_split
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,16 +34,18 @@ def extract_training_data(query_job):
         data['response'].append(res['response'])
     logging.info("Getting query results")
     logging.info(f"{len(data['query'])} results found")
+
     return data
 
 def clean_and_filter_Data(data):
     df = pd.DataFrame(data)
     df = df.dropna()
+    train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
     logging.info("Filtering data")
-    return df
+    return train_df, test_df
 
 
-def format_training_data(df):
+def format_data(df):
     jsonl_data = []
     for _, row in df.iterrows():
         json_item = {
@@ -80,11 +84,16 @@ def prepare_training_data(**context):
 
     data = get_training_data(bigquery_client)
     data = extract_training_data(data)
-    data = clean_and_filter_Data(data)
-    training_data = format_training_data(data)
+    train_df, test_df = clean_and_filter_Data(data)
+    training_data = format_data(train_df)
+    test_data = format_data(test_df)
     os.makedirs("tmp", exist_ok=True)
     with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)
+    with open("tmp/test_data.jsonl", "w") as f:
+        f.write(test_data)
 
     logging.info("Training data prepared and saved to tmp/finetuning_data.jsonl")
+    logging.info("Test data prepared and saved to tmp/test_data.jsonl")
     context['ti'].xcom_push(key='training_data_file_path', value="tmp/finetuning_data.jsonl")
+    context['ti'].xcom_push(key='test_data_file_path', value="tmp/test_data.jsonl")
