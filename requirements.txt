@@ -8,3 +8,5 @@ pandas
 ml-metadata
 google-cloud
 google-cloud-aiplatform
+scikit-learn
+rouge-score
