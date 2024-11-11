@@ -92,7 +92,9 @@ def run_evaluation(**context):
     logging.info(f"Loaded {len(eval_data)} test examples")
     
     # Initialize model
-    model = TextGenerationModel.from_pretrained("text-bison@001")
+    model_name = context['task_instance'].xcom_pull(task_ids='get_latest_model_task')
+    model = TextGenerationModel.from_pretrained(model_name)
+    logging.info(f"Loaded model {model_name}")
     
     predictions = []
     references = []
