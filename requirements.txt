@@ -10,3 +10,4 @@ google-cloud
 google-cloud-aiplatform
 scikit-learn
 rouge-score
+evaluate
