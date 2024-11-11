@@ -89,16 +89,17 @@ def generate_llm_response(**context):
 
     train_data_df = pd.DataFrame(columns=['question', 'context', 'response'])
     for query, response in query_responses.items():
-        context = response['final_content']
-        input_prompt = prompt.format(query=query, content=context)
+        llm_context = response['final_content']
+        input_prompt = prompt.format(query=query, content=llm_context)
         llm_res = get_llm_response(input_prompt)
-        train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [context], 'response': [llm_res]})], ignore_index=True)
+        train_data_df = pd.concat([train_data_df, pd.DataFrame({'question': [query], 'context': [llm_context], 'response': [llm_res]})], ignore_index=True)
         logging.info(f'Generated {len(train_data_df)} samples')
         if len(train_data_df) > GENERATED_SAMPLE_COUNT:
             break
 
     logging.info(f'Generated {len(train_data_df)} samples')
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
+    context['ti'].xcom_push(key='generated_samples_count', value=len(train_data_df))
 
     if os.path.exists('/tmp/llm_train_data.pq'):
         logging.info("llm_train_data.pq exists, removing...")

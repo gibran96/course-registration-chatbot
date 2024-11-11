@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.data_utils import upload_to_gcs, get_unique_blobs
-from scripts.extract_trace_data import (
+from scripts.gcs.gcs_utils import get_unique_blobs, upload_to_gcs
+from scripts.trace.extract_trace_data import (
     read_and_parse_pdf_files, 
     preprocess_data, 
     get_crn_list, 

@@ -1,30 +1,8 @@
 import logging
-
-from google.cloud import storage
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.models import Variable
 import os
-import string
-
-
-def remove_punctuation(text):
-    """
-    Remove all punctuation from a given text.
-
-    Parameters
-    ----------
-    text : str
-        The text from which to remove punctuation.
-
-    Returns
-    -------
-    str
-        The input text with all punctuation removed.
-    """
-    punts = string.punctuation
-    new_text = ''.join(e for e in text if e not in punts)
-    return new_text
-
+from airflow.models import Variable
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from google.cloud import storage
 
 def upload_train_data_to_gcs(**context):
     """
