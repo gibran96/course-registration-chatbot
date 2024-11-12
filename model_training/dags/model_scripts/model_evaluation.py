@@ -10,7 +10,6 @@ from rouge_score import rouge_scorer
 #from evaluate import load
 from airflow.models import Variable
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory
 from model_scripts.prompts import INSTRUCTION_PROMPT, SYSTEM_INSTRUCTION
 

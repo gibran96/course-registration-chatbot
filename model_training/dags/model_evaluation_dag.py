@@ -15,22 +15,16 @@ REGION = Variable.get("REGION", "us-east1")
 SOURCE_MODEL = Variable.get("SOURCE_MODEL", "gemini-1.5-flash-002")
 
 def get_latest_model_name(**context):
-    """Get the latest trained model name from GCS"""
+    """Get the model name from the triggering DAG"""
     try:
-        bucket_name = context['dag_run'].conf.get('bucket_name', Variable.get('default_bucket_name'))
-        gcs_hook = GCSHook()
-        
-        # List all model files
-        model_files = gcs_hook.list(bucket_name=bucket_name, prefix='models/')
-        if not model_files:
-            raise ValueError("No model files found in GCS")
+        model_name = context['dag_run'].conf.get('model_name')
+        if not model_name:
+            raise ValueError("No model name provided in DAG configuration")
             
-        # Get the latest model file
-        latest_model = sorted(model_files)[-1]
-        context['task_instance'].xcom_push(key='model_name', value=latest_model)
-        return latest_model
+        context['task_instance'].xcom_push(key='model_name', value=model_name)
+        return model_name
     except Exception as e:
-        logging.error(f"Error getting latest model name: {e}")
+        logging.error(f"Error getting model name: {e}")
         raise
 
 def save_evaluation_results(**context):
@@ -86,7 +80,7 @@ default_args = {
 }
 
 with DAG(
-    'model_evaluation_dag',
+    'model_evaluation_ latest modedag',
     default_args=default_args,
     description='Model evaluation pipeline for Course Compass',
     schedule_interval=None,  
