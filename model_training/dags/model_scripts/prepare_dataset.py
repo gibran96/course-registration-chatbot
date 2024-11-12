@@ -79,6 +79,19 @@ def format_data(df):
         jsonl_data.append(json.dumps(json_item))
     return "\n".join(jsonl_data)
 
+def format_eval_data(df):
+    json_data = {}
+    json_data['context'] = []
+    json_data['instruction'] = []
+    json_data['reference'] = []
+
+    for _, row in df.iterrows():
+        json_data['context'].append(row['context'])
+        json_data['instruction'].append(row['query'])
+        json_data['reference'].append(row['response'])
+
+    return json.dumps(json_data)
+
 def prepare_training_data(**context):
     bigquery_client = init_bq_client('us-east1', PROJECT_ID)
 
@@ -97,3 +110,4 @@ def prepare_training_data(**context):
     logging.info("Test data prepared and saved to tmp/test_data.jsonl")
     context['ti'].xcom_push(key='training_data_file_path', value="tmp/finetuning_data.jsonl")
     context['ti'].xcom_push(key='test_data_file_path', value="tmp/test_data.jsonl")
+    context['ti'].xcom_push(key='test_data', value=format_eval_data(test_df))
