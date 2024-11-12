@@ -90,13 +90,13 @@ with DAG(
 ) as dag:
     
     # Wait for training DAG to complete
-    wait_for_training = ExternalTaskSensor(
-        task_id='wait_for_training',
-        external_dag_id='train_model_trigger_dag',
-        external_task_id='sft_train_task',
-        timeout=7200,  # 2 hour timeout
-        mode='reschedule'
-    )
+    # wait_for_training = ExternalTaskSensor(
+    #     task_id='wait_for_training',
+    #     external_dag_id='train_model_trigger_dag',
+    #     external_task_id='sft_train_task',
+    #     timeout=7200,  # 2 hour timeout
+    #     mode='reschedule'
+    # )
     
     # Get latest model name
     get_latest_model = PythonOperator(
@@ -120,4 +120,4 @@ with DAG(
     )
     
     # Define task dependencies
-    wait_for_training >> get_latest_model >> run_evaluation_task >> save_results
+    get_latest_model >> run_evaluation_task >> save_results
