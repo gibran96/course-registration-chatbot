@@ -80,7 +80,7 @@ default_args = {
 }
 
 with DAG(
-    'model_evaluation_ latest modedag',
+    'model_evaluation_dag',
     default_args=default_args,
     description='Model evaluation pipeline for Course Compass',
     schedule_interval=None,  
