@@ -63,4 +63,16 @@ with DAG(
         learning_rate_multiplier=1.0,
     )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task
+     # Add task to trigger evaluation DAG
+    trigger_evaluation = TriggerDagRunOperator(
+        task_id='trigger_evaluation',
+        trigger_dag_id='model_evaluation_dag',
+        conf={
+            'training_dag_id': 'train_model_trigger_dag',
+            'training_run_id': '{{ run_id }}',
+            'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
+        }
+    )
+
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> trigger_evaluation
+
