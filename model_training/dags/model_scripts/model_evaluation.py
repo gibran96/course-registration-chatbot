@@ -59,7 +59,7 @@ def load_test_data(**context):
 def calculate_metrics(predictions, references):
     """Calculate evaluation metrics"""
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-    bleu = evaluate.load('bleu')
+    #bleu = evaluate.load('bleu')
     
     # Calculate ROUGE scores
     rouge_scores = {metric: [] for metric in ['rouge1', 'rouge2', 'rougeL']}
@@ -70,7 +70,7 @@ def calculate_metrics(predictions, references):
             rouge_scores[metric].append(scores[metric].fmeasure)
     
     # Calculate BLEU
-    bleu_score = bleu.compute(predictions=predictions, references=[[r] for r in references])
+    #bleu_score = bleu.compute(predictions=predictions, references=[[r] for r in references])
     
     # Calculate exact matches
     exact_matches = [1 if p.strip() == r.strip() else 0 for p, r in zip(predictions, references)]
@@ -79,7 +79,7 @@ def calculate_metrics(predictions, references):
         'rouge1': np.mean(rouge_scores['rouge1']),
         'rouge2': np.mean(rouge_scores['rouge2']),
         'rougeL': np.mean(rouge_scores['rougeL']),
-        'bleu': bleu_score['bleu'],
+        #'bleu': bleu_score['bleu'],
         'exact_match': np.mean(exact_matches)
     }
 
