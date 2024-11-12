@@ -7,7 +7,7 @@ from google.cloud import aiplatform
 from vertexai.language_models import TextGenerationModel
 import numpy as np
 from rouge_score import rouge_scorer
-from evaluate import load
+#from evaluate import load
 from airflow.models import Variable
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
