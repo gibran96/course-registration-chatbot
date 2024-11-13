@@ -1,8 +1,7 @@
 import os
 import vertexai
 from google.cloud import bigquery
-from vertexai.generative_models import GenerationConfig, GenerativeModel
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from vertexai.generative_models import GenerationConfig, GenerativeModel, HarmCategory, HarmBlockThreshold
 from airflow.models import Variable
 import re
 import ast
