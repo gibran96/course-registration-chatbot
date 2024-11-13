@@ -21,6 +21,13 @@ from airflow.models import Variable
 import datetime
 from model_scripts.prompts import PROMPT_TEMPLATE
 from uuid import uuid4
+from model_scripts.custom_metrics import (
+    AnswerRelevanceMetric, 
+    AnswerCoverageMetric, 
+    CustomMetricConfig,
+    aggregate_metrics
+)
+
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -72,9 +79,65 @@ def run_model_evaluation(**context):
 
     run_eval.execute(context)
 
+def run_custom_evaluation(**context):
+    """Run custom evaluation metrics"""
+    try:
+        # Get model name and evaluation dataset
+        model_name = context['task_instance'].xcom_pull(key='model_name')
+        eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_eval_data')
+        
+        # Initialize evaluation model
+        evaluation_model = model_name
+        
+        # Initialize metrics
+        config = CustomMetricConfig()
+        relevance_metric = AnswerRelevanceMetric(evaluation_model, config)
+        coverage_metric = AnswerCoverageMetric(evaluation_model, config)
+        
+        # Load evaluation dataset
+        with open(eval_dataset, 'r') as f:
+            examples = [json.loads(line) for line in f]
+        
+        # Run evaluations
+        relevance_results = []
+        coverage_results = []
+        
+        for example in examples:
+            relevance_results.append(relevance_metric.evaluate_example(example))
+            coverage_results.append(coverage_metric.evaluate_example(example))
+        
+        # Aggregate results
+        all_results = relevance_results + coverage_results
+        aggregated_metrics = aggregate_metrics(all_results)
+        
+        # Save detailed results
+        results = {
+            "model_name": model_name,
+            "timestamp": context['ts'],
+            "aggregated_metrics": aggregated_metrics,
+            "detailed_results": [
+                {
+                    "example_id": idx,
+                    "relevance": rel.value,
+                    "coverage": cov.value,
+                    "relevance_explanation": rel.metadata["explanation"],
+                    "coverage_explanation": cov.metadata["explanation"],
+                    "question": rel.metadata["question"],
+                    "answer": rel.metadata["answer"]
+                }
+                for idx, (rel, cov) in enumerate(zip(relevance_results, coverage_results))
+            ]
+        }
+        
+        # Save results
+        context['task_instance'].xcom_push(key='custom_metrics', value=results)
+        return results
+        
+    except Exception as e:
+        logging.error(f"Error running custom evaluation: {e}")
+        raise
 
-
-
+# Add to your DAG
 
 with DAG(
     "train_model_trigger_dag",
@@ -127,18 +190,23 @@ with DAG(
         python_callable=run_model_evaluation,
         provide_context=True,
     )
-
-
-     # Add task to trigger evaluation DAG
-    trigger_evaluation = TriggerDagRunOperator(
-        task_id='trigger_evaluation',
-        trigger_dag_id='model_evaluation_dag',
-        conf={
-            'training_dag_id': 'train_model_trigger_dag',
-            'training_run_id': '{{ run_id }}',
-            'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
-        }
+    
+    custom_evaluation_task = PythonOperator(
+    task_id='custom_evaluation_task',
+    python_callable=run_custom_evaluation,
+    provide_context=True,
     )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> trigger_evaluation
+     # Add task to trigger evaluation DAG
+    # trigger_evaluation = TriggerDagRunOperator(
+    #     task_id='trigger_evaluation',
+    #     trigger_dag_id='model_evaluation_dag',
+    #     conf={
+    #         'training_dag_id': 'train_model_trigger_dag',
+    #         'training_run_id': '{{ run_id }}',
+    #         'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
+    #     }
+    # )
+
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> custom_evaluation_task
 
