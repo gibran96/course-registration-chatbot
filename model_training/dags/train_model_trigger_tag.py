@@ -19,7 +19,7 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import INSTRUCTION_PROMPT
+from model_scripts.prompts import PROMPT_TEMPLATE
 
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
@@ -63,7 +63,7 @@ def run_model_evaluation(**context):
         location=REGION,
         pretrained_model=pretrained_model,
         metrics=METRICS,
-        prompt_template=INSTRUCTION_PROMPT,
+        prompt_template=PROMPT_TEMPLATE,
         eval_dataset=test_file_name,
         experiment_name=EXPERIMENT_NAME,
         experiment_run_name=EXPERIMENT_RUN_NAME,
