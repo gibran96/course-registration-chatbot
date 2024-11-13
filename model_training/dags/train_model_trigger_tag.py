@@ -84,7 +84,7 @@ with DAG(
         task_id="model_evaluation_task",
         project_id=PROJECT_ID,
         location=REGION,
-        model_name="{{ task_instance.xcom_pull(task_ids='sft_train_task')['tuned_model_name'] }}",
+        pretrained_model="{{ task_instance.xcom_pull(task_ids='sft_train_task')['tuned_model_name'] }}",
         metrics=METRICS,
         prompt_template=INSTRUCTION_PROMPT,
         eval_dataset="{{ task_instance.xcom_pull(task_ids='prepare_training_data')['test_data'] }}",
