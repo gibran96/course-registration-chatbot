@@ -14,10 +14,11 @@ PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 REGION = Variable.get("REGION", "us-east1")
 SOURCE_MODEL = Variable.get("SOURCE_MODEL", "gemini-1.5-flash-002")
 
+
 def get_latest_model_name(**context):
     """Get the model name from the triggering DAG"""
     try:
-        model_name = context['dag_run'].conf.get('modelName')
+        model_name = context['ti'].xcom_pull(task_ids='sft_train_task', key='tuned_model_name')
         if not model_name:
             raise ValueError("No model name provided in DAG configuration")
             
@@ -26,6 +27,7 @@ def get_latest_model_name(**context):
     except Exception as e:
         logging.error(f"Error getting model name: {e}")
         raise
+
 
 def save_evaluation_results(**context):
     """Save evaluation results to both GCS and local storage"""

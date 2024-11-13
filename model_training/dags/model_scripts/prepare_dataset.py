@@ -90,7 +90,7 @@ def format_eval_data(df):
         json_data['instruction'].append(row['query'])
         json_data['reference'].append(row['response'])
 
-    return json.dumps(json_data)
+    return json_data
 
 def prepare_training_data(**context):
     bigquery_client = init_bq_client('us-east1', PROJECT_ID)
@@ -99,12 +99,12 @@ def prepare_training_data(**context):
     data = extract_training_data(data)
     train_df, test_df = clean_and_filter_Data(data)
     training_data = format_data(train_df)
-    test_data = format_data(test_df)
+    test_data = format_eval_data(test_df)
     os.makedirs("tmp", exist_ok=True)
     with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)
     with open("tmp/test_data.jsonl", "w") as f:
-        f.write(test_data)
+        f.write(json.dumps(test_data))
 
     logging.info("Training data prepared and saved to tmp/finetuning_data.jsonl")
     logging.info("Test data prepared and saved to tmp/test_data.jsonl")
