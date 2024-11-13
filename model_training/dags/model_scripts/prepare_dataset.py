@@ -99,7 +99,7 @@ def prepare_training_data(**context):
     data = extract_training_data(data)
     train_df, test_df = clean_and_filter_Data(data)
     training_data = format_data(train_df)
-    test_data = format_data(test_df)
+    test_data = format_eval_data(test_df)
     os.makedirs("tmp", exist_ok=True)
     with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)

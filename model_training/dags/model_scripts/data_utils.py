@@ -27,5 +27,7 @@ def upload_to_gcs(**context):
             filename=test_file_name
         )
         logging.info(f"Uploaded {test_file_name} to GCS")
+        uploaded_file_path = f"gs://{bucket_name}/{test_file_name.split('/')[-1]}"
+        context['ti'].xcom_push(key='uploaded_test_file_path', value=uploaded_file_path)
 
         
