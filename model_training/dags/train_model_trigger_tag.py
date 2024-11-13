@@ -20,7 +20,7 @@ from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
 from model_scripts.prompts import PROMPT_TEMPLATE
-
+from uuid import uuid4
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -44,8 +44,8 @@ METRICS = [
     "rouge_l_sum",
 ]
 
-EXPERIMENT_NAME = "eval-experiment-airflow-operator"
-EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
+EXPERIMENT_NAME = "eval-experiment-airflow-operator" + str(uuid4().hex)
+EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run" + str(uuid4().hex)
 
 
 def run_model_evaluation(**context):
