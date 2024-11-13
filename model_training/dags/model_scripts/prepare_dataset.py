@@ -81,9 +81,6 @@ def format_data(df):
 
 def format_eval_data(df):
     json_data = []
-    # json_data['context'] = []
-    # json_data['instruction'] = []
-    # json_data['reference'] = []
 
     for _, row in df.iterrows():
         json_item = {

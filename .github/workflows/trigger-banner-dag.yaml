@@ -7,9 +7,35 @@ on:
     paths:
       - 'data_pipeline/dags/banner_data_dag.py'
       - 'data_pipeline/dags/scripts/banner/**'
+      - 'data_pipeline/dags/scripts/data/**'
 
 jobs:
-  trigger-dag:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run tests
+      run: |
+        pytest
+      env:
+        PYTHONPATH: ${{github.workspace}}
+    
+    if: success()
+
+  trigger-banner-dag:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,3 +52,39 @@ jobs:
           gcloud composer environments run data-pipeline-v3 \
             --location us-east1 \
             dags trigger -- banner_dag_pipeline
+
+  trigger-trace-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
+
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- pdf_processing_pipeline
+  
+  trigger-train-data-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
+
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- train_data_dag

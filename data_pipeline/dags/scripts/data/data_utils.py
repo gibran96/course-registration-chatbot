@@ -30,6 +30,16 @@ def remove_punctuation(text):
 
 def clean_response(response):
     """Remove leading index numbers from a response."""
+    
+    unwanted_patterns = [
+        r'positive neutral negative.*?sentiment score',
+        r'percent of sentiment.*?sentiment score'
+    ]
+    
+    # Apply each unwanted pattern removal
+    for pattern in unwanted_patterns:
+        response = re.sub(pattern, '', response, flags=re.IGNORECASE | re.DOTALL).strip()
+    
     response = re.sub(r"^\d+\s*", "", response.strip())
     # remove next line characters
     response = response.replace("\n", " ")
