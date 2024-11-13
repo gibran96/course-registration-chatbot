@@ -18,9 +18,7 @@ SOURCE_MODEL = Variable.get("SOURCE_MODEL", "gemini-1.5-flash-002")
 def get_latest_model_name(**context):
     """Get the model name from the triggering DAG"""
     try:
-        logging.info("Full context: %s", context)
-
-        model_name = context['dag_run'].conf.get('model_name')
+        model_name = context['ti'].xcom_pull(task_ids='sft_train_task', key='tuned_model_name')
         if not model_name:
             raise ValueError("No model name provided in DAG configuration")
             
