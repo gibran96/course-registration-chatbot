@@ -51,8 +51,8 @@ EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 def run_model_evaluation(**context):
     pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_name"]
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
-    # test_file_name = context["ti"].xcom_pull(task_ids="uploaded_test_file_path", key="test_data_file_path")
-    test_file_name = "gs://mlops-data-7374/test_data.jsonl"
+    test_file_name = context["ti"].xcom_pull(task_ids="uploaded_test_file_path", key="test_data_file_path")
+    # test_file_name = "gs://mlops-data-7374/test_data.jsonl"
 
     logging.info(f"Pretrained model: {pretrained_model}")
     logging.info(f"Evaluation dataset: {eval_dataset}")
