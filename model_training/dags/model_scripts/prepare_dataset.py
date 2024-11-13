@@ -104,7 +104,7 @@ def prepare_training_data(**context):
     with open("tmp/finetuning_data.jsonl", "w") as f:
         f.write(training_data)
     with open("tmp/test_data.jsonl", "w") as f:
-        f.write(test_data)
+        f.write(json.dumps(test_data))
 
     logging.info("Training data prepared and saved to tmp/finetuning_data.jsonl")
     logging.info("Test data prepared and saved to tmp/test_data.jsonl")
