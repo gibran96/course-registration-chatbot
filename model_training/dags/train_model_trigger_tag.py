@@ -48,6 +48,30 @@ EXPERIMENT_NAME = "eval-experiment-airflow-operator"
 EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 
 
+def run_model_evaluation(**context):
+    pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_name"]
+    eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
+    logging.info(f"Pretrained model: {pretrained_model}")
+    logging.info(f"Evaluation dataset: {eval_dataset}")
+
+    run_eval = RunEvaluationOperator(
+        task_id="model_evaluation_task_inside_dag",
+        project_id=PROJECT_ID,
+        location=REGION,
+        pretrained_model=pretrained_model,
+        metrics=METRICS,
+        prompt_template=INSTRUCTION_PROMPT,
+        eval_dataset=eval_dataset,
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+
+    run_eval.execute(context)
+
+
+
+
+
 with DAG(
     "train_model_trigger_dag",
     schedule_interval=None,
@@ -80,17 +104,24 @@ with DAG(
         learning_rate_multiplier=1.0,
     )
 
-    model_evaluation_task = RunEvaluationOperator(
+    # model_evaluation_task = RunEvaluationOperator(
+    #     task_id="model_evaluation_task",
+    #     project_id=PROJECT_ID,
+    #     location=REGION,
+    #     pretrained_model='{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}',
+    #     metrics=METRICS,
+    #     prompt_template=INSTRUCTION_PROMPT,
+    #     eval_dataset='{{ task_instance.xcom_pull(task_ids="prepare_training_data", key="test_data") }}',
+    #     experiment_name=EXPERIMENT_NAME,
+    #     experiment_run_name=EXPERIMENT_RUN_NAME,
+    #     provided_context=True,
+    # )
+
+
+    model_evaluation_task = PythonOperator(
         task_id="model_evaluation_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        pretrained_model='{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}',
-        metrics=METRICS,
-        prompt_template=INSTRUCTION_PROMPT,
-        eval_dataset='{{ task_instance.xcom_pull(task_ids="prepare_training_data", key="test_data") }}',
-        experiment_name=EXPERIMENT_NAME,
-        experiment_run_name=EXPERIMENT_RUN_NAME,
-        provided_context=True,
+        python_callable=run_model_evaluation,
+        provide_context=True,
     )
 
 
