@@ -8,7 +8,10 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
+    RunEvaluationOperator,
 )
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
+from vertexai.preview.evaluation import MetricPromptTemplateExamples
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
 )
@@ -16,6 +19,7 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
+from model_scripts.prompts import INSTRUCTION_PROMPT
 
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
@@ -28,7 +32,20 @@ TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_da
 
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
 
+METRICS = [
+    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,
+    MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
+    MetricPromptTemplateExamples.Pointwise.VERBOSITY,
+    MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
+    "exact_match",
+    "bleu",
+    "rouge_1",
+    "rouge_2",
+    "rouge_l_sum",
+]
 
+EXPERIMENT_NAME = "eval-experiment-airflow-operator"
+EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 
 
 with DAG(
@@ -63,6 +80,19 @@ with DAG(
         learning_rate_multiplier=1.0,
     )
 
+    model_evaluation_task = RunEvaluationOperator(
+        task_id="model_evaluation_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        pretrained_model="{{ task_instance.xcom_pull(task_ids='sft_train_task')['tuned_model_name'] }}",
+        metrics=METRICS,
+        prompt_template=INSTRUCTION_PROMPT,
+        eval_dataset="{{ task_instance.xcom_pull(task_ids='prepare_training_data')['test_data'] }}",
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+
+
      # Add task to trigger evaluation DAG
     trigger_evaluation = TriggerDagRunOperator(
         task_id='trigger_evaluation',
@@ -74,5 +104,5 @@ with DAG(
         }
     )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> trigger_evaluation
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> trigger_evaluation
 
