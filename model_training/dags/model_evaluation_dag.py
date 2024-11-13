@@ -17,7 +17,7 @@ SOURCE_MODEL = Variable.get("SOURCE_MODEL", "gemini-1.5-flash-002")
 def get_latest_model_name(**context):
     """Get the model name from the triggering DAG"""
     try:
-        model_name = context['dag_run'].conf.get('model_name')
+        model_name = context['dag_run'].conf.get('modelName')
         if not model_name:
             raise ValueError("No model name provided in DAG configuration")
             
