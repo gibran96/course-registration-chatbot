@@ -44,12 +44,12 @@ METRICS = [
     "rouge_l_sum",
 ]
 
-EXPERIMENT_NAME = "eval-experiment-airflow-operator" + str(uuid4().hex)
-EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run" + str(uuid4().hex)
+EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
+EXPERIMENT_RUN_NAME = "eval-run" + str(uuid4().hex)[:3]
 
 
 def run_model_evaluation(**context):
-    pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_name"]
+    pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_endpoint_name"]
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
     test_file_name = context["ti"].xcom_pull(task_ids="upload_to_gcs", key="uploaded_test_file_path")
     logging.info(f"Test file name: {test_file_name}")
