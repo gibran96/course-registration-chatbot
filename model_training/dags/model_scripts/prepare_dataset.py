@@ -111,3 +111,4 @@ def prepare_training_data(**context):
     context['ti'].xcom_push(key='training_data_file_path', value="tmp/finetuning_data.jsonl")
     context['ti'].xcom_push(key='test_data_file_path', value="tmp/test_data.jsonl")
     context['ti'].xcom_push(key='test_data', value=format_eval_data(test_df))
+    
