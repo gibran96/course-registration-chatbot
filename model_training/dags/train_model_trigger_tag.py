@@ -21,7 +21,7 @@ from airflow.models import Variable
 import datetime
 from model_scripts.prompts import PROMPT_TEMPLATE
 from uuid import uuid4
-from model_scripts.custom_metrics import (
+from model_scripts.custom_eval import (
     AnswerRelevanceMetric, 
     AnswerCoverageMetric, 
     CustomMetricConfig,
