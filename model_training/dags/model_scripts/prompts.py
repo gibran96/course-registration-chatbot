@@ -20,3 +20,15 @@ The response should:
 3. Clearly address potential benefits and challenges of the course, providing a straightforward recommendation as needed.
 Ensure the answer is direct, informative, and relevant to the question.
 """
+
+PROMPT_TEMPLATE = """
+Question:
+{instruction}
+Context:
+{context}
+The response should:
+1. Highlight the main topics and unique aspects of the course content.
+2. Summarize the instructor's teaching style and notable strengths or weaknesses.
+3. Clearly address potential benefits and challenges of the course, providing a straightforward recommendation as needed.
+Ensure the answer is direct, informative, and relevant to the question.
+"""
