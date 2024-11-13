@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import logging
@@ -19,7 +20,7 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import PROMPT_TEMPLATE
+from model_scripts.prompts import BIAS_PROMPT_TEMPLATE, PROMPT_TEMPLATE
 from uuid import uuid4
 from model_scripts.custom_metrics import (
     AnswerRelevanceMetric, 
@@ -28,6 +29,7 @@ from model_scripts.custom_metrics import (
     aggregate_metrics
 )
 
+from vertexai.preview.evaluation import InstructionPromptTemplate
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -40,15 +42,13 @@ TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_da
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
 
 METRICS = [
-    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,
     MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
     MetricPromptTemplateExamples.Pointwise.VERBOSITY,
     MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
-    "exact_match",
+    MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
-    "rouge_1",
-    "rouge_2",
     "rouge_l_sum",
+    InstructionPromptTemplate(template=BIAS_PROMPT_TEMPLATE),
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
@@ -60,15 +60,13 @@ def run_model_evaluation(**context):
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
     test_file_name = context["ti"].xcom_pull(task_ids="upload_to_gcs", key="uploaded_test_file_path")
     logging.info(f"Test file name: {test_file_name}")
-    # test_file_name = "gs://mlops-data-7374/test_data.jsonl"
 
     logging.info(f"Pretrained model: {pretrained_model}")
-    # logging.info(f"Evaluation dataset: {eval_dataset}")
 
     run_eval = RunEvaluationOperator(
         task_id="model_evaluation_task_inside_dag",
         project_id=PROJECT_ID,
-        location=REGION,
+        location="us-central1",
         pretrained_model=pretrained_model,
         metrics=METRICS,
         prompt_template=PROMPT_TEMPLATE,
@@ -170,20 +168,6 @@ with DAG(
         adapter_size=1,
         learning_rate_multiplier=1.0,
     )
-
-    # model_evaluation_task = RunEvaluationOperator(
-    #     task_id="model_evaluation_task",
-    #     project_id=PROJECT_ID,
-    #     location=REGION,
-    #     pretrained_model='{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}',
-    #     metrics=METRICS,
-    #     prompt_template=INSTRUCTION_PROMPT,
-    #     eval_dataset='{{ task_instance.xcom_pull(task_ids="prepare_training_data", key="test_data") }}',
-    #     experiment_name=EXPERIMENT_NAME,
-    #     experiment_run_name=EXPERIMENT_RUN_NAME,
-    #     provided_context=True,
-    # )
-
 
     model_evaluation_task = PythonOperator(
         task_id="model_evaluation_task",
