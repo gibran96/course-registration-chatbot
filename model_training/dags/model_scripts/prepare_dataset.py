@@ -80,17 +80,20 @@ def format_data(df):
     return "\n".join(jsonl_data)
 
 def format_eval_data(df):
-    json_data = {}
-    json_data['context'] = []
-    json_data['instruction'] = []
-    json_data['reference'] = []
+    json_data = []
+    # json_data['context'] = []
+    # json_data['instruction'] = []
+    # json_data['reference'] = []
 
     for _, row in df.iterrows():
-        json_data['context'].append(row['context'])
-        json_data['instruction'].append(row['query'])
-        json_data['reference'].append(row['response'])
+        json_item = {
+            "context": row['context'],
+            "instruction": row['query'],
+            "reference": row['response']
+        }
+        json_data.append(json.dumps(json_item))
 
-    return json_data
+    return "\n".join(json_data)
 
 def prepare_training_data(**context):
     bigquery_client = init_bq_client('us-east1', PROJECT_ID)

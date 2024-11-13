@@ -19,8 +19,8 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import INSTRUCTION_PROMPT
-
+from model_scripts.prompts import PROMPT_TEMPLATE
+from uuid import uuid4
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -44,18 +44,19 @@ METRICS = [
     "rouge_l_sum",
 ]
 
-EXPERIMENT_NAME = "eval-experiment-airflow-operator"
-EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
+EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
+EXPERIMENT_RUN_NAME = "eval-run" + str(uuid4().hex)[:3]
 
 
 def run_model_evaluation(**context):
-    pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_name"]
+    pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_endpoint_name"]
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
-    # test_file_name = context["ti"].xcom_pull(task_ids="uploaded_test_file_path", key="test_data_file_path")
-    test_file_name = "gs://mlops-data-7374/test_data.jsonl"
+    test_file_name = context["ti"].xcom_pull(task_ids="upload_to_gcs", key="uploaded_test_file_path")
+    logging.info(f"Test file name: {test_file_name}")
+    # test_file_name = "gs://mlops-data-7374/test_data.jsonl"
 
     logging.info(f"Pretrained model: {pretrained_model}")
-    logging.info(f"Evaluation dataset: {eval_dataset}")
+    # logging.info(f"Evaluation dataset: {eval_dataset}")
 
     run_eval = RunEvaluationOperator(
         task_id="model_evaluation_task_inside_dag",
@@ -63,7 +64,7 @@ def run_model_evaluation(**context):
         location=REGION,
         pretrained_model=pretrained_model,
         metrics=METRICS,
-        prompt_template=INSTRUCTION_PROMPT,
+        prompt_template=PROMPT_TEMPLATE,
         eval_dataset=test_file_name,
         experiment_name=EXPERIMENT_NAME,
         experiment_run_name=EXPERIMENT_RUN_NAME,
