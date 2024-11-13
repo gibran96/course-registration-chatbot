@@ -31,7 +31,7 @@ from uuid import uuid4
 from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_profs, get_bucketed_queries, get_bq_data_for_profs, generate_eval_data
 
 
-from vertexai.preview.evaluation import InstructionPromptTemplate
+# from vertexai.preview.evaluation import InstructionPromptTemplate
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -50,7 +50,7 @@ METRICS = [
     MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
     "rouge_l_sum",
-    InstructionPromptTemplate(template=BIAS_PROMPT_TEMPLATE),
+    # InstructionPromptTemplate(template=BIAS_PROMPT_TEMPLATE),
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
