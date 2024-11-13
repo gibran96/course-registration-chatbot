@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import logging
@@ -19,8 +20,16 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import PROMPT_TEMPLATE
+from model_scripts.prompts import BIAS_PROMPT_TEMPLATE, PROMPT_TEMPLATE
 from uuid import uuid4
+from model_scripts.custom_eval import (
+    AnswerRelevanceMetric, 
+    AnswerCoverageMetric, 
+    CustomMetricConfig,
+    aggregate_metrics
+)
+
+from vertexai.preview.evaluation import InstructionPromptTemplate
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -33,15 +42,13 @@ TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_da
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
 
 METRICS = [
-    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,
     MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
     MetricPromptTemplateExamples.Pointwise.VERBOSITY,
     MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
-    "exact_match",
+    MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
-    "rouge_1",
-    "rouge_2",
     "rouge_l_sum",
+    InstructionPromptTemplate(template=BIAS_PROMPT_TEMPLATE),
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
@@ -53,15 +60,13 @@ def run_model_evaluation(**context):
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
     test_file_name = context["ti"].xcom_pull(task_ids="upload_to_gcs", key="uploaded_test_file_path")
     logging.info(f"Test file name: {test_file_name}")
-    # test_file_name = "gs://mlops-data-7374/test_data.jsonl"
 
     logging.info(f"Pretrained model: {pretrained_model}")
-    # logging.info(f"Evaluation dataset: {eval_dataset}")
 
     run_eval = RunEvaluationOperator(
         task_id="model_evaluation_task_inside_dag",
         project_id=PROJECT_ID,
-        location=REGION,
+        location="us-central1",
         pretrained_model=pretrained_model,
         metrics=METRICS,
         prompt_template=PROMPT_TEMPLATE,
@@ -72,9 +77,65 @@ def run_model_evaluation(**context):
 
     run_eval.execute(context)
 
+def run_custom_evaluation(**context):
+    """Run custom evaluation metrics"""
+    try:
+        # Get model name and evaluation dataset
+        model_name = context['task_instance'].xcom_pull(key='model_name')
+        eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_eval_data')
+        
+        # Initialize evaluation model
+        evaluation_model = model_name
+        
+        # Initialize metrics
+        config = CustomMetricConfig()
+        relevance_metric = AnswerRelevanceMetric(evaluation_model, config)
+        coverage_metric = AnswerCoverageMetric(evaluation_model, config)
+        
+        # Load evaluation dataset
+        with open(eval_dataset, 'r') as f:
+            examples = [json.loads(line) for line in f]
+        
+        # Run evaluations
+        relevance_results = []
+        coverage_results = []
+        
+        for example in examples:
+            relevance_results.append(relevance_metric.evaluate_example(example))
+            coverage_results.append(coverage_metric.evaluate_example(example))
+        
+        # Aggregate results
+        all_results = relevance_results + coverage_results
+        aggregated_metrics = aggregate_metrics(all_results)
+        
+        # Save detailed results
+        results = {
+            "model_name": model_name,
+            "timestamp": context['ts'],
+            "aggregated_metrics": aggregated_metrics,
+            "detailed_results": [
+                {
+                    "example_id": idx,
+                    "relevance": rel.value,
+                    "coverage": cov.value,
+                    "relevance_explanation": rel.metadata["explanation"],
+                    "coverage_explanation": cov.metadata["explanation"],
+                    "question": rel.metadata["question"],
+                    "answer": rel.metadata["answer"]
+                }
+                for idx, (rel, cov) in enumerate(zip(relevance_results, coverage_results))
+            ]
+        }
+        
+        # Save results
+        context['task_instance'].xcom_push(key='custom_metrics', value=results)
+        return results
+        
+    except Exception as e:
+        logging.error(f"Error running custom evaluation: {e}")
+        raise
 
-
-
+# Add to your DAG
 
 with DAG(
     "train_model_trigger_dag",
@@ -108,37 +169,28 @@ with DAG(
         learning_rate_multiplier=1.0,
     )
 
-    # model_evaluation_task = RunEvaluationOperator(
-    #     task_id="model_evaluation_task",
-    #     project_id=PROJECT_ID,
-    #     location=REGION,
-    #     pretrained_model='{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}',
-    #     metrics=METRICS,
-    #     prompt_template=INSTRUCTION_PROMPT,
-    #     eval_dataset='{{ task_instance.xcom_pull(task_ids="prepare_training_data", key="test_data") }}',
-    #     experiment_name=EXPERIMENT_NAME,
-    #     experiment_run_name=EXPERIMENT_RUN_NAME,
-    #     provided_context=True,
-    # )
-
-
     model_evaluation_task = PythonOperator(
         task_id="model_evaluation_task",
         python_callable=run_model_evaluation,
         provide_context=True,
     )
-
-
-     # Add task to trigger evaluation DAG
-    trigger_evaluation = TriggerDagRunOperator(
-        task_id='trigger_evaluation',
-        trigger_dag_id='model_evaluation_dag',
-        conf={
-            'training_dag_id': 'train_model_trigger_dag',
-            'training_run_id': '{{ run_id }}',
-            'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
-        }
+    
+    custom_evaluation_task = PythonOperator(
+    task_id='custom_evaluation_task',
+    python_callable=run_custom_evaluation,
+    provide_context=True,
     )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> trigger_evaluation
+     # Add task to trigger evaluation DAG
+    # trigger_evaluation = TriggerDagRunOperator(
+    #     task_id='trigger_evaluation',
+    #     trigger_dag_id='model_evaluation_dag',
+    #     conf={
+    #         'training_dag_id': 'train_model_trigger_dag',
+    #         'training_run_id': '{{ run_id }}',
+    #         'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
+    #     }
+    # )
+
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> custom_evaluation_task
 
