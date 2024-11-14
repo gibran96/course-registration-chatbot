@@ -113,7 +113,7 @@ def parse_response(response):
 
 
 def get_bucketed_queries(**context):
-    prof_list = context['ti'].xcom_pull(task_ids='get_bucketed_profs_task', key='bucketed_prof_list')
+    prof_list = context['ti'].xcom_pull(task_ids='get_unique_profs_task', key='prof_list')
     query_template = ["What courses are being offered by {prof_name}?", 
                       "How are the reviews for {prof_name}?", 
                       "Are the classes taught by {prof_name} good?", 
@@ -158,7 +158,7 @@ def get_bq_data_for_profs(**context):
 
     return df
 
-def generate_repsonses(**context):
+def generate_responses(**context):
     data = context['ti'].xcom_pull(task_ids='get_bq_data_for_profs_task', key='bq_data')
     
     prompt = """          
