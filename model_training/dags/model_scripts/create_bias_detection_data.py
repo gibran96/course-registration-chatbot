@@ -151,9 +151,9 @@ def get_bucketed_queries(**context):
     female_queries = []
     for prof in prof_list:
         if prof['gender'] == 'male':
-            male_queries.extend([query.format(prof_name=prof['name']) for query in query_template])
+            male_queries.append(random.choice(query_template).format(prof_name=prof['name']))
         else:
-            female_queries.extend([query.format(prof_name=prof['name']) for query in query_template])
+            female_queries.append(random.choice(query_template).format(prof_name=prof['name']))
     
     context['ti'].xcom_push(key='male_queries', value=male_queries)
     context['ti'].xcom_push(key='female_queries', value=female_queries)
