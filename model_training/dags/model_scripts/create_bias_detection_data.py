@@ -85,7 +85,7 @@ def get_llm_response(input_prompt: str) -> str:
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
         },
         generation_config=GenerationConfig(
-            max_output_tokens=1024,
+            max_output_tokens=8192,
             temperature=0.7,
         ),
     ).text
@@ -104,7 +104,7 @@ def get_unique_profs(**context):
     return prof_list
 
 def parse_response(response):
-    matches = re.findall(r'```json(.*)```', response, re.DOTALL)
+    matches = re.findall(r'```json(.*?)```', response, re.DOTALL)
     if matches:
         return ast.literal_eval(matches[0])
     else:
@@ -133,6 +133,7 @@ def get_bucketed_profs(**context):
     """
     logging.info("getting prof list from gemini")
     response = get_llm_response(prompt.format(prof_list=prof_list))
+    logging.info(response)
     logging.info("parsing prof list")
     new_prof_list = parse_response(response)
 
