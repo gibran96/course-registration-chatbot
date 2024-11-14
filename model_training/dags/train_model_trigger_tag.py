@@ -58,8 +58,10 @@ METRICS = [
     "bleu",
     "rouge_l_sum",
     custom_bias_check
-    *CUSTOM_METRICS
 ]
+
+for new_metric in CUSTOM_METRICS:
+    METRICS.append(new_metric)
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
 EXPERIMENT_RUN_NAME = "eval-run" + str(uuid4().hex)[:3]
