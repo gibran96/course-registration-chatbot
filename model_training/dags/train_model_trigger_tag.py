@@ -79,20 +79,27 @@ def run_model_evaluation(**context):
 
     run_eval.execute(context)
 
-def run_custom_evaluation(**context):
+def run_custom_evaluation(**context):   
     """Run custom evaluation metrics"""
     try:
-        # Get model name and evaluation dataset
-        model_name = context['task_instance'].xcom_pull(key='model_name')
-        eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_eval_data')
+        # Get model endpoint name from the training task
+        model_endpoint = context['task_instance'].xcom_pull(task_ids='sft_train_task')['tuned_model_endpoint_name']
+        eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_training_data', key='test_data')
         
-        # Initialize evaluation model
-        evaluation_model = model_name
-        
-        # Initialize metrics
+        # Initialize metrics with Vertex AI configuration
         config = CustomMetricConfig()
-        relevance_metric = AnswerRelevanceMetric(evaluation_model, config)
-        coverage_metric = AnswerCoverageMetric(evaluation_model, config)
+        relevance_metric = AnswerRelevanceMetric(
+            model_name=model_endpoint,
+            project_id=PROJECT_ID,
+            location=REGION,
+            config=config
+        )
+        coverage_metric = AnswerCoverageMetric(
+            model_name=model_endpoint,
+            project_id=PROJECT_ID,
+            location=REGION,
+            config=config
+        )
         
         # Load evaluation dataset
         with open(eval_dataset, 'r') as f:
@@ -110,9 +117,9 @@ def run_custom_evaluation(**context):
         all_results = relevance_results + coverage_results
         aggregated_metrics = aggregate_metrics(all_results)
         
-        # Save detailed results
+        # Save results
         results = {
-            "model_name": model_name,
+            "model_endpoint": model_endpoint,
             "timestamp": context['ts'],
             "aggregated_metrics": aggregated_metrics,
             "detailed_results": [
@@ -129,7 +136,6 @@ def run_custom_evaluation(**context):
             ]
         }
         
-        # Save results
         context['task_instance'].xcom_push(key='custom_metrics', value=results)
         return results
         

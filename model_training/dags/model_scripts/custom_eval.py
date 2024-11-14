@@ -1,9 +1,10 @@
 from typing import Dict, Any, List, Optional
-from vertexai.preview.language_models import TextGenerationModel
 import numpy as np
 import logging
 from dataclasses import dataclass
-from vertexai.preview.evaluation import MetricProducer, MetricResult
+from vertexai.evaluation import MetricProducer, MetricResult
+from google.cloud import aiplatform
+import vertexai
 import json
 
 @dataclass
@@ -46,29 +47,61 @@ class CustomMetricConfig:
     Provide your score as a single number between 0 and 1, followed by a brief explanation.
     Score:"""
 
-class AnswerRelevanceMetric(MetricProducer):
-    """Custom metric for measuring answer relevance"""
+class BaseMetricProducer(MetricProducer):
+    """Base class for metric producers using Vertex AI model"""
     
     def __init__(self, 
-                 evaluation_model: TextGenerationModel,
+                 model_name: str,
+                 project_id: str,
+                 location: str,
                  config: Optional[CustomMetricConfig] = None):
-        self.model = evaluation_model
+        self.project_id = project_id
+        self.location = location
+        self.model_name = model_name
         self.config = config or CustomMetricConfig()
         
+        # Initialize Vertex AI
+        vertexai.init(project=project_id, location=location)
+        
+    def _get_model(self):
+        """Get the model endpoint"""
+        try:
+            endpoint = aiplatform.Endpoint(self.model_name)
+            return endpoint
+        except Exception as e:
+            logging.error(f"Error getting model endpoint: {e}")
+            raise
+            
+    def _predict(self, prompt: str) -> str:
+        """Make prediction using the model endpoint"""
+        try:
+            endpoint = self._get_model()
+            response = endpoint.predict(
+                instances=[{
+                    "content": prompt
+                }]
+            )
+            return response.predictions[0]['content']
+        except Exception as e:
+            logging.error(f"Error making prediction: {e}")
+            raise
+            
     def _extract_score(self, response: str) -> float:
         """Extract numerical score from model response"""
         try:
-            # Find the first number in the response
             import re
             score_match = re.search(r'(\d*\.?\d+)', response)
             if score_match:
                 score = float(score_match.group(1))
-                return min(max(score, 0.0), 1.0)  # Ensure score is between 0 and 1
+                return min(max(score, 0.0), 1.0)
             return 0.0
         except Exception as e:
             logging.error(f"Error extracting score: {e}")
             return 0.0
 
+class AnswerRelevanceMetric(BaseMetricProducer):
+    """Custom metric for measuring answer relevance"""
+    
     def evaluate_example(self, example: Dict[str, Any]) -> MetricResult:
         """Evaluate a single example for answer relevance"""
         try:
@@ -79,7 +112,7 @@ class AnswerRelevanceMetric(MetricProducer):
             )
             
             # Get evaluation from model
-            response = self.model.predict(prompt).text
+            response = self._predict(prompt)
             score = self._extract_score(response)
             
             return MetricResult(
@@ -99,15 +132,9 @@ class AnswerRelevanceMetric(MetricProducer):
                 metadata={"error": str(e)}
             )
 
-class AnswerCoverageMetric(MetricProducer):
+class AnswerCoverageMetric(BaseMetricProducer):
     """Custom metric for measuring answer coverage"""
     
-    def __init__(self, 
-                 evaluation_model: TextGenerationModel,
-                 config: Optional[CustomMetricConfig] = None):
-        self.model = evaluation_model
-        self.config = config or CustomMetricConfig()
-
     def evaluate_example(self, example: Dict[str, Any]) -> MetricResult:
         """Evaluate a single example for answer coverage"""
         try:
@@ -118,7 +145,7 @@ class AnswerCoverageMetric(MetricProducer):
             )
             
             # Get evaluation from model
-            response = self.model.predict(prompt).text
+            response = self._predict(prompt)
             score = self._extract_score(response)
             
             return MetricResult(
@@ -137,19 +164,6 @@ class AnswerCoverageMetric(MetricProducer):
                 value=0.0,
                 metadata={"error": str(e)}
             )
-
-    def _extract_score(self, response: str) -> float:
-        """Extract numerical score from model response"""
-        try:
-            import re
-            score_match = re.search(r'(\d*\.?\d+)', response)
-            if score_match:
-                score = float(score_match.group(1))
-                return min(max(score, 0.0), 1.0)
-            return 0.0
-        except Exception as e:
-            logging.error(f"Error extracting score: {e}")
-            return 0.0
 
 def aggregate_metrics(results: List[MetricResult]) -> Dict[str, Any]:
     """Aggregate metrics across multiple examples"""
