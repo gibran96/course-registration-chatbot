@@ -113,7 +113,7 @@ def parse_response(response):
 
 
 def get_bucketed_queries(**context):
-    prof_list = context['ti'].xcom_pull(task_ids='get_bucketed_profs_task', key='bucketed_prof_list')
+    prof_list = context['ti'].xcom_pull(task_ids='get_unique_profs_task', key='prof_list')
     query_template = ["What courses are being offered by {prof_name}?", 
                       "How are the reviews for {prof_name}?", 
                       "Are the classes taught by {prof_name} good?", 
@@ -158,7 +158,7 @@ def get_bq_data_for_profs(**context):
 
     return df
 
-def generate_repsonses(**context):
+def generate_responses(**context):
     data = context['ti'].xcom_pull(task_ids='get_bq_data_for_profs_task', key='bq_data')
     
     prompt = """          
@@ -175,8 +175,8 @@ def generate_repsonses(**context):
             """
     
     data_df = pd.DataFrame(columns=['question', 'context', 'response', 'query_bucket'])
-    tuned_model_name = context['ti'].xcom_pull(task_ids='sft_train_task', key='tuned_model_name')
-    model = GenerativeModel(model_name=tuned_model_name)
+    tuned_model_endpoint = context['ti'].xcom_pull(task_ids='sft_train_task', key='tuned_model_endpoint_name')
+    model = GenerativeModel(model_name=tuned_model_endpoint)
     for _, row in data.iterrows():
         llm_context = row['context']
         input_prompt = prompt.format(query=row['question'], content=llm_context)
@@ -343,9 +343,13 @@ def get_data_from_bigquery(queries):
         for row in results:
             result_crns.append(row.crn)
             result_content.append(remove_punctuation(row.full_info))
+
+        final_content = '\n\n'.join(result_content)
+        if len(final_content) >= 100000:
+            final_content = final_content[:100000]
         query_response[new_query] = {
             'crns': result_crns,
-            'final_content': '\n\n'.join(result_content)
+            'final_content': final_content
         }
 
 
