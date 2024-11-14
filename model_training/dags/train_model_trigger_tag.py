@@ -51,8 +51,7 @@ custom_bias_check = PointwiseMetric(
         rating_rubric=BIAS_PROMPT_TEMPLATE["rating_rubric"],
         instruction=BIAS_PROMPT_TEMPLATE["instruction"],
         evaluation_steps=BIAS_PROMPT_TEMPLATE["evaluation_steps"],
-        metric_definition=BIAS_PROMPT_TEMPLATE["metric_definition"],
-        input_variables=BIAS_PROMPT_TEMPLATE["input_variables"],
+        metric_definition=BIAS_PROMPT_TEMPLATE["metric_definition"]
     ),
 )
 
