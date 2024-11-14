@@ -259,7 +259,7 @@ with DAG(
     run_bias_detection_eval_task = PythonOperator(
         task_id='run_bias_detection_eval_task',
         python_callable=run_bias_detection_eval,
-        provide_context=True
+        provide_context=True)
 
      # Add task to trigger evaluation DAG
     # trigger_evaluation = TriggerDagRunOperator(
