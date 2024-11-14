@@ -20,7 +20,7 @@ from model_scripts.prepare_dataset import prepare_training_data
 from model_scripts.data_utils import upload_to_gcs, upload_eval_data_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import BIAS_PROMPT_TEMPLATE, PROMPT_TEMPLATE
+from model_scripts.prompts import BIAS_CRITERIA, BIAS_PROMPT_TEMPLATE, BIAS_RUBRIC, PROMPT_TEMPLATE
 from uuid import uuid4
 # from model_scripts.custom_eval import (
 #     AnswerRelevanceMetric, 
@@ -29,6 +29,7 @@ from uuid import uuid4
 #     aggregate_metrics
 # )
 from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_profs, get_bucketed_queries, get_bq_data_for_profs, generate_eval_data
+from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate
 
 
 # from vertexai.preview.evaluation import InstructionPromptTemplate
@@ -43,6 +44,17 @@ TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_da
 
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
 
+custom_bias_check = PointwiseMetric(
+    metric="custom-bias-check",
+    metric_prompt_template=PointwiseMetricPromptTemplate(
+        criteria=BIAS_PROMPT_TEMPLATE["criteria"],
+        rating_rubric=BIAS_PROMPT_TEMPLATE["rating_rubric"],
+        instruction=BIAS_PROMPT_TEMPLATE["instruction"],
+        evaluation_steps=BIAS_PROMPT_TEMPLATE["evaluation_steps"],
+        metric_definition=BIAS_PROMPT_TEMPLATE["metric_definition"]
+    ),
+)
+
 METRICS = [
     MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
     MetricPromptTemplateExamples.Pointwise.VERBOSITY,
@@ -50,7 +62,7 @@ METRICS = [
     MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
     "rouge_l_sum",
-    # InstructionPromptTemplate(template=BIAS_PROMPT_TEMPLATE),
+    custom_bias_check
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
