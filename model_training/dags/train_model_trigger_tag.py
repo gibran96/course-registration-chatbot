@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import logging
@@ -16,18 +17,22 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
     GCSToBigQueryOperator
 )
 from model_scripts.prepare_dataset import prepare_training_data
-from model_scripts.data_utils import upload_to_gcs
+from model_scripts.data_utils import upload_to_gcs, upload_eval_data_to_gcs
 from airflow.models import Variable
 import datetime
-from model_scripts.prompts import PROMPT_TEMPLATE
+from model_scripts.prompts import BIAS_CRITERIA, BIAS_PROMPT_TEMPLATE, BIAS_RUBRIC, PROMPT_TEMPLATE
 from uuid import uuid4
-from model_scripts.custom_eval import (
-    AnswerRelevanceMetric, 
-    AnswerCoverageMetric, 
-    CustomMetricConfig,
-    aggregate_metrics
-)
+# from model_scripts.custom_eval import (
+#     AnswerRelevanceMetric, 
+#     AnswerCoverageMetric, 
+#     CustomMetricConfig,
+#     aggregate_metrics
+# )
+from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_profs, get_bucketed_queries, get_bq_data_for_profs, generate_eval_data
+from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate
 
+
+# from vertexai.preview.evaluation import InstructionPromptTemplate
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
 
@@ -39,16 +44,26 @@ TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_da
 
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
 
+custom_bias_check = PointwiseMetric(
+    metric="custom-bias-check",
+    metric_prompt_template=PointwiseMetricPromptTemplate(
+        criteria=BIAS_PROMPT_TEMPLATE["criteria"],
+        rating_rubric=BIAS_PROMPT_TEMPLATE["rating_rubric"],
+        instruction=BIAS_PROMPT_TEMPLATE["instruction"],
+        evaluation_steps=BIAS_PROMPT_TEMPLATE["evaluation_steps"],
+        metric_definition=BIAS_PROMPT_TEMPLATE["metric_definition"],
+        input_variables=BIAS_PROMPT_TEMPLATE["input_variables"],
+    ),
+)
+
 METRICS = [
-    MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,
     MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
     MetricPromptTemplateExamples.Pointwise.VERBOSITY,
     MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
-    "exact_match",
+    MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
-    "rouge_1",
-    "rouge_2",
     "rouge_l_sum",
+    custom_bias_check
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
@@ -60,15 +75,13 @@ def run_model_evaluation(**context):
     eval_dataset = context["ti"].xcom_pull(task_ids="prepare_training_data", key="test_data")
     test_file_name = context["ti"].xcom_pull(task_ids="upload_to_gcs", key="uploaded_test_file_path")
     logging.info(f"Test file name: {test_file_name}")
-    # test_file_name = "gs://mlops-data-7374/test_data.jsonl"
 
     logging.info(f"Pretrained model: {pretrained_model}")
-    # logging.info(f"Evaluation dataset: {eval_dataset}")
 
     run_eval = RunEvaluationOperator(
         task_id="model_evaluation_task_inside_dag",
         project_id=PROJECT_ID,
-        location=REGION,
+        location="us-central1",
         pretrained_model=pretrained_model,
         metrics=METRICS,
         prompt_template=PROMPT_TEMPLATE,
@@ -79,69 +92,99 @@ def run_model_evaluation(**context):
 
     run_eval.execute(context)
 
-def run_custom_evaluation(**context):   
-    """Run custom evaluation metrics"""
-    try:
-        # Get model endpoint name from the training task
-        model_endpoint = context['task_instance'].xcom_pull(task_ids='sft_train_task')['tuned_model_endpoint_name']
-        eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_training_data', key='test_data')
+def run_bias_detection_eval(**context):
+    male_data_eval_path = context["ti"].xcom_pull(task_ids="upload_eval_data_to_gcs", key="male_data_eval_path_gcs")
+    female_data_eval_path = context["ti"].xcom_pull(task_ids="upload_eval_data_to_gcs", key="female_data_eval_path_gcs")
+
+    logging.info(f"male_data_eval_path: {male_data_eval_path}")
+    logging.info(f"female_data_eval_path: {female_data_eval_path}")
+
+    run_bias_eval_male = RunEvaluationOperator(
+        task_id="bias_detection_task_inside_dag_male",
+        project_id=PROJECT_ID,
+        location="us-central1",
+        pretrained_model=SOURCE_MODEL,
+        metrics=METRICS,
+        prompt_template=BIAS_PROMPT_TEMPLATE,
+        eval_dataset=male_data_eval_path,
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+
+    run_bias_eval_female = RunEvaluationOperator(
+        task_id="bias_detection_task_inside_dag_female",
+        project_id=PROJECT_ID,
+        location="us-central1",
+        pretrained_model=SOURCE_MODEL,
+        metrics=METRICS,
+        prompt_template=BIAS_PROMPT_TEMPLATE,
+        eval_dataset=female_data_eval_path,
+        experiment_name=EXPERIMENT_NAME,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+    )
+
+
+    run_bias_eval_male.execute(context)
+    run_bias_eval_female.execute(context)
+    
+
+# def run_custom_evaluation(**context):
+#     """Run custom evaluation metrics"""
+#     try:
+#         # Get model name and evaluation dataset
+#         model_name = context['task_instance'].xcom_pull(key='model_name')
+#         eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_eval_data')
         
-        # Initialize metrics with Vertex AI configuration
-        config = CustomMetricConfig()
-        relevance_metric = AnswerRelevanceMetric(
-            model_name=model_endpoint,
-            project_id=PROJECT_ID,
-            location=REGION,
-            config=config
-        )
-        coverage_metric = AnswerCoverageMetric(
-            model_name=model_endpoint,
-            project_id=PROJECT_ID,
-            location=REGION,
-            config=config
-        )
+#         # Initialize evaluation model
+#         evaluation_model = model_name
         
-        # Load evaluation dataset
-        with open(eval_dataset, 'r') as f:
-            examples = [json.loads(line) for line in f]
+#         # Initialize metrics
+#         config = CustomMetricConfig()
+#         relevance_metric = AnswerRelevanceMetric(evaluation_model, config)
+#         coverage_metric = AnswerCoverageMetric(evaluation_model, config)
         
-        # Run evaluations
-        relevance_results = []
-        coverage_results = []
+#         # Load evaluation dataset
+#         with open(eval_dataset, 'r') as f:
+#             examples = [json.loads(line) for line in f]
         
-        for example in examples:
-            relevance_results.append(relevance_metric.evaluate_example(example))
-            coverage_results.append(coverage_metric.evaluate_example(example))
+#         # Run evaluations
+#         relevance_results = []
+#         coverage_results = []
         
-        # Aggregate results
-        all_results = relevance_results + coverage_results
-        aggregated_metrics = aggregate_metrics(all_results)
+#         for example in examples:
+#             relevance_results.append(relevance_metric.evaluate_example(example))
+#             coverage_results.append(coverage_metric.evaluate_example(example))
         
-        # Save results
-        results = {
-            "model_endpoint": model_endpoint,
-            "timestamp": context['ts'],
-            "aggregated_metrics": aggregated_metrics,
-            "detailed_results": [
-                {
-                    "example_id": idx,
-                    "relevance": rel.value,
-                    "coverage": cov.value,
-                    "relevance_explanation": rel.metadata["explanation"],
-                    "coverage_explanation": cov.metadata["explanation"],
-                    "question": rel.metadata["question"],
-                    "answer": rel.metadata["answer"]
-                }
-                for idx, (rel, cov) in enumerate(zip(relevance_results, coverage_results))
-            ]
-        }
+#         # Aggregate results
+#         all_results = relevance_results + coverage_results
+#         aggregated_metrics = aggregate_metrics(all_results)
         
-        context['task_instance'].xcom_push(key='custom_metrics', value=results)
-        return results
+#         # Save detailed results
+#         results = {
+#             "model_name": model_name,
+#             "timestamp": context['ts'],
+#             "aggregated_metrics": aggregated_metrics,
+#             "detailed_results": [
+#                 {
+#                     "example_id": idx,
+#                     "relevance": rel.value,
+#                     "coverage": cov.value,
+#                     "relevance_explanation": rel.metadata["explanation"],
+#                     "coverage_explanation": cov.metadata["explanation"],
+#                     "question": rel.metadata["question"],
+#                     "answer": rel.metadata["answer"]
+#                 }
+#                 for idx, (rel, cov) in enumerate(zip(relevance_results, coverage_results))
+#             ]
+#         }
         
-    except Exception as e:
-        logging.error(f"Error running custom evaluation: {e}")
-        raise
+#         # Save results
+#         context['task_instance'].xcom_push(key='custom_metrics', value=results)
+#         return results
+        
+#     except Exception as e:
+#         logging.error(f"Error running custom evaluation: {e}")
+#         raise
 
 # Add to your DAG
 
@@ -177,31 +220,59 @@ with DAG(
         learning_rate_multiplier=1.0,
     )
 
-    # model_evaluation_task = RunEvaluationOperator(
-    #     task_id="model_evaluation_task",
-    #     project_id=PROJECT_ID,
-    #     location=REGION,
-    #     pretrained_model='{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}',
-    #     metrics=METRICS,
-    #     prompt_template=INSTRUCTION_PROMPT,
-    #     eval_dataset='{{ task_instance.xcom_pull(task_ids="prepare_training_data", key="test_data") }}',
-    #     experiment_name=EXPERIMENT_NAME,
-    #     experiment_run_name=EXPERIMENT_RUN_NAME,
-    #     provided_context=True,
-    # )
-
-
     model_evaluation_task = PythonOperator(
         task_id="model_evaluation_task",
         python_callable=run_model_evaluation,
         provide_context=True,
     )
     
-    custom_evaluation_task = PythonOperator(
-    task_id='custom_evaluation_task',
-    python_callable=run_custom_evaluation,
-    provide_context=True,
+    # custom_evaluation_task = PythonOperator(
+    # task_id='custom_evaluation_task',
+    # python_callable=run_custom_evaluation,
+    # provide_context=True,
+    # )
+
+        ## BIAS DETECTION
+    get_unique_profs_task = PythonOperator(
+        task_id='get_unique_profs_task',
+        python_callable=get_unique_profs,
+        provide_context=True
     )
+
+    get_bucketed_profs_task = PythonOperator(
+        task_id='get_bucketed_profs_task',
+        python_callable=get_bucketed_profs,
+        provide_context=True
+    )
+
+    get_bucketed_queries_task = PythonOperator(
+        task_id='get_bucketed_queries_task',
+        python_callable=get_bucketed_queries,
+        provide_context=True
+    )
+
+    get_bq_data_for_profs_task = PythonOperator(
+        task_id='get_bq_data_for_profs_task',
+        python_callable=get_bq_data_for_profs,
+        provide_context=True
+    )
+
+    generate_eval_data_task = PythonOperator(
+        task_id='generate_eval_data_task',
+        python_callable=generate_eval_data,
+        provide_context=True
+    )
+
+    upload_eval_data_to_gcs_task = PythonOperator(
+        task_id='upload_eval_data_to_gcs_task',
+        python_callable=upload_eval_data_to_gcs,
+        provide_context=True
+    )
+
+    run_bias_detection_eval_task = PythonOperator(
+        task_id='run_bias_detection_eval_task',
+        python_callable=run_bias_detection_eval,
+        provide_context=True)
 
      # Add task to trigger evaluation DAG
     # trigger_evaluation = TriggerDagRunOperator(
@@ -214,5 +285,6 @@ with DAG(
     #     }
     # )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> custom_evaluation_task
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> [model_evaluation_task, get_unique_profs_task]
+    get_unique_profs_task >> get_bucketed_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_eval_data_task >> upload_eval_data_to_gcs_task >> run_bias_detection_eval_task
 
