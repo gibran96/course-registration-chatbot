@@ -22,12 +22,7 @@ from airflow.models import Variable
 import datetime
 from model_scripts.prompts import BIAS_CRITERIA, BIAS_PROMPT_TEMPLATE, BIAS_RUBRIC, PROMPT_TEMPLATE
 from uuid import uuid4
-# from model_scripts.custom_eval import (
-#     AnswerRelevanceMetric, 
-#     AnswerCoverageMetric, 
-#     CustomMetricConfig,
-#     aggregate_metrics
-# )
+from model_scripts.custom_eval import CUSTOM_METRICS
 from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_profs, get_bucketed_queries, get_bq_data_for_profs, generate_eval_data
 from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate
 
@@ -63,11 +58,11 @@ METRICS = [
     "bleu",
     "rouge_l_sum",
     custom_bias_check
+    *CUSTOM_METRICS
 ]
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
 EXPERIMENT_RUN_NAME = "eval-run" + str(uuid4().hex)[:3]
-
 
 def run_model_evaluation(**context):
     pretrained_model = context["ti"].xcom_pull(task_ids="sft_train_task")["tuned_model_endpoint_name"]
@@ -127,64 +122,6 @@ def run_bias_detection_eval(**context):
     run_bias_eval_female.execute(context)
     
 
-# def run_custom_evaluation(**context):
-#     """Run custom evaluation metrics"""
-#     try:
-#         # Get model name and evaluation dataset
-#         model_name = context['task_instance'].xcom_pull(key='model_name')
-#         eval_dataset = context['task_instance'].xcom_pull(task_ids='prepare_eval_data')
-        
-#         # Initialize evaluation model
-#         evaluation_model = model_name
-        
-#         # Initialize metrics
-#         config = CustomMetricConfig()
-#         relevance_metric = AnswerRelevanceMetric(evaluation_model, config)
-#         coverage_metric = AnswerCoverageMetric(evaluation_model, config)
-        
-#         # Load evaluation dataset
-#         with open(eval_dataset, 'r') as f:
-#             examples = [json.loads(line) for line in f]
-        
-#         # Run evaluations
-#         relevance_results = []
-#         coverage_results = []
-        
-#         for example in examples:
-#             relevance_results.append(relevance_metric.evaluate_example(example))
-#             coverage_results.append(coverage_metric.evaluate_example(example))
-        
-#         # Aggregate results
-#         all_results = relevance_results + coverage_results
-#         aggregated_metrics = aggregate_metrics(all_results)
-        
-#         # Save detailed results
-#         results = {
-#             "model_name": model_name,
-#             "timestamp": context['ts'],
-#             "aggregated_metrics": aggregated_metrics,
-#             "detailed_results": [
-#                 {
-#                     "example_id": idx,
-#                     "relevance": rel.value,
-#                     "coverage": cov.value,
-#                     "relevance_explanation": rel.metadata["explanation"],
-#                     "coverage_explanation": cov.metadata["explanation"],
-#                     "question": rel.metadata["question"],
-#                     "answer": rel.metadata["answer"]
-#                 }
-#                 for idx, (rel, cov) in enumerate(zip(relevance_results, coverage_results))
-#             ]
-#         }
-        
-#         # Save results
-#         context['task_instance'].xcom_push(key='custom_metrics', value=results)
-#         return results
-        
-#     except Exception as e:
-#         logging.error(f"Error running custom evaluation: {e}")
-#         raise
-
 # Add to your DAG
 
 with DAG(
@@ -225,11 +162,7 @@ with DAG(
         provide_context=True,
     )
     
-    # custom_evaluation_task = PythonOperator(
-    # task_id='custom_evaluation_task',
-    # python_callable=run_custom_evaluation,
-    # provide_context=True,
-    # )
+
 
         ## BIAS DETECTION
     get_unique_profs_task = PythonOperator(
@@ -273,17 +206,7 @@ with DAG(
         python_callable=run_bias_detection_eval,
         provide_context=True)
 
-     # Add task to trigger evaluation DAG
-    # trigger_evaluation = TriggerDagRunOperator(
-    #     task_id='trigger_evaluation',
-    #     trigger_dag_id='model_evaluation_dag',
-    #     conf={
-    #         'training_dag_id': 'train_model_trigger_dag',
-    #         'training_run_id': '{{ run_id }}',
-    #         'model_name': '{{ task_instance.xcom_pull(task_ids="sft_train_task")["tuned_model_name"] }}'
-    #     }
-    # )
-
+    
     prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> [model_evaluation_task, get_unique_profs_task]
     get_unique_profs_task >> get_bucketed_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_eval_data_task >> upload_eval_data_to_gcs_task >> run_bias_detection_eval_task
 
