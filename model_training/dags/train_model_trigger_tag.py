@@ -23,7 +23,7 @@ import datetime
 from model_scripts.prompts import BIAS_CRITERIA, BIAS_PROMPT_TEMPLATE, BIAS_RUBRIC, PROMPT_TEMPLATE
 from uuid import uuid4
 from model_scripts.custom_eval import CUSTOM_METRICS
-from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_profs, get_bucketed_queries, get_bq_data_for_profs, generate_eval_data
+from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
 from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate
 
 
@@ -166,47 +166,42 @@ with DAG(
 
         ## BIAS DETECTION
     get_unique_profs_task = PythonOperator(
-        task_id='get_unique_profs_task',
+        task_id="get_unique_profs_task",
         python_callable=get_unique_profs,
-        provide_context=True
-    )
-
-    get_bucketed_profs_task = PythonOperator(
-        task_id='get_bucketed_profs_task',
-        python_callable=get_bucketed_profs,
-        provide_context=True
+        provide_context=True,
     )
 
     get_bucketed_queries_task = PythonOperator(
-        task_id='get_bucketed_queries_task',
+        task_id="get_bucketed_queries_task",
         python_callable=get_bucketed_queries,
-        provide_context=True
+        provide_context=True,
     )
 
     get_bq_data_for_profs_task = PythonOperator(
-        task_id='get_bq_data_for_profs_task',
+        task_id="get_bq_data_for_profs_task",
         python_callable=get_bq_data_for_profs,
-        provide_context=True
+        provide_context=True,
     )
 
-    generate_eval_data_task = PythonOperator(
-        task_id='generate_eval_data_task',
-        python_callable=generate_eval_data,
-        provide_context=True
+    generate_responses_task = PythonOperator(
+        task_id="generate_responses_task",
+        python_callable=generate_responses,
+        provide_context=True,
     )
 
-    upload_eval_data_to_gcs_task = PythonOperator(
-        task_id='upload_eval_data_to_gcs_task',
-        python_callable=upload_eval_data_to_gcs,
-        provide_context=True
+    get_sentiment_score_task = PythonOperator(
+        task_id="get_sentiment_score_task",
+        python_callable=get_sentiment_score,
+        provide_context=True,
     )
 
-    run_bias_detection_eval_task = PythonOperator(
-        task_id='run_bias_detection_eval_task',
-        python_callable=run_bias_detection_eval,
-        provide_context=True)
+    generate_bias_report_task = PythonOperator(
+        task_id="generate_bias_report_task",
+        python_callable=generate_bias_report,
+        provide_context=True,
+    )
+
 
     
     prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> [model_evaluation_task, get_unique_profs_task]
-    get_unique_profs_task >> get_bucketed_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_eval_data_task >> upload_eval_data_to_gcs_task >> run_bias_detection_eval_task
-
+    get_unique_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_responses_task >> get_sentiment_score_task >> generate_bias_report_task
