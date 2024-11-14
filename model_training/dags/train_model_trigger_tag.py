@@ -256,6 +256,11 @@ with DAG(
         provide_context=True
     )
 
+    run_bias_detection_eval_task = PythonOperator(
+        task_id='run_bias_detection_eval_task',
+        python_callable=run_bias_detection_eval,
+        provide_context=True
+
      # Add task to trigger evaluation DAG
     # trigger_evaluation = TriggerDagRunOperator(
     #     task_id='trigger_evaluation',
@@ -267,6 +272,6 @@ with DAG(
     #     }
     # )
 
-    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> model_evaluation_task >> [sft_train_task, get_unique_profs_task]
-    get_unique_profs_task >> get_bucketed_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_eval_data_task >> upload_eval_data_to_gcs_task
+    prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> [model_evaluation_task, get_unique_profs_task]
+    get_unique_profs_task >> get_bucketed_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_eval_data_task >> upload_eval_data_to_gcs_task >> run_bias_detection_eval_task
 
