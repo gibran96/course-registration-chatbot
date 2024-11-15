@@ -101,6 +101,26 @@ This DAG is designed to automate the preparation and processing of training data
 
 These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
 
+## Model Pipeline - Key Components and Workflow
+
+1. Loading Data from the Data Pipeline
+
+2. Training and Selecting the Best Model
+
+3. Model Evaluation
+
+4. Model Bias Detection
+
+6. Model Registry & Experiment Tracking
+
+7. CI/CD for Model Training
+
+8. Notifications & Alerts
+
+9. Rollback Mechanism
+
+
+
 ## Project Directory Structure and Description
 ```
 ├── .github
