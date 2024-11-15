@@ -207,6 +207,3 @@ with DAG(
     
     prepare_training_data_task >> upload_to_gcs_task >> sft_train_task >> [model_evaluation_task, get_unique_profs_task]
     get_unique_profs_task >> get_bucketed_queries_task >> get_bq_data_for_profs_task >> generate_responses_task >> get_sentiment_score_task >> generate_bias_report_task
-
-
-# testing action again once again
