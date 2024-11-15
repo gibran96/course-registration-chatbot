@@ -248,7 +248,95 @@ The process is managed through an **Airflow DAG** that orchestrates the followin
   - Designed to handle increasing volumes of data and model complexity efficiently.
 
 
-3. Model Evaluation
+### 3. Model Evaluation
+
+#### Purpose
+The **model evaluation pipeline** ensures that the fine-tuned model is rigorously assessed for performance, relevance, and fairness. The evaluation process is automated using an Airflow DAG and integrates with Vertex AI to calculate metrics, generate predictions, and evaluate the quality of the model’s responses. Custom metrics are employed to assess the model’s relevance, coverage, and bias-neutrality.
+
+---
+
+#### Key Components
+- **Evaluation Dataset**:
+  - Test data is prepared during the data pipeline and includes:
+    - **Instructions**: Specific user queries.
+    - **Context**: Supporting information for the query.
+    - **Expected Responses**: Ideal answers for the given queries.
+
+- **Metrics**:
+  - **Standard Metrics**:
+    - ROUGE-1, ROUGE-2, ROUGE-L: Measures textual overlap between model responses and expected answers.
+    - Exact Match: Percentage of responses that match exactly with the expected answers.
+  - **Custom Metrics**:
+    - **Answer Relevance**: Evaluates how directly and appropriately the model’s response addresses the user’s question.
+    - **Answer Coverage**: Assesses the completeness and depth of the model’s response.
+
+- **Custom Metric Evaluation**:
+  - Metrics such as relevance and coverage are scored based on well-defined rubrics using pointwise evaluations.
+
+---
+
+#### Automated Workflow
+
+The model evaluation process is orchestrated through an **Airflow DAG** to ensure efficiency and consistency.
+
+1. **Wait for Training Completion**:
+   - The evaluation DAG waits for the training DAG to complete, ensuring the model is fully fine-tuned before evaluation begins.
+
+2. **Model Selection**:
+   - Retrieves the latest trained model name from the training DAG configuration, ensuring the correct version is evaluated.
+
+3. **Generate Predictions**:
+   - The evaluation DAG runs the model on the test dataset, generating predictions for each test case.
+   - Prompts are structured to include instructions and context, ensuring responses align with the intended query.
+
+4. **Calculate Metrics**:
+   - Evaluates model responses using standard metrics (e.g., ROUGE, exact match) and custom metrics (e.g., relevance and coverage).
+
+5. **Save and Store Results**:
+   - Evaluation results are saved locally and uploaded to **Google Cloud Storage (GCS)**.
+   - Results include:
+     - Metric scores.
+     - A summary of evaluation samples (e.g., instructions, expected, and predicted responses).
+
+6. **Bias Detection**:
+   - Additional bias evaluation ensures the model responses are fair and neutral. A report is generated highlighting any potential biases in the responses.
+
+---
+
+#### Key Features of Automation
+- **Dynamic Model Selection**:
+  - Automatically retrieves the latest trained model from the training pipeline for evaluation.
+
+- **Comprehensive Metrics**:
+  - Employs a combination of standard and custom metrics for a holistic evaluation of the model’s performance.
+
+- **Custom Metrics for Relevance and Coverage**:
+  - Custom rubrics and scoring templates are used to evaluate the model’s ability to address queries directly and comprehensively.
+
+- **Result Storage**:
+  - Results are saved locally for debugging and uploaded to GCS for easy access and integration with downstream processes.
+
+- **Scalability**:
+  - The evaluation pipeline is designed to handle larger datasets and models efficiently by leveraging Vertex AI and GCS.
+
+---
+
+#### Benefits
+- **Quality Assurance**:
+  - Ensures that the fine-tuned model meets performance benchmarks and adheres to fairness guidelines.
+
+- **Fairness Evaluation**:
+  - Detects and mitigates potential biases in model responses to ensure inclusivity.
+
+- **Efficiency**:
+  - Automates the entire evaluation process, reducing manual effort and errors.
+
+- **Flexibility**:
+  - Custom metrics can be adjusted or extended to match evolving project requirements.
+
+- **Scalability**:
+  - Handles growing datasets and larger models effectively by leveraging cloud-native tools.
+
 
 4. Model Bias Detection
 
