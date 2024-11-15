@@ -34,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dag_completed: ${{ steps.wait-for-dag.outputs.dag_completed }}
+      dag_skipped: ${{ steps.wait-for-dag.outputs.dag_skipped }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -49,6 +50,7 @@ jobs:
         if: steps.changed-files-specific.outputs.any_changed != 'true'
         run: |
             echo "No changes in data_pipeline detected. Skipping DAG trigger."
+            echo "dag_skipped=true" >> $GITHUB_OUTPUT
             exit 0
       - name: testing triggers
         id: wait-for-dag
@@ -106,17 +108,25 @@ jobs:
   trigger-trace-dag:
     runs-on: ubuntu-latest
     needs: trigger-banner-dag
-    if: ${{ needs.trigger-banner-dag.outputs.dag_completed == 'true' }}
+    if: ${{ needs.trigger-banner-dag.outputs.dag_completed == 'true' }} || ${{ needs.trigger-banner-dag.outputs.dag_skipped == 'true' }}
     outputs:
       dag_completed: ${{ steps.wait-for-dag.outputs.dag_completed }}
+      dag_skipped: ${{ steps.check-skip-condition.outputs.dag_skipped }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Check if files have been changed in model_training
+      - name: Check skip condition
+        id: check-skip-condition
+        if: ${{ needs.trigger-banner-dag.outputs.dag_skipped == 'true' }}
+        run: |
+            echo "No changes in data_pipeline detected. Skipping DAG trigger."
+            echo "dag_skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+      - name: dummy
         id: wait-for-dag
         run: |
-          echo "dag_completed=true" >> $GITHUB_OUTPUT
+          echo "dag_completed=false" >> $GITHUB_OUTPUT
 
       # - name: Setup Auth
       #   uses: google-github-actions/auth@v1
@@ -171,17 +181,26 @@ jobs:
   trigger-train-data-dag:
     runs-on: ubuntu-latest
     needs: trigger-trace-dag
-    if: ${{ needs.trigger-trace-dag.outputs.dag_completed == 'true' }}
+    if: ${{ needs.trigger-trace-dag.outputs.dag_completed == 'true' }} || ${{ needs.trigger-trace-dag.outputs.dag_skipped == 'true' }}
     outputs:
       dag_completed: ${{ steps.wait-for-dag.outputs.dag_completed }}
+      dag_skipped: ${{ steps.check-skip-condition.outputs.dag_skipped }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Check if files have been changed in model_training
+      - name: Check skip condition
+        id: check-skip-condition
+        if: ${{ needs.trigger-trace-dag.outputs.dag_skipped == 'true' }}
+        run: |
+            echo "No changes in data_pipeline detected. Skipping DAG trigger."
+            echo "dag_skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+
+      - name: dummy
         id: wait-for-dag
         run: |
-          echo "dag_completed=true" >> $GITHUB_OUTPUT
+          echo "dag_completed=false" >> $GITHUB_OUTPUT
 
       # - name: Setup Auth
       #   uses: google-github-actions/auth@v1
