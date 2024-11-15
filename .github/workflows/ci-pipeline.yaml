@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        
+
       - name: Check if files have been changed in data_pipeline
         id: changed-files-specific
         uses: tj-actions/changed-files@v45
@@ -55,49 +55,46 @@ jobs:
             echo "No changes in data_pipeline detected. Skipping DAG trigger."
             exit 0
 
-      # - name: Checkout code
-      #   uses: actions/checkout@v3
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
 
-      # - name: Setup Auth
-      #   uses: google-github-actions/auth@v1
-      #   with:
-      #     credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      #     project_id: coursecompass
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- banner_dag_pipeline
+            echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
 
-      # - name: Trigger DAG
-      #   run: |
-      #     gcloud composer environments run data-pipeline-v3 \
-      #       --location us-east1 \
-      #       dags trigger -- banner_dag_pipeline
-      #       echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
+      - name: Wait for DAG Completion
+        run: |
+          ATTEMPTS=0
+          MAX_ATTEMPTS=20
+          SLEEP_TIME=60  # 60 seconds between checks
 
-      # - name: Wait for DAG Completion
-      #   run: |
-      #     ATTEMPTS=0
-      #     MAX_ATTEMPTS=20
-      #     SLEEP_TIME=60  # 60 seconds between checks
+          while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
+            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+              --location us-east1 \
+              dags list-runs --filter="dag_id=banner_dag_pipeline" \
+              --format="value(state)" | head -n 1)
 
-      #     while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-      #       STATUS=$(gcloud composer environments run data-pipeline-v3 \
-      #         --location us-east1 \
-      #         dags list-runs --filter="dag_id=banner_dag_pipeline" \
-      #         --format="value(state)" | head -n 1)
+            if [[ "$STATUS" == "success" ]]; then
+              echo "DAG completed successfully."
+              exit 0
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "DAG failed."
+              exit 1
+            else
+              echo "DAG still running... Checking again in $SLEEP_TIME seconds."
+              ((ATTEMPTS++))
+              sleep $SLEEP_TIME
+            fi
+          done
 
-      #       if [[ "$STATUS" == "success" ]]; then
-      #         echo "DAG completed successfully."
-      #         exit 0
-      #       elif [[ "$STATUS" == "failed" ]]; then
-      #         echo "DAG failed."
-      #         exit 1
-      #       else
-      #         echo "DAG still running... Checking again in $SLEEP_TIME seconds."
-      #         ((ATTEMPTS++))
-      #         sleep $SLEEP_TIME
-      #       fi
-      #     done
-
-      #     echo "DAG did not complete within the expected time."
-      #     exit 1
+          echo "DAG did not complete within the expected time."
+          exit 1
 
   trigger-trace-dag:
     runs-on: ubuntu-latest
@@ -116,39 +113,147 @@ jobs:
         run: |
           echo "DAG triggered. Monitoring for completion..."
 
-      # - name: Trigger PDF Processing DAG
-      #   id: trigger_dag
-      #   run: |
-      #     gcloud composer environments run data-pipeline-v3 \
-      #       --location us-east1 \
-      #       dags trigger -- pdf_processing_pipeline
-      #     echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
+      - name: Trigger PDF Processing DAG
+        id: trigger_dag
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- pdf_processing_pipeline
+          echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
 
-      # - name: Wait for PDF Processing DAG Completion
-      #   id: wait_for_dag
-      #   run: |
-      #     ATTEMPTS=0
-      #     MAX_ATTEMPTS=20
-      #     SLEEP_TIME=60  # 60 seconds between checks
+      - name: Wait for PDF Processing DAG Completion
+        id: wait_for_dag
+        run: |
+          ATTEMPTS=0
+          MAX_ATTEMPTS=20
+          SLEEP_TIME=60  # 60 seconds between checks
 
-      #     while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-      #       STATUS=$(gcloud composer environments run data-pipeline-v3 \
-      #         --location us-east1 \
-      #         dags list-runs --filter="dag_id=pdf_processing_pipeline" \
-      #         --format="value(state)" | head -n 1)
+          while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
+            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+              --location us-east1 \
+              dags list-runs --filter="dag_id=pdf_processing_pipeline" \
+              --format="value(state)" | head -n 1)
 
-      #       if [[ "$STATUS" == "success" ]]; then
-      #         echo "DAG completed successfully."
-      #         exit 0
-      #       elif [[ "$STATUS" == "failed" ]]; then
-      #         echo "DAG failed."
-      #         exit 1
-      #       else
-      #         echo "DAG still running... Checking again in $SLEEP_TIME seconds."
-      #         ((ATTEMPTS++))
-      #         sleep $SLEEP_TIME
-      #       fi
-      #     done
+            if [[ "$STATUS" == "success" ]]; then
+              echo "DAG completed successfully."
+              exit 0
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "DAG failed."
+              exit 1
+            else
+              echo "DAG still running... Checking again in $SLEEP_TIME seconds."
+              ((ATTEMPTS++))
+              sleep $SLEEP_TIME
+            fi
+          done
 
-      #     echo "DAG did not complete within the expected time."
-      #     exit 1
+          echo "DAG did not complete within the expected time."
+          exit 1
+
+  trigger-train-data-dag:
+    runs-on: ubuntu-latest
+    needs: trigger-trace-dag
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
+
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- train_data_dag
+            echo "DAG triggered. Monitoring for completion..."
+
+      - name: Wait for DAG Completion
+        run: |
+          ATTEMPTS=0
+          MAX_ATTEMPTS=20
+          SLEEP_TIME=60  # 60 seconds between checks
+
+          while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
+            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+              --location us-east1 \
+              dags list-runs --filter="dag_id=train_data_dag" \
+              --format="value(state)" | head -n 1)
+
+            if [[ "$STATUS" == "success" ]]; then
+              echo "DAG completed successfully."
+              exit 0
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "DAG failed."
+              exit 1
+            else
+              echo "DAG still running... Checking again in $SLEEP_TIME seconds."
+              ((ATTEMPTS++))
+              sleep $SLEEP_TIME
+            fi
+          done
+
+          echo "DAG did not complete within the expected time."
+          exit 1
+  
+  trigger-model-training-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check if files have been changed in model_trainin
+        id: changed-files-specific
+        uses: tj-actions/changed-files@v45
+        with:
+          files: modeel_training/**
+          files_ignore: model_training/dags/tests/**
+
+      - name: Skip DAG Trigger
+        if: steps.changed-files-specific.outputs.any_changed != 'true'
+        run: |
+            echo "No changes in model_training detected. Skipping DAG trigger."
+            exit 0
+
+      - name: Setup Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: coursecompass
+
+      - name: Trigger DAG
+        run: |
+          gcloud composer environments run data-pipeline-v3 \
+            --location us-east1 \
+            dags trigger -- train_model_trigger_dag
+            echo "Changes in model_training detected. DAG triggered. Monitoring for completion..."
+
+      - name: Wait for DAG Completion
+        run: |
+          ATTEMPTS=0
+          MAX_ATTEMPTS=40
+          SLEEP_TIME=60  # 60 seconds between checks
+
+          while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
+            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+              --location us-east1 \
+              dags list-runs --filter="dag_id=train_model_trigger_dag" \
+              --format="value(state)" | head -n 1)
+
+            if [[ "$STATUS" == "success" ]]; then
+              echo "DAG completed successfully."
+              exit 0
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "DAG failed."
+              exit 1
+            else
+              echo "DAG still running... Checking again in $SLEEP_TIME seconds."
+              ((ATTEMPTS++))
+              sleep $SLEEP_TIME
+            fi
+          done
+
+          echo "DAG did not complete within the expected time."
+          exit 1
