@@ -164,13 +164,89 @@ The DAG is configured to monitor BigQuery for new data. Whenever a new batch of 
 1. **Prepare the new dataset**.
 2. **Automatically update the model training pipeline**.
 
-##### Execution Flow
 
-```plaintext
-prepare_training_data_task → upload_to_gcs_task
+### 2. Training and Selecting the Best Model
 
+#### Purpose
+The **model training pipeline** automates the fine-tuning process for a pre-trained model using the latest data from the pipeline. By integrating with **Vertex AI** and Airflow, the process ensures that the model is always updated and optimized for the best performance.
 
-2. Training and Selecting the Best Model
+---
+
+#### Key Components
+- **Model Training**:
+  - Utilizes **Supervised Fine-Tuning (SFT)** in Vertex AI to train the base model (`gemini-1.5-flash-002`) on the prepared dataset.
+  - Training data is sourced from **Google Cloud Storage (GCS)** and formatted in JSONL for compatibility.
+
+- **Custom Metrics**:
+  - Evaluates the trained model with a combination of standard and custom metrics:
+    - Standard metrics: Groundedness, Verbosity, Instruction Following, Safety.
+    - Text similarity metrics: BLEU, ROUGE.
+    - Custom metric: Bias detection to ensure model fairness and neutrality.
+
+- **Evaluation Dataset**:
+  - The test dataset is prepared from the pipeline and used to validate the performance of the fine-tuned model.
+
+---
+
+#### Automated Workflow
+
+The process is managed through an **Airflow DAG** that orchestrates the following steps:
+
+1. **Training Data Preparation**:
+   - Prepares the training dataset, cleans and formats it, and uploads it to GCS.
+   - Ensures data is structured for fine-tuning and evaluation.
+
+2. **Model Fine-Tuning**:
+   - Triggers the fine-tuning process on the pre-trained model in Vertex AI.
+   - Trained model is saved as a versioned endpoint for easy comparison and rollback.
+
+3. **Model Evaluation**:
+   - Evaluates the trained model using the prepared test dataset.
+   - Metrics like BLEU, ROUGE, groundedness, and instruction following are calculated to ensure model quality.
+
+4. **Bias Detection**:
+   - Runs a dedicated pipeline to assess the model for potential gender bias.
+   - Generates a bias report to highlight inclusivity and neutrality metrics.
+
+5. **Notifications and Alerts**:
+   - Sends notifications on task completion, failures, or any anomalies during training or evaluation.
+
+---
+
+#### Key Features of Automation
+- **Dynamic Triggering**:
+  - Automatically initiates training when new data is added to the pipeline, ensuring the model remains up to date.
+
+- **Comprehensive Evaluation**:
+  - Incorporates both standard and custom metrics to assess the model’s performance and fairness.
+
+- **Bias Detection Pipeline**:
+  - Evaluates the model's responses for gender bias and generates detailed reports.
+
+- **Version Control**:
+  - Trained models are versioned in Vertex AI, allowing for easy rollback to previous versions if needed.
+
+- **End-to-End Orchestration**:
+  - Automates the entire workflow from data preparation to training and evaluation, reducing manual intervention.
+
+- **Cloud-Native Scalability**:
+  - Integrates seamlessly with Google Cloud resources for handling large-scale datasets and training tasks.
+
+---
+
+#### Benefits
+- **Consistent Performance**:
+  - Regularly fine-tunes the model with updated data, ensuring high accuracy and relevance.
+
+- **Fairness and Inclusivity**:
+  - Custom bias detection metrics ensure that the model’s responses are unbiased and inclusive.
+
+- **Efficiency**:
+  - Automates repetitive tasks, allowing team members to focus on higher-priority activities.
+
+- **Scalability**:
+  - Designed to handle increasing volumes of data and model complexity efficiently.
+
 
 3. Model Evaluation
 
