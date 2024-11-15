@@ -171,3 +171,4 @@ data_pipeline/dags/scripts/test2.py
 .vscode/
 
 test.py
+.github/workflows/test.yaml
