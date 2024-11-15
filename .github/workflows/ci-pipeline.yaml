@@ -53,7 +53,7 @@ jobs:
       - name: testing triggers
         id: wait-for-dag
         run: |
-          echo "dag_completed=true" >> $GITHUB_OUTPUT
+          echo "dag_completed=false" >> $GITHUB_OUTPUT
 
       # - name: Setup Auth
       #   if: steps.changed-files-specific.outputs.any_changed == 'true'
