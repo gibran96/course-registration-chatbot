@@ -2,6 +2,7 @@ pymupdf
 apache-airflow
 google-cloud-storage==2.18.2
 google-cloud-bigquery==3.26.0
+google-api-core==2.20.0
 pytest
 beautifulsoup4==4.12.3
 pandas
