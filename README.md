@@ -103,7 +103,72 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 
 ## Model Pipeline - Key Components and Workflow
 
-1. Loading Data from the Data Pipeline
+### 1. Loading Data from the Data Pipeline
+
+The **data pipeline** is designed to automate the extraction, cleaning, and preparation of training data using Apache Airflow. This pipeline is tightly integrated with **Google BigQuery** and **Google Cloud Storage (GCS)** to ensure seamless and scalable data handling.
+
+#### Key Features
+
+- **End-to-End Automation**:
+  - The process is fully automated, triggered whenever new data is added to BigQuery.
+  - The Airflow DAG ensures the model training pipeline remains up-to-date without manual intervention.
+
+- **Real-Time Updates**:
+  - By monitoring new data in BigQuery, the pipeline dynamically processes and prepares fresh datasets for training.
+  - This ensures the model is always trained on the latest information, keeping it relevant and accurate.
+
+- **Cloud-Native Integration**:
+  - Leverages Google BigQuery for scalable data storage and querying.
+  - Utilizes Google Cloud Storage (GCS) for storing intermediate and final processed files.
+
+---
+
+#### Workflow Overview
+
+1. **Data Retrieval**:
+   - The Airflow DAG connects to **BigQuery** and queries the latest data using a SQL query.
+   - Retrieves key fields: `query`, `context`, and `response` for training purposes.
+
+2. **Data Cleaning and Transformation**:
+   - Removes null values and ensures the dataset is ready for downstream processing.
+   - Splits the data into **training** (80%) and **testing** (20%) subsets.
+
+3. **Data Formatting**:
+   - Prepares training data in JSONL format, including system instructions, user queries, and model responses.
+   - Formats evaluation data with fields for `context`, `instruction`, and `reference response`.
+
+4. **Storage and Accessibility**:
+   - Saves processed files locally and uploads them to **Google Cloud Storage** (GCS) for accessibility in model training and evaluation pipelines.
+
+---
+
+#### Airflow DAG Details
+
+The data preparation process is orchestrated using an **Airflow DAG** that automates the following steps:
+
+##### DAG Structure and Tasks
+
+- **`prepare_training_data_task`**:
+  - Runs the Python function `prepare_training_data` to:
+    - Retrieve data from BigQuery.
+    - Clean and transform the data into training and evaluation-ready formats.
+    - Generate JSONL files (`finetuning_data.jsonl` and `test_data.jsonl`).
+
+- **`upload_to_gcs_task`**:
+  - Uploads the generated JSONL files to GCS, making them available for model training and evaluation.
+
+##### Triggering the DAG Automatically
+
+The DAG is configured to monitor BigQuery for new data. Whenever a new batch of data is added, the DAG is triggered to:
+
+1. **Prepare the new dataset**.
+2. **Automatically update the model training pipeline**.
+
+##### Execution Flow
+
+```plaintext
+prepare_training_data_task → upload_to_gcs_task
+
 
 2. Training and Selecting the Best Model
 
