@@ -33,6 +33,9 @@ jobs:
   trigger-banner-dag:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
       - name: Check if files have been changed in data_pipeline
         id: changed-files-specific
         uses: tj-actions/changed-files@v45
