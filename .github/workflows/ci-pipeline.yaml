@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dag_completed: ${{ steps.wait-for-dag.outputs.dag_completed }}
-      dag_skipped: ${{ steps.wait-for-dag.outputs.dag_skipped }}
+      dag_skipped: ${{ steps.check-skip-condition.outputs.dag_skipped }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -47,6 +47,7 @@ jobs:
           files_ignore: data_pipeline/dags/tests/**
 
       - name: Skip DAG Trigger
+        id: check-skip-condition
         if: steps.changed-files-specific.outputs.any_changed != 'true'
         run: |
             echo "No changes in data_pipeline detected. Skipping DAG trigger."
