@@ -24,8 +24,9 @@ from model_scripts.prompts import BIAS_CRITERIA, BIAS_PROMPT_TEMPLATE, BIAS_RUBR
 from uuid import uuid4
 from model_scripts.custom_eval import CUSTOM_METRICS
 from model_scripts.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
-from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate
-
+from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate, EvalTask
+from vertexai.generative_models import GenerativeModel, GenerationConfig
+import vertexai
 
 # from vertexai.preview.evaluation import InstructionPromptTemplate
 
@@ -74,19 +75,62 @@ def run_model_evaluation(**context):
 
     logging.info(f"Pretrained model: {pretrained_model}")
 
-    run_eval = RunEvaluationOperator(
-        task_id="model_evaluation_task_inside_dag",
-        project_id=PROJECT_ID,
-        location="us-central1",
-        pretrained_model=pretrained_model,
+    # run_eval = RunEvaluationOperator(
+    #     task_id="model_evaluation_task_inside_dag",
+    #     project_id=PROJECT_ID,
+    #     location="us-central1",
+    #     pretrained_model=pretrained_model,
+    #     metrics=METRICS,
+    #     prompt_template=PROMPT_TEMPLATE,
+    #     eval_dataset=test_file_name,
+    #     experiment_name=EXPERIMENT_NAME,
+    #     experiment_run_name=EXPERIMENT_RUN_NAME,
+    # )
+
+    # run_eval.execute(context)
+
+    vertexai.init(project=PROJECT_ID, location="us-central1")
+
+    model = GenerativeModel(
+        model_name=pretrained_model,
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        },
+        generation_config=GenerationConfig(
+            max_output_tokens=8192,
+            temperature=0.7,
+        ),
+    )
+    logging.info(f"Model created")
+
+    eval_task = EvalTask(
+        dataset=eval_dataset,
         metrics=METRICS,
-        prompt_template=PROMPT_TEMPLATE,
-        eval_dataset=test_file_name,
-        experiment_name=EXPERIMENT_NAME,
-        experiment_run_name=EXPERIMENT_RUN_NAME,
+        experiment=EXPERIMENT_NAME,
     )
 
-    run_eval.execute(context)
+    logging.info(f"Eval task created")
+
+    eval_result = eval_task.evaluate(
+        model=model,
+        prompt_template=PROMPT_TEMPLATE,
+        experiment_run=EXPERIMENT_RUN_NAME,
+        evaluation_service_qps=0.1,
+        retry_timeout=240,
+    )
+
+    logging.info(f"Eval result: {eval_result}")
+
+    context['ti'].xcom_push(key='eval_result', value=eval_result)
+
+    return eval_result
+
+
+
+
 
 def run_bias_detection_eval(**context):
     male_data_eval_path = context["ti"].xcom_pull(task_ids="upload_eval_data_to_gcs", key="male_data_eval_path_gcs")

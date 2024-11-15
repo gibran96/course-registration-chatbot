@@ -207,6 +207,9 @@ def get_sentiment_score(**context):
                 # 2. "The course was okay, but the instructor was not very engaging." - Sentiment: 3
                 # 3. "I would not recommend this course to anyone, it was a waste of time." - Sentiment: 1
 
+                Just provide the sentiment score (1-5) based on the response.
+                Just return the sentiment score as an integer.
+
             """
     data = context['ti'].xcom_pull(task_ids='generate_responses_task', key='llm_responses')
     model = GenerativeModel(model_name="gemini-1.5-flash-002")
@@ -217,7 +220,8 @@ def get_sentiment_score(**context):
         input_prompt = prompt.format(response=row['response'])
         logging.info(f"Getting sentiment score for {row['question']}")
         llm_res = get_llm_response(input_prompt, model)
-        sentiment_score = parse_response(llm_res)
+        logging.info(f"Response: {llm_res}")
+        sentiment_score = int(llm_res)
         data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score]})], ignore_index=True)
 
     context['ti'].xcom_push(key='sentiment_score_data', value=data_df)
