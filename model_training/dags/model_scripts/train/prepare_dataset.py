@@ -1,4 +1,4 @@
-from model_scripts.prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
+from model_training.dags.model_scripts.constants.prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
 from model_scripts.config import PROJECT_ID, DATASET_ID, TABLE_ID
 from google.cloud import bigquery
 import pandas as pd
@@ -12,18 +12,45 @@ from airflow.models import Variable
 logging.basicConfig(level=logging.INFO)
 
 def init_bq_client(location, project):
+    """
+    Initializes a BigQuery client.
+
+    Args:
+        location (str): The location of the BigQuery dataset.
+        project (str): The project ID of the BigQuery dataset.
+
+    Returns:
+        bigquery.Client: The BigQuery client object.
+    """
     client = bigquery.Client(location=location, project=project)
     logging.info(f"Initialized BigQuery client with location: {location}, project: {project}")
     return client
 
 
 def get_training_data(bigquery_client):
+    """
+    Retrieves data from BigQuery to train the LLM model.
 
+    Args:
+        bigquery_client (bigquery.Client): The BigQuery client object.
+
+    Returns:
+        bigquery.QueryJob: The BigQuery query job object.
+    """
     query_job = bigquery_client.query(f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}` LIMIT {Variable.get('TRAINING_DATA_LIMIT', 50)}")
     logging.info(f"Selecting data from {PROJECT_ID}.{DATASET_ID}.{TABLE_ID}")
     return query_job
 
 def extract_training_data(query_job):
+    """
+    Extracts the training data from the query job object.
+
+    Args:
+        query_job (bigquery.QueryJob): The BigQuery query job object.
+
+    Returns:
+        dict: The extracted data in the format of a dictionary with keys 'query', 'context', and 'response'.
+    """
     data = {
         'query': [],
         'context': [],
@@ -39,6 +66,15 @@ def extract_training_data(query_job):
     return data
 
 def clean_and_filter_Data(data):
+    """
+    Cleans and filters the data from the query results.
+
+    Args:
+        data (dict): The extracted data in the format of a dictionary with keys 'query', 'context', and 'response'.
+
+    Returns:
+        tuple: A tuple of two pandas DataFrames, the first one representing the training set and the second one representing the test set.
+    """
     df = pd.DataFrame(data)
     df = df.dropna()
     train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
@@ -47,6 +83,15 @@ def clean_and_filter_Data(data):
 
 
 def format_data(df):
+    """
+    Formats the training data into the jsonl format expected by the Vertex AI SDK.
+
+    Args:
+        df (pd.DataFrame): The training data in the format of a pandas DataFrame with columns 'query', 'context', and 'response'.
+
+    Returns:
+        str: The formatted data as a string in the jsonl format.
+    """
     jsonl_data = []
     for _, row in df.iterrows():
         json_item = {
@@ -81,6 +126,16 @@ def format_data(df):
     return "\n".join(jsonl_data)
 
 def format_eval_data(df):
+    """
+    Formats evaluation data from a DataFrame into a JSONL string.
+
+    Args:
+        df (pd.DataFrame): The evaluation data containing columns 'context', 'query', and 'response'.
+
+    Returns:
+        str: The formatted data as a JSONL string, where each line is a JSON object with
+             'context', 'instruction', and 'reference' keys corresponding to the DataFrame columns.
+    """
     json_data = []
 
     for _, row in df.iterrows():
@@ -94,6 +149,16 @@ def format_eval_data(df):
     return "\n".join(json_data)
 
 def prepare_training_data(**context):
+    """
+    Prepares training data by fetching it from BigQuery, extracting relevant columns,
+    filtering out bad data, formatting it into a JSONL string, and saving it to a file.
+
+    Args:
+        **context: The Airflow context dictionary containing task instance (ti) and other metadata.
+
+    Returns:
+        None
+    """
     bigquery_client = init_bq_client('us-east1', PROJECT_ID)
 
     data = get_training_data(bigquery_client)
