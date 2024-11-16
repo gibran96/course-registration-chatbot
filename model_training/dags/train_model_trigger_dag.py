@@ -27,6 +27,7 @@ from model_scripts.create_bias_detection_data import get_unique_profs, get_bucke
 from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate, EvalTask
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 import vertexai
+import time
 
 # from vertexai.preview.evaluation import InstructionPromptTemplate
 
@@ -52,17 +53,17 @@ custom_bias_check = PointwiseMetric(
 )
 
 METRICS = [
-    MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
-    MetricPromptTemplateExamples.Pointwise.VERBOSITY,
-    MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
-    MetricPromptTemplateExamples.Pointwise.SAFETY,
+    # MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
+    # MetricPromptTemplateExamples.Pointwise.VERBOSITY,
+    # MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
+    # MetricPromptTemplateExamples.Pointwise.SAFETY,
     "bleu",
     "rouge_l_sum",
-    custom_bias_check
+    # custom_bias_check
 ]
 
-for new_metric in CUSTOM_METRICS:
-    METRICS.append(new_metric)
+# for new_metric in CUSTOM_METRICS:
+#     METRICS.append(new_metric)
 
 EXPERIMENT_NAME = "eval-name" + str(uuid4().hex)[:3]
 EXPERIMENT_RUN_NAME = "eval-run" + str(uuid4().hex)[:3]
@@ -74,20 +75,6 @@ def run_model_evaluation(**context):
     logging.info(f"Test file name: {test_file_name}")
 
     logging.info(f"Pretrained model: {pretrained_model}")
-
-    # run_eval = RunEvaluationOperator(
-    #     task_id="model_evaluation_task_inside_dag",
-    #     project_id=PROJECT_ID,
-    #     location="us-central1",
-    #     pretrained_model=pretrained_model,
-    #     metrics=METRICS,
-    #     prompt_template=PROMPT_TEMPLATE,
-    #     eval_dataset=test_file_name,
-    #     experiment_name=EXPERIMENT_NAME,
-    #     experiment_run_name=EXPERIMENT_RUN_NAME,
-    # )
-
-    # run_eval.execute(context)
 
     vertexai.init(project=PROJECT_ID, location="us-central1")
 
@@ -105,28 +92,59 @@ def run_model_evaluation(**context):
         ),
     )
     logging.info(f"Model created")
+    eval_results = []
+
+    # for metric in METRICS:
+    #     logging.info(f"Running eval for metric: {metric}")
+
+    #     eval_task = EvalTask(
+    #         dataset=test_file_name,
+    #         metrics=[metric],
+    #         experiment=EXPERIMENT_NAME,
+    #     )
+
+    #     eval_result = eval_task.evaluate(
+    #         model=model,
+    #         prompt_template=PROMPT_TEMPLATE,
+    #         experiment_run_name=EXPERIMENT_RUN_NAME+"-"+str(METRICS.index(metric)),
+    #         evaluation_service_qps=0.2,
+    #         retry_timeout=1,
+    #     )
+
+    #     eval_results.append(eval_result)
+
+    #     # Sleep for 5 seconds
+    #     logging.info(f"Sleeping for 5 seconds")
+
+    #     time.sleep(5)
+
+    #     logging.info(f"Finished eval for metric: {metric}")
 
     eval_task = EvalTask(
-        dataset=eval_dataset,
+        dataset=test_file_name,
         metrics=METRICS,
         experiment=EXPERIMENT_NAME,
     )
 
-    logging.info(f"Eval task created")
-
-    eval_result = eval_task.evaluate(
+    eval_results = eval_task.evaluate(
         model=model,
         prompt_template=PROMPT_TEMPLATE,
-        experiment_run=EXPERIMENT_RUN_NAME,
-        evaluation_service_qps=0.1,
-        retry_timeout=240,
+        experiment_run_name=EXPERIMENT_RUN_NAME,
+        evaluation_service_qps=0.2,
+        retry_timeout=1,
     )
 
-    logging.info(f"Eval result: {eval_result}")
 
-    context['ti'].xcom_push(key='eval_result', value=eval_result)
 
-    return eval_result
+
+
+
+
+    # logging.info(f"Eval result: {eval_results}")
+
+    context['ti'].xcom_push(key='eval_result', value=eval_results)
+
+    return eval_results
 
 
 
