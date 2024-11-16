@@ -13,6 +13,7 @@ from airflow.models import Variable
 import datetime
 from model_training.dags.model_scripts.bias.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
 from model_training.dags.model_scripts.utils.data_utils import upload_to_gcs
+from airflow.operators.email import EmailOperator
 
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "coursecompass")
@@ -27,6 +28,7 @@ with DAG(
     start_date=datetime.datetime(2023, 1, 1),
     catchup=False,
     tags=["vertex-ai"],
+    email_on_failure=True
 ) as dag:
     
     prepare_training_data_task = PythonOperator(
@@ -94,6 +96,21 @@ with DAG(
         python_callable=generate_bias_report,
         provide_context=True,
     )
+    
+    success_email_task = EmailOperator(
+        task_id='success_email',
+        to='mlopsggmu@gmail.com',
+        subject='DAG train_eval_model_pipeline Succeeded',
+        html_content="""<p>Dear User,</p>
+                        <p>The DAG <strong>{{ dag.dag_id }}</strong> was copleted successfully on {{ ds }}.</p>
+                        <p><strong>Execution Date:</strong> {{ execution_date }}</p>
+                        <p>Please check the <a href="{{ task_instance.log_url }}">task logs</a> for more details.</p>
+                        <br/><br/>
+                        <p>Best regards,</p>
+                        <p>Airflow Notifications</p>""",
+        trigger_rule='all_success',
+        dag=dag,
+    )
 
 
     
@@ -108,4 +125,5 @@ with DAG(
         >> generate_responses_task
         >> get_sentiment_score_task 
         >> generate_bias_report_task
+        >> success_email_task
     )
