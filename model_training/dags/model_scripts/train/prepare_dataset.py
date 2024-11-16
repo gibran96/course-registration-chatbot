@@ -140,7 +140,7 @@ def format_eval_data(df):
 
     for _, row in df.iterrows():
         json_item = {
-            "context": row['context'],
+            "context": row['context'] if len(row['context']) < 100000 else row['context'][:100000],
             "instruction": row['query'],
             "reference": row['response']
         }
