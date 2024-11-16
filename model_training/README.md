@@ -129,16 +129,29 @@
 
 ### 5. Model Registry & Experiment Tracking
 
-**Platform**: Vertex AI.
+#### **Overview**
+The Model Registry & Experiment Tracking ensures version control, traceability, and streamlined deployment of models. Using **Vertex AI**, the registry logs all artifacts and metadata.
 
-**Key Features**:
-- **Model Registry**:
-  - Stores models with metadata (training data, hyperparameters, metrics).
-  - Supports version control and rollback.
-- **Experiment Tracking**:
-  - Logs hyperparameters, evaluation metrics, and artifacts.
-  - Provides comparisons between experiments to identify the best-performing model.
+#### **Key Features**
 
+##### **Version Control**
+- Every trained model is saved as a versioned endpoint in Vertex AI.
+- Includes:
+  - **Metadata:** Hyperparameters, dataset details, etc.
+  - **Performance metrics.**
+
+##### **Experiment Tracking**
+- Automatically logs:
+  - **Training parameters:** Learning rate, optimizer, epochs, etc.
+  - **Metrics:** BLEU, ROUGE, bias scores.
+  - **Artifacts:** Training and test datasets, evaluation reports.
+
+##### **Reproducibility**
+- Stores artifacts for future retraining or debugging.
+- Supports hyperparameter optimization and comparison.
+
+##### **Deployment Integration**
+- Models are directly deployable from the registry to Vertex AI endpoints.
 
 ### 6. CI/CD for Model Training
 
