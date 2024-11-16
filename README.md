@@ -410,8 +410,88 @@ While MLflow is a popular tool for model registry and experiment tracking, Verte
 By choosing Vertex AI, we ensure that our workflows are efficient, scalable, and maintainable with minimal additional tooling or configuration.
 
 
+## 7. CI/CD for Model Training
 
-8. Notifications & Alerts
+### Purpose
+The **CI/CD pipeline for model training** ensures that the process of data preparation, model training, evaluation, and deployment is automated, reliable, and repeatable. By leveraging Airflow and Google Cloud services, the pipeline integrates Continuous Integration (CI) and Continuous Deployment (CD) practices into the machine learning workflow.
+
+---
+
+### Key Components
+- **Data Preparation Automation**:
+  - The Airflow DAG for data preparation dynamically triggers whenever new data is added to **Google BigQuery**.
+  - JSONL-formatted training and evaluation datasets are automatically generated and stored in **Google Cloud Storage (GCS)**.
+
+- **Model Training Pipeline**:
+  - The training DAG uses **Vertex AI Supervised Fine-Tuning (SFT)** to train a pre-trained model with the latest data.
+  - The fine-tuned model is versioned and saved as a deployable endpoint, ensuring easy rollback or comparison.
+
+- **Model Evaluation Pipeline**:
+  - A dedicated evaluation DAG is triggered after the training DAG completes.
+  - The evaluation process calculates performance metrics (e.g., ROUGE, exact match) and custom metrics (e.g., relevance, coverage) to validate the model’s quality.
+
+- **Bias Detection**:
+  - The pipeline includes custom bias detection tasks that ensure the model's responses are fair and inclusive.
+
+- **Artifact Management**:
+  - All artifacts, including training data, evaluation metrics, and fine-tuned models, are stored in **GCS** for traceability and version control.
+
+---
+
+### Automation Workflow
+1. **Triggering New Model Training**:
+   - The data preparation pipeline dynamically monitors updates in **BigQuery**.
+   - When new data is detected, the training pipeline is triggered to ensure the model is retrained with the latest dataset.
+
+2. **End-to-End Integration**:
+   - The Airflow DAG orchestrates the entire process:
+     - Data preparation → Model training → Model evaluation.
+   - Dependencies between tasks ensure that each step is executed in sequence and only upon successful completion of the previous step.
+
+3. **Result Validation**:
+   - Evaluation results are saved locally and uploaded to **GCS**.
+   - Metrics are reviewed to validate the model’s quality before deployment.
+
+4. **Error Handling and Alerts**:
+   - Automated notifications alert stakeholders in case of task failures or anomalies in the pipeline.
+   - Logs are maintained for debugging and audit purposes.
+
+---
+
+### Key Features
+- **Dynamic Triggering**:
+  - New data automatically triggers the entire pipeline, ensuring the model stays up to date.
+
+- **Versioning and Traceability**:
+  - Trained models are versioned, and their metrics are stored, enabling comparisons across iterations.
+
+- **Bias and Fairness Assurance**:
+  - Custom evaluation tasks ensure that models adhere to fairness and inclusivity standards.
+
+- **Scalability**:
+  - The pipeline is designed to handle increasing volumes of data and complexity, leveraging cloud-native tools like Vertex AI and GCS.
+
+- **Continuous Feedback Loop**:
+  - The automated evaluation provides feedback for model improvement and fine-tuning, streamlining future iterations.
+
+---
+
+### Benefits
+- **Consistency**:
+  - Ensures a standardized approach to training and deploying models.
+
+- **Efficiency**:
+  - Automates repetitive tasks, reducing manual intervention and increasing reliability.
+
+- **Scalability**:
+  - Handles growing datasets and evolving project requirements with ease.
+
+- **Transparency**:
+  - Logs and stored artifacts provide full visibility into the model training and evaluation lifecycle.
+
+- **Fairness and Inclusivity**:
+  - Built-in bias detection ensures that deployed models are ethical and unbiased.
+
 
 9. Rollback Mechanism
 
