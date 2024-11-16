@@ -493,6 +493,77 @@ The **CI/CD pipeline for model training** ensures that the process of data prepa
   - Built-in bias detection ensures that deployed models are ethical and unbiased.
 
 
+## 8. Notifications & Alerts
+
+### Purpose
+The **notifications and alerts system** ensures that administrators are informed about the progress, completion, or failure of tasks in the model pipeline. This helps in monitoring workflows and addressing any issues promptly to maintain operational efficiency.
+
+---
+
+### Implementation
+We use **Airflow DAGs** to trigger email notifications at critical points in the workflow. These notifications ensure that administrators are kept up-to-date about the status of the pipeline.
+
+---
+
+### Key Features
+1. **Task-Specific Alerts**:
+   - Notifications are sent for key events such as:
+     - **Successful Task Completion**: Informs the team about the successful execution of key tasks like data preparation, model training, and evaluation.
+     - **Task Failures**: Alerts the admins immediately if a task fails, providing logs and error details for debugging.
+     - **Anomaly Detection**: Alerts if unusual patterns are detected in the data or evaluation results.
+
+2. **Email Notifications**:
+   - Configured within Airflow DAGs using the **`EmailOperator`**.
+   - Emails include:
+     - Task name and status.
+     - Summary of results or errors.
+     - Links to logs or artifacts for further inspection.
+
+3. **Flexible Configuration**:
+   - Notification recipients can be configured via environment variables or Airflow settings.
+   - Email content can be customized to include task-specific details.
+
+---
+
+### Workflow Integration
+- **Trigger Points**:
+  - Email notifications are integrated at the following stages:
+    - **After Data Preparation**: Notifies that the data is ready and uploaded to GCS.
+    - **After Model Training**: Summarizes the training process and links to the trained model in Vertex AI.
+    - **After Model Evaluation**: Provides a summary of evaluation metrics and highlights any potential issues.
+    - **On Task Failure**: Sends an immediate alert with error logs and suggested actions.
+
+- **Automated Alerts**:
+  - Alerts are fully automated within the Airflow DAGs, reducing manual monitoring efforts.
+
+---
+
+### Example Use Case
+If a model evaluation task fails due to missing data or a configuration error, the pipeline:
+1. Logs the error details.
+2. Sends an email to the admin team with:
+   - The task name and failure status.
+   - Error logs for debugging.
+   - Suggested next steps to resolve the issue.
+
+---
+
+### Benefits
+- **Proactive Monitoring**:
+  - Admins are informed in real-time about the status of the pipeline, enabling quick resolution of issues.
+
+- **Improved Efficiency**:
+  - Reduces the need for manual checks by automating notifications for all critical tasks.
+
+- **Customizable Alerts**:
+  - Emails can be tailored to include relevant details for each task, making the information actionable.
+
+- **Scalable Solution**:
+  - Works seamlessly with Airflow's scheduling capabilities, making it adaptable for large-scale workflows.
+
+By integrating email notifications into Airflow DAGs, we ensure robust monitoring and quick issue resolution, keeping the pipeline running smoothly and efficiently.
+
+
 9. Rollback Mechanism
 
 
