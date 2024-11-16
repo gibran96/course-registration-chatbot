@@ -102,88 +102,91 @@ This DAG is designed to automate the preparation and processing of training data
 These DAGs automate and organize different stages of the data pipeline, each targeting a specific dataset (training data, course reviews, or Banner data) for Northeastern University courses.
 
 ## Project Directory Structure and Description
+
 ```
 ├── .github
 │   └── workflows
-│       ├── gcd-upload.yaml: This workflow defines a CI/CD pipeline to upload the data pipeline code to Google Cloud Storage. 
-│            It triggers on pushes to the main and workflow-testing branches and uses gsutil to copy the files.
-│       └── python-tests.yaml: This workflow runs Python tests using pytest. It is triggered by pushes to the main, 
-│            fix-testcases-import-error, and gibran/banner-dag branches and sets up a Python environment with the 
-│            necessary dependencies.
+│       ├── gcd-upload.yaml: Defines a CI/CD pipeline for uploading code to Google Cloud Storage.
+│       ├── python-tests.yaml: Runs Python tests using pytest, triggered by specific branches.
+│       └── trigger-banner-dag.yaml: Manages triggering the Banner data pipeline DAG in Airflow.
 │
-├── .gitignore: This file specifies files and directories that should be ignored by Git. It includes common Python artifacts, 
-│    build directories, test results, and various IDE configuration files.
+├── .gitignore: Specifies files and directories to ignore during Git operations.
 │
-├── README.md: This file provides documentation for the project, including an overview, architecture diagrams, and instructions 
-│    for contributing. It explains the purpose of the project and its different components.
+├── README.md: Main documentation file explaining the project structure, usage, and contributions.
+├── README.pdf: PDF version of the README.md for offline use.
 │
 ├── assets
 │   └── imgs
-│       ├── Banner_Data_DAG.png: Visualization of the Banner Data DAG for fetching course data.
-│       ├── PDF_Processing_DAG.png: Illustration of the PDF Processing DAG workflow.
+│       ├── Banner_Data_DAG.png: Visualization of the Banner Data DAG workflow.
+│       ├── PDF_Processing_DAG.png: Diagram illustrating the PDF Processing DAG.
 │       └── Train_Data_DAG.png: Diagram for the training data generation DAG.
 │
 ├── data_pipeline
-│   ├── __init__.py: Initializes the `data_pipeline` package, making it importable and setting up any package-level configurations.
+│   ├── __init__.py: Initializes the `data_pipeline` package.
 │
 │   ├── dags
-│       ├── __init__.py: Initializes the `dags` package for the data pipeline.
-│       ├── banner_data_dag.py: This file defines the Airflow DAG for fetching course data from the NEU Banner system. 
-│            It scrapes course details, faculty information, and prerequisites, then uploads the data to GCS and BigQuery.
+│       ├── __init__.py: Initializes the `dags` package for Airflow workflows.
+│       ├── banner_data_dag.py: Airflow DAG for fetching course data from the NEU Banner system.
+│       ├── trace_data_dag.py: Airflow DAG for processing TRACE data, including extraction and loading into BigQuery.
+│       ├── train_data_dag.py: Airflow DAG for generating synthetic training data using LLMs and BigQuery.
 │       ├── scripts
-│           ├── __init__.py: Initializes the `scripts` sub-package within `dags` for modularized utility scripts.
-│           ├── backoff.py: This file defines a decorator for implementing exponential backoff retry logic. It's used to handle 
-│                transient errors during API calls or other operations.
+│           ├── __init__.py: Initializes the `scripts` sub-package.
+│           ├── backoff.py: Implements exponential backoff retry logic for error handling.
 │           ├── banner
 │               ├── __init__.py: Initializes the `banner` sub-package.
-│               ├── fetch_banner_data.py: This file defines functions for fetching course information from the NEU Banner system, including cookies, 
-│                   course lists, descriptions, and prerequisites. It interacts with the Banner API and parses the HTML responses.
-│               └── opt_fetch_banner_data.py: This file optimizes the fetching of Banner data by implementing parallel processing. 
-│                It uses multithreading to speed up the data retrieval process.
+│               ├── fetch_banner_data.py: Functions for fetching course details from the NEU Banner system.
+│               └── opt_fetch_banner_data.py: Optimized version with multithreading for faster data retrieval.
 │           ├── bq
 │               ├── __init__.py: Initializes the `bq` (BigQuery) utility package.
-│               └── bigquery_utils.py: This file contains utility functions for interacting with BigQuery, such as checking sample counts 
-│                   and retrieving data. It handles tasks such as data extraction, similarity search, and data loading.
-│           ├── constants.py: Centralizes configuration parameters such as project IDs and sample counts used across scripts.
+│               └── bigquery_utils.py: Utility functions for interacting with BigQuery.
+│           ├── constants.py: Stores configuration constants for the project.
 │           ├── data
 │               ├── __init__.py: Initializes the `data` sub-package.
-│               ├── data_anomalies.py: Provides functions for detecting and handling data anomalies within the pipeline.
-│               ├── data_processing.py: This file contains functions for processing data, specifically for generating initial queries for the LLM. 
-│                   It prepares data before it is used in other parts of the pipeline.
-│               └── data_utils.py: Utility functions for data handling, including cleaning and parsing data.
-│           ├── email_triggers.py: Manages email notifications for triggering alerts based on specific pipeline events.
+│               ├── data_anomalies.py: Functions for detecting and managing data anomalies.
+│               ├── data_processing.py: Prepares data for generating initial LLM queries.
+│               └── data_utils.py: Utility functions for data handling, cleaning, and parsing.
+│           ├── email_triggers.py: Handles email notifications for pipeline events.
 │           ├── gcs
-│               ├── __init__.py: Initializes the `gcs` (Google Cloud Storage) utility package.
-│               └── gcs_utils.py: Provides GCS utility functions for file storage and retrieval.
-│           ├── llm_utils.py: Interacts with the Large Language Model (LLM) to handle prompt generation, response parsing, and 
-                              training data preparation.
+│               ├── __init__.py: Initializes the `gcs` (Google Cloud Storage) package.
+│               └── gcs_utils.py: Functions for managing GCS file storage and retrieval.
+│           ├── llm_utils.py: Functions for interacting with LLMs, including prompt generation and response parsing.
 │           ├── mlmd
 │               ├── __init__.py: Initializes the `mlmd` (Machine Learning Metadata) package.
-│               └── mlmd_preprocessing.py: Prepares ML metadata for downstream tasks, managing data lineage and tracking.
-│           ├── seed_data.py: Stores seed data, such as topic lists and query templates, for initializing LLM responses.
+│               └── mlmd_preprocessing.py: Prepares metadata for ML model lineage tracking.
+│           ├── seed_data.py: Stores seed data and templates for initializing LLM queries.
 │           └── trace
 │               ├── __init__.py: Initializes the `trace` sub-package.
-│               └── extract_trace_data.py: Extracts and processes TRACE instructor comments, handling validation and sensitive data management.
+│               └── extract_trace_data.py: Extracts and processes TRACE instructor comments.
 │
 │       ├── tests
-│           ├── __init__.py: Initializes the tests package, enabling test discovery for DAG scripts.
-│           ├── test_extract_data.py: This file contains unit tests for functions defined in `extract_trace_data.py`. 
-│                It helps ensure the correctness of the data extraction process.
-│           └── test_fetch_banner_data.py: Unit tests for `fetch_banner_data.py` functions, ensuring API interactions and parsing are correct.
-│
-│       ├── trace_data_dag.py: Defines the Airflow DAG for processing TRACE data, handling extraction, processing, and loading into BigQuery.
-│       └── train_data_dag.py: This file defines the Airflow DAG for generating synthetic training data. 
-│              It retrieves data from BigQuery, generates queries using an LLM, performs similarity searches, and uploads 
-│              the results to GCS and BigQuery.
+│           ├── __init__.py: Initializes the `tests` package for unit testing.
+│           ├── test_extract_trace_data.py: Unit tests for `extract_trace_data.py`.
+│           └── test_fetch_banner_data.py: Unit tests for `fetch_banner_data.py`.
 │
 │   ├── logs
-│       └── __init__.py: Initializes the logs package; may be used for logging or reserved for future functionality.
+│       └── __init__.py: Placeholder for logging setup or future functionality.
 │
-│   └── variables.json: Contains JSON-formatted configurations and variables for managing pipeline behavior and environment settings.
+│   └── variables.json: JSON file containing pipeline configurations and settings.
 │
-└── requirements.txt: This file lists the project dependencies required to run the data pipelines. It's used by pip 
-     to install the necessary packages.
-
+├── model_training
+│   ├── __init__.py: Initializes the `model_training` package.
+│
+│   ├── dags
+│       ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows related to model training.
+│       ├── model_evaluation_dag.py: Airflow DAG for evaluating trained models.
+│       ├── train_model_trigger_tag.py: Airflow DAG for triggering model training workflows.
+│       ├── model_scripts
+│           ├── __init__.py: Initializes the `model_scripts` sub-package.
+│           ├── config.py: Configuration file for model training parameters.
+│           ├── create_bias_detection_data.py: Generates data for bias detection during training.
+│           ├── custom_eval.py: Contains custom evaluation metrics for models.
+│           ├── data_utils.py: Utility functions for preparing and handling training datasets.
+│           ├── model_eval.py: Functions for running and reporting model evaluations.
+│           ├── model_evaluation.py: Main script for model evaluation logic.
+│           ├── prepare_dataset.py: Prepares datasets for training and evaluation.
+│           └── prompts.py: Stores prompts for generating synthetic data using LLMs.
+│
+├── requirements.txt: Lists Python dependencies for the project.
 ```
 
 ## Instruction to Reproduce
