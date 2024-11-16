@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from sklearn.model_selection import train_test_split
+from airflow.models import Variable
 
 
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +19,7 @@ def init_bq_client(location, project):
 
 def get_training_data(bigquery_client):
 
-    query_job = bigquery_client.query(f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}` LIMIT 50")
+    query_job = bigquery_client.query(f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}` LIMIT {Variable.get('TRAINING_DATA_LIMIT', 100)}")
     logging.info(f"Selecting data from {PROJECT_ID}.{DATASET_ID}.{TABLE_ID}")
     return query_job
 
