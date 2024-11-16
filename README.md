@@ -448,12 +448,15 @@ Responses are rated using a 5-point rubric:
 - **Improved Model Quality**:
   - By addressing bias, the pipeline enhances the overall quality and trustworthiness of the model's responses.
 
-### Purpose
+
+### 5. Model Registry & Experiment Tracking
+
+#### Purpose
 The **model registry and experiment tracking** component ensures that all models, experiments, and related artifacts are stored, tracked, and managed systematically. This enables version control, reproducibility, and easy deployment of the best-performing models.
 
 ---
 
-### Implementation with Vertex AI
+#### Implementation with Vertex AI
 We use **Vertex AI's internal system** for model registry and experiment tracking. Vertex AI provides a fully integrated platform for managing machine learning workflows, eliminating the need for external tools like MLflow. The platform includes the following features:
 
 1. **Model Registry**:
@@ -477,7 +480,7 @@ We use **Vertex AI's internal system** for model registry and experiment trackin
 
 ---
 
-### Comparison with MLflow
+#### Comparison with MLflow
 | **Feature**                    | **Vertex AI**                            | **MLflow**                     |
 |--------------------------------|------------------------------------------|---------------------------------|
 | **Model Registry**             | Built-in, versioned endpoints.           | Requires external setup.       |
@@ -489,7 +492,7 @@ We use **Vertex AI's internal system** for model registry and experiment trackin
 
 ---
 
-### Key Benefits of Using Vertex AI
+#### Key Benefits of Using Vertex AI
 - **Fully Integrated Workflow**:
   - Combines model registry, experiment tracking, and deployment within a single platform, reducing complexity.
 
@@ -510,20 +513,20 @@ We use **Vertex AI's internal system** for model registry and experiment trackin
 
 ---
 
-### Why Vertex AI over MLflow?
+#### Why Vertex AI over MLflow?
 While MLflow is a popular tool for model registry and experiment tracking, Vertex AI offers a more cohesive solution by integrating these features directly into the platform. This eliminates the need for separate infrastructure, reduces setup overhead, and provides a seamless experience for managing the entire machine learning lifecycle.
 
 By choosing Vertex AI, we ensure that our workflows are efficient, scalable, and maintainable with minimal additional tooling or configuration.
 
 
-## 7. CI/CD for Model Training
+### 6. CI/CD for Model Training
 
-### Purpose
+#### Purpose
 The **CI/CD pipeline for model training** ensures that the process of data preparation, model training, evaluation, and deployment is automated, reliable, and repeatable. By leveraging Airflow and Google Cloud services, the pipeline integrates Continuous Integration (CI) and Continuous Deployment (CD) practices into the machine learning workflow.
 
 ---
 
-### Key Components
+#### Key Components
 - **Data Preparation Automation**:
   - The Airflow DAG for data preparation dynamically triggers whenever new data is added to **Google BigQuery**.
   - JSONL-formatted training and evaluation datasets are automatically generated and stored in **Google Cloud Storage (GCS)**.
@@ -544,7 +547,7 @@ The **CI/CD pipeline for model training** ensures that the process of data prepa
 
 ---
 
-### Automation Workflow
+#### Automation Workflow
 1. **Triggering New Model Training**:
    - The data preparation pipeline dynamically monitors updates in **BigQuery**.
    - When new data is detected, the training pipeline is triggered to ensure the model is retrained with the latest dataset.
@@ -564,7 +567,7 @@ The **CI/CD pipeline for model training** ensures that the process of data prepa
 
 ---
 
-### Key Features
+#### Key Features
 - **Dynamic Triggering**:
   - New data automatically triggers the entire pipeline, ensuring the model stays up to date.
 
@@ -582,7 +585,7 @@ The **CI/CD pipeline for model training** ensures that the process of data prepa
 
 ---
 
-### Benefits
+#### Benefits
 - **Consistency**:
   - Ensures a standardized approach to training and deploying models.
 
@@ -599,19 +602,19 @@ The **CI/CD pipeline for model training** ensures that the process of data prepa
   - Built-in bias detection ensures that deployed models are ethical and unbiased.
 
 
-## 8. Notifications & Alerts
+### 7. Notifications & Alerts
 
-### Purpose
+#### Purpose
 The **notifications and alerts system** ensures that administrators are informed about the progress, completion, or failure of tasks in the model pipeline. This helps in monitoring workflows and addressing any issues promptly to maintain operational efficiency.
 
 ---
 
-### Implementation
+#### Implementation
 We use **Airflow DAGs** to trigger email notifications at critical points in the workflow. These notifications ensure that administrators are kept up-to-date about the status of the pipeline.
 
 ---
 
-### Key Features
+#### Key Features
 1. **Task-Specific Alerts**:
    - Notifications are sent for key events such as:
      - **Successful Task Completion**: Informs the team about the successful execution of key tasks like data preparation, model training, and evaluation.
@@ -631,7 +634,7 @@ We use **Airflow DAGs** to trigger email notifications at critical points in the
 
 ---
 
-### Workflow Integration
+#### Workflow Integration
 - **Trigger Points**:
   - Email notifications are integrated at the following stages:
     - **After Data Preparation**: Notifies that the data is ready and uploaded to GCS.
@@ -644,7 +647,7 @@ We use **Airflow DAGs** to trigger email notifications at critical points in the
 
 ---
 
-### Example Use Case
+#### Example Use Case
 If a model evaluation task fails due to missing data or a configuration error, the pipeline:
 1. Logs the error details.
 2. Sends an email to the admin team with:
@@ -654,7 +657,7 @@ If a model evaluation task fails due to missing data or a configuration error, t
 
 ---
 
-### Benefits
+#### Benefits
 - **Proactive Monitoring**:
   - Admins are informed in real-time about the status of the pipeline, enabling quick resolution of issues.
 
@@ -668,9 +671,6 @@ If a model evaluation task fails due to missing data or a configuration error, t
   - Works seamlessly with Airflow's scheduling capabilities, making it adaptable for large-scale workflows.
 
 By integrating email notifications into Airflow DAGs, we ensure robust monitoring and quick issue resolution, keeping the pipeline running smoothly and efficiently.
-
-
-9. Rollback Mechanism
 
 
 
