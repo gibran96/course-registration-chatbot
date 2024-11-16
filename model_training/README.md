@@ -64,6 +64,8 @@
 - Ensures fairness with built-in bias detection.
 - Supports model versioning for traceability and rollback.
 
+![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
+
 
 ### 3. Model Evaluation
 
