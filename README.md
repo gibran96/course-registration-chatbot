@@ -168,23 +168,45 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 │
 │   └── variables.json: JSON file containing pipeline configurations and settings.
 │
-├── model_training
-│   ├── __init__.py: Initializes the `model_training` package.
+model_training/
+├── README.md: Comprehensive documentation of the model pipeline, including key components and workflow.
+├── __init__.py: Initializes the `model_training` package, allowing it to be imported as a module.
 │
-│   ├── dags
-│       ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows related to model training.
-│       ├── model_evaluation_dag.py: Airflow DAG for evaluating trained models.
-│       ├── train_model_trigger_tag.py: Airflow DAG for triggering model training workflows.
-│       ├── model_scripts
-│           ├── __init__.py: Initializes the `model_scripts` sub-package.
-│           ├── config.py: Configuration file for model training parameters.
-│           ├── create_bias_detection_data.py: Generates data for bias detection during training.
-│           ├── custom_eval.py: Contains custom evaluation metrics for models.
-│           ├── data_utils.py: Utility functions for preparing and handling training datasets.
-│           ├── model_eval.py: Functions for running and reporting model evaluations.
-│           ├── model_evaluation.py: Main script for model evaluation logic.
-│           ├── prepare_dataset.py: Prepares datasets for training and evaluation.
-│           └── prompts.py: Stores prompts for generating synthetic data using LLMs.
+├── dags/
+│   ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows.
+│   ├── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
+│
+├── model_scripts/
+│   ├── __init__.py: Initializes the `model_scripts` sub-package.
+│   │
+│   ├── bias/
+│   │   ├── __init__.py: Initializes the `bias` sub-package.
+│   │   └── create_bias_detection_data.py: Script for generating data used in bias detection during model evaluation.
+│   │
+│   ├── constants/
+│   │   ├── __init__.py: Initializes the `constants` sub-package.
+│   │   ├── prompts.py: Contains predefined prompts used for various tasks in the pipeline.
+│   │   ├── queries.py: Stores query templates used for generating evaluation data.
+│   │   └── sql_queries.py: Contains SQL queries used for data retrieval from BigQuery.
+│   │
+│   ├── eval/
+│   │   ├── __init__.py: Initializes the `eval` sub-package.
+│   │   ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
+│   │   └── model_evaluation.py: Main script containing the logic for comprehensive model evaluation.
+│   │
+│   ├── train/
+│   │   ├── __init__.py: Initializes the `train` sub-package.
+│   │   └── prepare_dataset.py: Script for preparing and formatting datasets for model training.
+│   │
+│   ├── utils/
+│   │   ├── __init__.py: Initializes the `utils` sub-package.
+│   │   ├── data_utils.py: Utility functions for data manipulation and processing.
+│   │   └── email_triggers.py: Functions for sending email notifications and alerts.
+│   │
+│   └── config.py: Configuration file containing global settings and parameters for the model pipeline.
+│
+└── tests/
+    └── __init__.py: Initializes the `tests` package for unit and integration tests.
 │
 ├── requirements.txt: Lists Python dependencies for the project.
 ```
