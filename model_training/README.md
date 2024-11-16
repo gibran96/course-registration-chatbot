@@ -8,7 +8,7 @@ The pipeline automates the process of fine-tuning, evaluating, and deploying a l
 
 1. **Data Preparation**
 The data preparation process leverages Apache Airflow, Google BigQuery, and Google Cloud Storage (GCS) to create a robust and automated workflow:
-   - **End-to-End Automation**: The pipeline detects new data in BigQuery and triggers the data preparation process without manual intervention.
+   - **End-to-End Automation**: The pipeline detects changes in the code and triggers the data preparation process without manual intervention.
    - **Data Retrieval**: An Airflow DAG queries BigQuery using predefined SQL to fetch fields like query, context, and response from relevant tables.
    - **Data Cleaning and Transformation**: The pipeline removes null or invalid entries, handles missing data, and standardizes text fields for model readiness.
    - **Data Formatting**: Converts data into JSONL format for compatibility with fine-tuning workflows, ensuring fields are aligned for supervised fine-tuning and evaluation.
@@ -18,11 +18,19 @@ The model training process utilizes the gemini-1.5-flash-002 base model and impl
    - **Fine-Tuning Process:** Integrates with Vertex AI for scalable training and experiment tracking.
    - **Version Control:** Implements version control for fine-tuned models in Vertex AI, allowing for easy rollback and performance tracking across different versions.
 
+![image](https://github.com/user-attachments/assets/29f5f219-854d-4106-8170-e754d3ff611c)
+
+
 3. **Model Evaluation**
 The evaluation system employs both standard and custom metrics to ensure comprehensive model assessment:
    - **Standard Metrics:** BLEU, ROUGE (1, 2, L).
    - **Custom Metrics:** Relevance (degree to which the response addresses the query), Coverage (completeness and depth of the response)
    - **Bias Detection:** Implements a 5-point rubric to evaluate gender neutrality and inclusivity in responses
+
+<img width="1408" alt="image" src="https://github.com/user-attachments/assets/e04d4507-4467-4c5d-b684-7271a2958cc7">
+
+![image](https://github.com/user-attachments/assets/333d82fe-0fba-4c8a-918c-29120fc517e2)
+
 
 4. **Model Registry**
 The pipeline utilizes Vertex AI for model versioning, metadata storage, and deployment:
@@ -30,15 +38,20 @@ The pipeline utilizes Vertex AI for model versioning, metadata storage, and depl
    - **Experiment Tracking:** Automatically logs training parameters, metrics, and artifacts for future reference and reproducibility.
    - **Deployment Integration:** Models are directly deployable from the registry to Vertex AI endpoints.
 
+![image](https://github.com/user-attachments/assets/8b82c967-736e-4d83-ba4a-24b5f9891453)
+
+
 5. **Bias Detection and Mitigation**
 The bias detection system ensures fairness and inclusivity in model responses:
    - **Query Generation:** Creates diverse prompts to test responses for bias, including questions about teaching style and approachability.
    - **Response Evaluation:** Uses sentiment analysis and manual scoring to rate responses on a 5-point rubric.
    - **Bias Report:** Aggregates results into a detailed report, highlighting patterns and areas for improvement.
 
+![image](https://github.com/user-attachments/assets/dba9469a-31f7-43d0-8516-08959b5d4f01)
+
 6. **CICD Pipeline**
 The Continuous Integration and Continuous Deployment (CI/CD) pipeline automates the entire process from data preparation to model deployment:
-   - **Triggering:** Detects data updates in BigQuery, and in the code using GitHub actions and automatically triggers the training DAG.
+   - **Triggering:** Detects updates in the code using GitHub actions and automatically triggers the training DAG.
    - **End-to-End Integration:** Links data preparation, training, evaluation, and deployment stages.
    - **Error Handling:** Implements robust error handling with detailed logs for debugging.
 
@@ -48,12 +61,10 @@ The pipeline keeps stakeholders informed with real-time updates:
    - **Bias Detection Report:** Delivers bias reports for comprehensive analysis.
    - **Alert System:** Delivers detailed emails with links to logs and results for comprehensive monitoring.
 
-
-![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
-
-
 ## DAG Structure
 The DAG is structured as a linear sequence of tasks, each responsible for a specific part of the model development process:
+
+![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
 
 1. Data Preparation
 2. Model Training
