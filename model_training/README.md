@@ -1,208 +1,141 @@
 # Model Pipeline - Key Components and Workflow
 
-### 1. Loading Data from the Data Pipeline for Model Training
+## Overview
 
-**Overview**: Automates data extraction, cleaning, and preparation for training using **Apache Airflow**, **Google BigQuery**, and **Google Cloud Storage (GCS)**.
+The pipeline automates the process of fine-tuning, evaluating, and deploying a large language model (LLM) for generating course-related responses.
 
-**Key Features**:
-- **End-to-End Automation**: Detects new data in BigQuery and triggers data preparation without manual intervention.
-- **Real-Time Updates**: Ensures training is based on the latest data for relevance and accuracy.
-- **Cloud Integration**: Scalable querying with BigQuery and efficient storage with GCS.
+## Key Components
 
-**Workflow**:
-1. **Data Retrieval**:
-   - Airflow DAG queries BigQuery using pre-defined SQL.
-   - Fetches fields like `query`, `context`, and `response` from relevant tables.
-   - Ensures data integrity by validating schema compliance.
-2. **Data Cleaning and Transformation**:
-   - Removes null or invalid entries.
-   - Handles missing data using imputation strategies if required.
-   - Standardizes text fields for model readiness.
-3. **Data Formatting**:
-   - Converts data into **JSONL** for compatibility with fine-tuning workflows.
-   - Ensures fields are aligned for supervised fine-tuning and evaluation (e.g., `instruction`, `context`, `expected response`).
-4. **Storage and Accessibility**:
-   - Processed data is versioned and stored locally.
-   - Automatically uploads datasets to GCS with metadata (e.g., timestamp, batch ID).
+1. **Data Preparation**
+The data preparation process leverages Apache Airflow, Google BigQuery, and Google Cloud Storage (GCS) to create a robust and automated workflow:
+   - **End-to-End Automation**: The pipeline detects new data in BigQuery and triggers the data preparation process without manual intervention.
+   - **Data Retrieval**: An Airflow DAG queries BigQuery using predefined SQL to fetch fields like query, context, and response from relevant tables.
+   - **Data Cleaning and Transformation**: The pipeline removes null or invalid entries, handles missing data, and standardizes text fields for model readiness.
+   - **Data Formatting**: Converts data into JSONL format for compatibility with fine-tuning workflows, ensuring fields are aligned for supervised fine-tuning and evaluation.
 
-**Triggering**:
-- The DAG is triggered dynamically on new data detection in BigQuery, ensuring the pipeline is always aligned with the latest information.
+2. **Model Training**
+The model training process utilizes the gemini-1.5-flash-002 base model and implements supervised fine-tuning (SFT) on task-specific data:
+   - **Fine-Tuning Process:** Integrates with Vertex AI for scalable training and experiment tracking.
+   - **Version Control:** Implements version control for fine-tuned models in Vertex AI, allowing for easy rollback and performance tracking across different versions.
 
-### 2. Training and Selecting the Best Model
+3. **Model Evaluation**
+The evaluation system employs both standard and custom metrics to ensure comprehensive model assessment:
+   - **Standard Metrics:** BLEU, ROUGE (1, 2, L).
+   - **Custom Metrics:** Relevance (degree to which the response addresses the query), Coverage (completeness and depth of the response)
+   - **Bias Detection:** Implements a 5-point rubric to evaluate gender neutrality and inclusivity in responses
 
-**Overview**: Automates fine-tuning of pre-trained models, integrating with Vertex AI and Airflow.
+4. **Model Registry**
+The pipeline utilizes Vertex AI for model versioning, metadata storage, and deployment:
+   - **Version Control:** Every trained model is saved as a versioned endpoint in Vertex AI, including metadata such as hyperparameters and dataset details.
+   - **Experiment Tracking:** Automatically logs training parameters, metrics, and artifacts for future reference and reproducibility.
+   - **Deployment Integration:** Models are directly deployable from the registry to Vertex AI endpoints.
 
-**Key Components**:
-- **Fine-Tuning**:
-  - Base model: `gemini-1.5-flash-002`.
-  - Supervised fine-tuning (SFT) on task-specific data from GCS.
-- **Metrics**:
-  - Standard: BLEU, ROUGE (1, 2, L), groundedness, instruction following.
-  - Custom: Bias detection and fairness metrics.
-- **Version Control**:
-  - Fine-tuned models are versioned in Vertex AI for easy rollback or performance tracking.
+5. **Bias Detection and Mitigation**
+The bias detection system ensures fairness and inclusivity in model responses:
+   - **Query Generation:** Creates diverse prompts to test responses for bias, including questions about teaching style and approachability.
+   - **Response Evaluation:** Uses sentiment analysis and manual scoring to rate responses on a 5-point rubric.
+   - **Bias Report:** Aggregates results into a detailed report, highlighting patterns and areas for improvement.
 
-**Workflow**:
-1. **Training Data Preparation**:
-   - Formats and cleans data in JSONL.
-   - Uploads datasets to GCS with metadata for traceability.
-2. **Fine-Tuning**:
-   - Initiates training on Vertex AI, leveraging pre-configured pipelines.
-   - Records training hyperparameters, data versions, and logs for reproducibility.
-3. **Evaluation and Selection**:
-   - Evaluates performance using test datasets.
-   - Models are ranked using a weighted scoring system that considers both standard and custom metrics.
-   - Automatically selects the best-performing model for deployment.
-4. **Bias Detection**:
-   - Incorporates additional tests to measure bias, fairness, and inclusivity.
-   - Generates a bias report detailing areas of improvement.
-5. **Model Registry Update**:
-   - Saves the selected model to Vertex AI's registry with associated metadata, evaluation results, and experiment details.
+6. **CICD Pipeline**
+The Continuous Integration and Continuous Deployment (CI/CD) pipeline automates the entire process from data preparation to model deployment:
+   - **Triggering:** Detects data updates in BigQuery, and in the code using GitHub actions and automatically triggers the training DAG.
+   - **End-to-End Integration:** Links data preparation, training, evaluation, and deployment stages.
+   - **Error Handling:** Implements robust error handling with detailed logs for debugging.
 
-**Key Features**:
-- Automates the entire training process from data preparation to model deployment.
-- Ensures fairness with built-in bias detection.
-- Supports model versioning for traceability and rollback.
+7. **Notifications and Alerts**
+The pipeline keeps stakeholders informed with real-time updates:
+   - **Trigger Points:** Sends notifications for data preparation completion, model training completion, evaluation results, and task failures.
+   - **Bias Detection Report:** Delivers bias reports for comprehensive analysis.
+   - **Alert System:** Delivers detailed emails with links to logs and results for comprehensive monitoring.
+
 
 ![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
 
 
-### 3. Model Evaluation
+## DAG Structure
+The DAG is structured as a linear sequence of tasks, each responsible for a specific part of the model development process:
 
-**Overview**: Evaluates fine-tuned models using rigorous metrics to ensure quality and fairness.
+1. Data Preparation
+2. Model Training
+3. Model Evaluation
+4. Bias Detection
 
-**Key Components**:
-- **Dataset**:
-  - Test data prepared from the data pipeline.
-  - Structured as `instruction`, `context`, and `expected response`.
-- **Metrics**:
-  - **Standard**:
-    - BLEU: Measures textual similarity.
-    - ROUGE: Measures n-gram overlap.
-    - Exact Match: Percentage of fully correct responses.
-  - **Custom**:
-    - Relevance: Degree to which the response addresses the query.
-    - Coverage: Completeness and depth of the response.
-- **Bias Detection**:
-  - Evaluates gender neutrality and inclusivity in responses.
-  - Uses a 5-point rubric to score bias levels.
+### Key Components
+1. Data Preparation
+   - prepare_training_data_task: Prepares the training data for the model.
+   - upload_to_gcs_task: Uploads the prepared data to Google Cloud Storage.
 
-**Workflow**:
-1. **Trigger Post-Training**:
-   - DAG waits for training completion before starting evaluation.
-   - Retrieves the trained model version from Vertex AI.
-2. **Generate Predictions**:
-   - Runs the model on the test dataset to generate predictions.
-   - Uses structured prompts to ensure consistency in evaluation.
-3. **Calculate Metrics**:
-   - Computes standard and custom metrics for each response.
-   - Aggregates results into a summary report.
-4. **Bias Detection**:
-   - Analyzes responses for neutrality and inclusivity.
-   - Generates a detailed bias report with recommendations.
-5. **Result Storage**:
-   - Saves evaluation results locally and uploads to GCS for integration with dashboards.
+   These tasks ensure that the data is properly formatted and accessible for the training process.
 
-**Key Features**:
-- Dynamic selection of the latest trained model.
-- Comprehensive evaluation combining standard and custom metrics.
-- Scalable to handle large datasets and complex models.
+2. Model Training
+   - sft_train_task: Uses the SupervisedFineTuningTrainOperator to fine-tune the `gemini-1.5-flash-002` model on the prepared dataset.
 
-### 4. Model Bias Detection
+   This task leverages Vertex AI for scalable training and experiment tracking. It uses supervised fine-tuning (SFT) to adapt the base model to the specific task of course registration assistance.
 
-**Overview**: Ensures the model's responses are free from gender bias and uphold inclusivity.
+3. Model Evaluation
+   - model_evaluation_task: Runs a comprehensive evaluation of the trained model.
 
-**Bias Detection Criteria**:
-- **Gender Bias Presence**: Detects tendencies toward specific gender preferences or stereotypes.
-- **Neutrality**: Measures if responses avoid gendered language.
-- **Inclusivity**: Ensures diverse and respectful representation.
+   This task likely implements both standard metrics (e.g., BLEU, ROUGE) and custom metrics relevant to the course registration domain.
 
-**Implementation**:
-1. **Query Generation**:
-   - Creates diverse prompts to test responses for bias.
-   - Examples include: "What is the teaching style of {prof_name}?" or "How approachable is {prof_name}?"
-2. **Response Evaluation**:
-   - Uses sentiment analysis and manual scoring.
-   - Rates responses on a 5-point rubric (1 = strongly biased, 5 = completely neutral).
-3. **Bias Report**:
-   - Aggregates results into a detailed report.
-   - Highlights patterns and areas for improvement.
-
-
-### 5. Model Registry & Experiment Tracking
-
-#### **Overview**
-The Model Registry & Experiment Tracking ensures version control, traceability, and streamlined deployment of models. Using **Vertex AI**, the registry logs all artifacts and metadata.
-
-#### **Key Features**
-
-##### **Version Control**
-- Every trained model is saved as a versioned endpoint in Vertex AI.
-- Includes:
-  - **Metadata:** Hyperparameters, dataset details, etc.
-  - **Performance metrics.**
-
-##### **Experiment Tracking**
-- Automatically logs:
-  - **Training parameters:** Learning rate, optimizer, epochs, etc.
-  - **Metrics:** BLEU, ROUGE, bias scores.
-  - **Artifacts:** Training and test datasets, evaluation reports.
-
-##### **Reproducibility**
-- Stores artifacts for future retraining or debugging.
-- Supports hyperparameter optimization and comparison.
-
-##### **Deployment Integration**
-- Models are directly deployable from the registry to Vertex AI endpoints.
-
-### 6. CI/CD for Model Training
-
-**Overview**: Implements automated Continuous Integration and Continuous Deployment.
-
-**Workflow**:
-1. **Triggering**:
-   - Detects data updates in BigQuery and triggers the training DAG.
-2. **End-to-End Integration**:
-   - Links data preparation, training, evaluation, and deployment.
-3. **Deployment**:
-   - Deploys the best-performing model to Vertex AI endpoints.
-4. **Error Handling**:
-   - Alerts on task failures with detailed logs for debugging.
-
-
-### 7. Notifications & Alerts
-
-**Overview**: Keeps stakeholders informed with real-time updates.
-
-**Integration**:
-- **Trigger Points**:
-  - Data preparation completion.
-  - Model training completion.
-  - Evaluation results.
-  - Task failures.
-- **Alerts**:
-  - Sends detailed emails with links to logs and results.
+4. Bias Detection
+The bias detection process is broken down into several subtasks:
+   - get_unique_profs_task: Retrieves a list of unique professors from the dataset.
+   - get_bucketed_queries_task: Generates a set of queries for evaluation.
+   - get_bq_data_for_profs_task: Retrieves relevant data from BigQuery for the generated queries.
+   - generate_responses_task: Uses the fine-tuned model to generate responses for the queries.
+   - get_sentiment_score_task: Analyzes the sentiment of the generated responses.
+   - generate_bias_report_task: Produces a comprehensive bias report based on the sentiment analysis, and sends the report in an email.
 
 
 ## Model Pipeline Directory Structure and Description
 
 ```
+model_training/
+├── README.md: Comprehensive documentation of the model pipeline, including key components and workflow.
+├── __init__.py: Initializes the `model_training` package, allowing it to be imported as a module.
 │
-├── model_training
-│   ├── __init__.py: Initializes the `model_training` package.
+├── dags/
+│   ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows.
+│   ├── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
 │
-│   ├── dags
-│       ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows related to model training.
-│       ├── model_evaluation_dag.py: Airflow DAG for evaluating trained models.
-│       ├── train_model_trigger_tag.py: Airflow DAG for triggering model training workflows.
-│       ├── model_scripts
-│           ├── __init__.py: Initializes the `model_scripts` sub-package.
-│           ├── config.py: Configuration file for model training parameters.
-│           ├── create_bias_detection_data.py: Generates data for bias detection during training.
-│           ├── custom_eval.py: Contains custom evaluation metrics for models.
-│           ├── data_utils.py: Utility functions for preparing and handling training datasets.
-│           ├── model_eval.py: Functions for running and reporting model evaluations.
-│           ├── model_evaluation.py: Main script for model evaluation logic.
-│           ├── prepare_dataset.py: Prepares datasets for training and evaluation.
-│           └── prompts.py: Stores prompts for generating synthetic data using LLMs.
+├── model_scripts/
+│   ├── __init__.py: Initializes the `model_scripts` sub-package.
+│   │
+│   ├── bias/
+│   │   ├── __init__.py: Initializes the `bias` sub-package.
+│   │   └── create_bias_detection_data.py: Script for generating data used in bias detection during model evaluation.
+│   │
+│   ├── constants/
+│   │   ├── __init__.py: Initializes the `constants` sub-package.
+│   │   ├── prompts.py: Contains predefined prompts used for various tasks in the pipeline.
+│   │   ├── queries.py: Stores query templates used for generating evaluation data.
+│   │   └── sql_queries.py: Contains SQL queries used for data retrieval from BigQuery.
+│   │
+│   ├── eval/
+│   │   ├── __init__.py: Initializes the `eval` sub-package.
+│   │   ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
+│   │   └── model_evaluation.py: Main script containing the logic for comprehensive model evaluation.
+│   │
+│   ├── train/
+│   │   ├── __init__.py: Initializes the `train` sub-package.
+│   │   └── prepare_dataset.py: Script for preparing and formatting datasets for model training.
+│   │
+│   ├── utils/
+│   │   ├── __init__.py: Initializes the `utils` sub-package.
+│   │   ├── data_utils.py: Utility functions for data manipulation and processing.
+│   │   └── email_triggers.py: Functions for sending email notifications and alerts.
+│   │
+│   └── config.py: Configuration file containing global settings and parameters for the model pipeline.
+│
+└── tests/
+    └── __init__.py: Initializes the `tests` package for unit and integration tests.
 ```
+
+## Key Features
+   - Automated end-to-end pipeline from data preparation to model deployment
+   - Robust evaluation system with custom metrics for relevance and coverage
+   - Comprehensive bias detection and reporting mechanism
+   - Integration with Google Cloud Platform services for scalability and efficiency
+   - Experiment tracking and version control for reproducibility and easy rollback
+   
+   This pipeline emphasizes automation, scalability, and fairness in model development, aligning with best practices in MLOps and responsible AI development.
