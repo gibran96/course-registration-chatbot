@@ -340,9 +340,76 @@ The model evaluation process is orchestrated through an **Airflow DAG** to ensur
 
 4. Model Bias Detection
 
-6. Model Registry & Experiment Tracking
+## 6. Model Registry & Experiment Tracking
 
-7. CI/CD for Model Training
+### Purpose
+The **model registry and experiment tracking** component ensures that all models, experiments, and related artifacts are stored, tracked, and managed systematically. This enables version control, reproducibility, and easy deployment of the best-performing models.
+
+---
+
+### Implementation with Vertex AI
+We use **Vertex AI's internal system** for model registry and experiment tracking. Vertex AI provides a fully integrated platform for managing machine learning workflows, eliminating the need for external tools like MLflow. The platform includes the following features:
+
+1. **Model Registry**:
+   - Vertex AI stores every trained model as a **versioned endpoint**, allowing for easy tracking and rollback.
+   - Models are saved with metadata, including:
+     - Training configurations.
+     - Performance metrics.
+     - Associated datasets and training pipelines.
+
+2. **Experiment Tracking**:
+   - Each training job and evaluation is logged as an experiment within Vertex AI, with key parameters and results automatically recorded.
+   - Supports comparison across multiple experiments, enabling identification of the best-performing model.
+   - Automatically tracks:
+     - Hyperparameters (e.g., learning rate, batch size).
+     - Metrics (e.g., ROUGE, exact match, custom bias detection scores).
+     - Artifacts like training datasets and evaluation results.
+
+3. **Deployment and Monitoring**:
+   - Models in the registry can be seamlessly deployed to Vertex AI endpoints.
+   - Deployed models are monitored for performance, with alerts for any anomalies or drift.
+
+---
+
+### Comparison with MLflow
+| **Feature**                    | **Vertex AI**                            | **MLflow**                     |
+|--------------------------------|------------------------------------------|---------------------------------|
+| **Model Registry**             | Built-in, versioned endpoints.           | Requires external setup.       |
+| **Experiment Tracking**        | Fully integrated with the training pipeline. | Separate setup and integration needed. |
+| **Artifact Storage**           | Automatically saved in Google Cloud Storage (GCS). | Requires manual configuration for storage. |
+| **Hyperparameter Logging**     | Automated logging and comparison.        | Requires explicit setup.        |
+| **Deployment**                 | One-click deployment to Vertex AI endpoints. | Requires additional deployment tools. |
+| **Monitoring**                 | Built-in performance monitoring and alerts. | Requires integration with monitoring systems. |
+
+---
+
+### Key Benefits of Using Vertex AI
+- **Fully Integrated Workflow**:
+  - Combines model registry, experiment tracking, and deployment within a single platform, reducing complexity.
+
+- **Automatic Logging**:
+  - Tracks all experiment parameters, metrics, and artifacts without requiring manual setup.
+
+- **Simplified Deployment**:
+  - Models can be deployed to Vertex AI endpoints directly from the registry, streamlining the production process.
+
+- **Scalability**:
+  - Handles large-scale models and datasets effortlessly, leveraging Google Cloud’s infrastructure.
+
+- **Transparency and Traceability**:
+  - Versioned models and logged experiments ensure complete visibility into the training and evaluation pipeline.
+
+- **Ease of Use**:
+  - Eliminates the need for additional tools like MLflow, as all functionality is natively available in Vertex AI.
+
+---
+
+### Why Vertex AI over MLflow?
+While MLflow is a popular tool for model registry and experiment tracking, Vertex AI offers a more cohesive solution by integrating these features directly into the platform. This eliminates the need for separate infrastructure, reduces setup overhead, and provides a seamless experience for managing the entire machine learning lifecycle.
+
+By choosing Vertex AI, we ensure that our workflows are efficient, scalable, and maintainable with minimal additional tooling or configuration.
+
+
 
 8. Notifications & Alerts
 
