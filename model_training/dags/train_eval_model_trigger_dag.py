@@ -6,13 +6,13 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
 )
-from model_training.dags.model_scripts.eval.model_evaluation import run_model_evaluation
-from model_training.dags.model_scripts.train.prepare_dataset import prepare_training_data
+from model_scripts.eval.model_evaluation import run_model_evaluation
+from model_scripts.train.prepare_dataset import prepare_training_data
 
 from airflow.models import Variable
 import datetime
-from model_training.dags.model_scripts.bias.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
-from model_training.dags.model_scripts.utils.data_utils import upload_to_gcs
+from model_scripts.bias.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
+from model_scripts.utils.data_utils import upload_to_gcs
 from airflow.operators.email import EmailOperator
 
 

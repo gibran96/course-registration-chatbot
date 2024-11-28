@@ -13,10 +13,10 @@ from functools import wraps
 from typing import Callable, Any
 import pandas as pd
 
-from model_training.dags.model_scripts.constants.prompts import GET_SENTIMENT_PROMPT, INSTRUCTION_PROMPT
-from model_training.dags.model_scripts.constants.queries import QUERIES_FOR_EVAL
-from model_training.dags.model_scripts.constants.sql_queries import EMBEDDINGS_QUERY
-from model_training.dags.model_scripts.utils.email_triggers import send_bias_detected_mail
+from model_scripts.constants.prompts import GET_SENTIMENT_PROMPT, INSTRUCTION_PROMPT
+from model_scripts.constants.queries import QUERIES_FOR_EVAL
+from model_scripts.constants.sql_queries import EMBEDDINGS_QUERY
+from model_scripts.utils.email_triggers import send_bias_detected_mail
 
 
 PROJECT_ID = "coursecompass"
