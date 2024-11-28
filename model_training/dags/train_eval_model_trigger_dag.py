@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import os
@@ -21,14 +21,26 @@ REGION = Variable.get("REGION", "us-east1")
 SOURCE_MODEL = Variable.get("SOURCE_MODEL","gemini-1.5-flash-002")
 TRAIN_DATASET = Variable.get("TRAIN_DATASET","gs://mlops-data-7374/finetuning_data.jsonl")
 TUNED_MODEL_DISPLAY_NAME = Variable.get("TUNED_MODEL_DISPLAY_NAME","course_registration_gemini_1_5_flash_002")
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email': ['mlopsggmu@gmail.com'],
+    'email_on_failure': True,
+    'email_on_retry': False,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=5),
+    'execution_timeout': timedelta(hours=2),
+}
     
 with DAG(
     "train_model_trigger_dag",
+    default_args=default_args,
     schedule_interval=None,
     start_date=datetime.datetime(2023, 1, 1),
     catchup=False,
     tags=["vertex-ai"],
-    email_on_failure=True
+    max_active_runs=1,
 ) as dag:
     
     prepare_training_data_task = PythonOperator(
