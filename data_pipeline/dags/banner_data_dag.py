@@ -27,7 +27,7 @@ with DAG(
     'banner_dag_pipeline',
     default_args=default_args,
     description='Fetch course data from Banner and upload to GCS and BigQuery',
-    schedule_interval='0 0 * * *',  # Daily at midnight
+    schedule_interval='0 0 1 */5 *',
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['banner', 'gcs'],

@@ -36,7 +36,8 @@ with DAG(
     'pdf_processing_pipeline',
     default_args=default_args,
     description='Process PDFs from GCS and extract course review data',
-    schedule_interval='0 0 * * *',  # Daily at midnight
+    # every 5 months interval
+    schedule_interval='0 0 1 */5 *',
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pdf', 'processing', 'gcs'],
