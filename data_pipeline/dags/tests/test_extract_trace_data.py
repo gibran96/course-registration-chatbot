@@ -1,18 +1,14 @@
 import sys
 import os
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from scripts.data.data_utils import clean_response, clean_text
+from scripts.trace.extract_trace_data import extract_data_from_pdf, parse_data
 
 import pandas as pd
 
 import pytest
 from unittest.mock import MagicMock
-
-from scripts.trace.extract_trace_data import clean_text
-from scripts.trace.extract_trace_data import clean_response
-
-from scripts.trace.extract_trace_data import parse_data
-from scripts.trace.extract_trace_data import extract_data_from_pdf
 
 
 class TestCleanResponse:

@@ -1,4 +1,4 @@
-from model_training.dags.model_scripts.constants.prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
+from model_scripts.constants.prompts import SYSTEM_INSTRUCTION, INSTRUCTION_PROMPT
 from model_scripts.config import PROJECT_ID, DATASET_ID, TABLE_ID
 from google.cloud import bigquery
 import pandas as pd

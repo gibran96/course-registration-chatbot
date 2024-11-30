@@ -8,9 +8,9 @@ from vertexai.language_models import TextGenerationModel
 from airflow.models import Variable
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory
-from model_training.dags.model_scripts.constants.prompts import INSTRUCTION_PROMPT
+from model_scripts.constants.prompts import INSTRUCTION_PROMPT
 from vertexai.preview.evaluation import PointwiseMetric, PointwiseMetricPromptTemplate, EvalTask
-from model_training.dags.model_scripts.constants.prompts import BIAS_PROMPT_TEMPLATE, PROMPT_TEMPLATE
+from model_scripts.constants.prompts import BIAS_PROMPT_TEMPLATE, PROMPT_TEMPLATE
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 
