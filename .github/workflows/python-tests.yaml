@@ -2,7 +2,7 @@ name: Python Tests
 
 on: 
   push:
-    branches: [main, feature/*, gibran/model_eval]
+    branches: [main, feature/*]
 
 jobs:
   test:
