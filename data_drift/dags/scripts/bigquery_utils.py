@@ -19,7 +19,7 @@ def get_train_queries_from_bq(**context):
     
     logging.info(f"Found {len(question_list)} unique train questions")
     
-    context['ti'].xcom_push(key='train_questions', value=question_list)
+    context['ti'].xcom_push(key='questions', value=question_list)
     return question_list
 
 def get_new_queries(**context):
@@ -36,6 +36,6 @@ def get_new_queries(**context):
     
     logging.info(f"Found {len(question_list)} unique test questions")
     
-    context['ti'].xcom_push(key='test_questions', value=question_list)
+    context['ti'].xcom_push(key='questions', value=question_list)
     return question_list
 
