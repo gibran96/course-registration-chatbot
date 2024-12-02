@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 def get_train_embeddings(**context):
-    train_questions = context['ti'].xcom_pull(task_ids='get_train_questions', key='task_status')
+    train_questions = context['ti'].xcom_pull(task_ids='get_train_questions', key='questions')
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
@@ -22,7 +22,7 @@ def get_train_embeddings(**context):
     return embeddings
 
 def get_test_embeddings(**context):
-    test_questions = context['ti'].xcom_pull(task_ids='get_test_questions', key='task_status')
+    test_questions = context['ti'].xcom_pull(task_ids='get_test_questions', key='questions')
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
@@ -54,7 +54,7 @@ def get_thresholds(**context):
     context['ti'].xcom_push(key='upper_threshold', value=upper_threshold)
     context['ti'].xcom_push(key='lower_threshold', value=lower_threshold)
 
-    return upper_threshold, lower_threshold
+    return (upper_threshold, lower_threshold)
 
 def detect_data_drift(**context):
     test_embeddings = context['ti'].xcom_pull(task_ids='get_test_embeddings', key='task_status')

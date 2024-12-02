@@ -42,7 +42,7 @@ with DAG(
     )
 
     new_questions = PythonOperator(
-        task_id='get_new_questions',
+        task_id='get_test_questions',
         python_callable=get_new_queries,
         provide_context=True,
         dag=dag
@@ -62,7 +62,7 @@ with DAG(
         dag=dag
     )
 
-    upper_threshold, lower_threshold = PythonOperator(
+    thresholds = PythonOperator(
         task_id='get_thresholds',
         python_callable=get_thresholds,
         provide_context=True,
