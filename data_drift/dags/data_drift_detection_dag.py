@@ -93,5 +93,5 @@ with DAG(
 
 
     # Define the task dependencies
-    train_questions >> new_questions >> train_embeddings >> test_embeddings >> upper_threshold >> lower_threshold >> data_drift >> success_email_task
+    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> success_email_task
     
