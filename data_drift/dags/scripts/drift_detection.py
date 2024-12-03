@@ -11,12 +11,14 @@ def get_train_embeddings(**context):
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
-
+    batch_size = 8
+    embeddings = []
     query_inputs = [TextEmbeddingInput(question, task) for question in train_questions]
     logging.info("Getting train embeddings")
-    query_embeddings = model.get_embeddings(query_inputs)
+    for i in range(0, len(query_inputs), batch_size):
+        query_embeddings = model.get_embeddings(query_inputs[i:i+batch_size])
+        embeddings.extend([embedding.values for embedding in query_embeddings])
     logging.info(f"Got train embeddings {len(query_embeddings)}")
-    embeddings = [embedding.values for embedding in query_embeddings]
     logging.info(f"Sample embeddings: {embeddings[0]}")
     context['ti'].xcom_push(key='train_embeddings', value=embeddings)
     return embeddings
@@ -26,12 +28,14 @@ def get_test_embeddings(**context):
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
-
+    batch_size = 8
     query_inputs = [TextEmbeddingInput(question, task) for question in test_questions]
+    embeddings = []
     logging.info("Getting test embeddings")
-    query_embeddings = model.get_embeddings(query_inputs)
+    for i in range(0, len(query_inputs), batch_size):
+        query_embeddings = model.get_embeddings(query_inputs[i:i+batch_size])
+        embeddings.extend([embedding.values for embedding in query_embeddings])
     logging.info(f"Got test embeddings {len(query_embeddings)}")
-    embeddings = [embedding.values for embedding in query_embeddings]
     logging.info(f"Sample embeddings: {embeddings[0]}")
     context['ti'].xcom_push(key='test_embeddings', value=embeddings)
     return embeddings
