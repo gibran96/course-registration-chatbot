@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 # Vertex AI initialization
 PROJECT_ID = os.getenv("PROJECT_ID", "coursecompass")
 LOCATION = os.getenv("LOCATION", "us-east1")
-ENDPOINT_ID = os.getenv("ENDPOINT_ID", "projects/542057411868/locations/us-east1/endpoints/8473016923548811264")
+ENDPOINT_ID = os.getenv("ENDPOINT_ID", "projects/542057411868/locations/us-east1/endpoints/7671516927365218304")
 DATASET_ID = os.getenv("DATASET_ID", "mlopsdataset")
 USER_TABLE_NAME = os.getenv("USER_TABLE_ID", "user_data_table")
 
