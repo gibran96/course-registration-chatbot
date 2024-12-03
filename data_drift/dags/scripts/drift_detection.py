@@ -57,7 +57,7 @@ def get_thresholds(**context):
     minimum_sim = np.inf
     for i in range(0, len(train_embeddings), batch_size):
         cosine_similarities = cosine_similarity(train_embeddings[i:i+batch_size])
-        min_cosine_sim = min(cosine_similarities)
+        min_cosine_sim = cosine_similarities.min()
         minimum_sim = min(minimum_sim, min_cosine_sim)
 
     upper_threshold = minimum_sim - (minimum_sim * 0.1)
@@ -84,7 +84,7 @@ def detect_data_drift(**context):
     for i in range(0, len(test_embeddings), batch_size):
         for j in range(0, len(train_embeddings), batch_size):
             cosine_similarities = cosine_similarity(train_embeddings[j:j+batch_size], test_embeddings[i:i+batch_size])
-            min_cosine_sim = min(cosine_similarities)
+            min_cosine_sim = cosine_similarities.min()
             if min_cosine_sim > lower_threshold:
                 minimum_sim = min(minimum_sim, min_cosine_sim)
             lowest_sim = min(lowest_sim, min_cosine_sim)
