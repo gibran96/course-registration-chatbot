@@ -1,0 +1,54 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'model_deployment/**'
+      - '.github/workflows/backend-deploy.yaml'
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out the code
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # 2. Set up Google Cloud SDK
+    - name: Setup Auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # 3. Authenticate Docker with Google Artifact Registry
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker us-east1-docker.pkg.dev
+
+    # 4. Build Docker image
+    - name: Build Docker Image
+      run: |
+        cd model_deployment
+        docker build -t us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/course-compass-backend/course-compass .
+
+    # 5. Push Docker image to Artifact Registry
+    - name: Push Docker Image
+      run: docker push us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/course-compass-backend/course-compass
+
+    # 6. Deploy to Cloud Run
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy course-compass \
+        --image us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/course-compass-backend/course-compass \
+        --region ${{ secrets.GCP_LOCATION }} \
+        --platform managed \
+        --allow-unauthenticated \
+        --max-instances 10 \
+        --update-env-vars PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
+        --update-env-vars ENDPOINT_ID=${{ secrets.GCP_VERTEX_ENDPOINT_ID }} \
+        --update-env-vars LOCATION=${{ secrets.GCP_LOCATION }} \
+        --service-account ${{ secrets.GCP_SERVICE_ACCOUNT_ID }}
