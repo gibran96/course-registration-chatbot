@@ -50,7 +50,7 @@ def get_test_embeddings(**context):
 
 
 def get_thresholds(**context):
-    train_embeddings = context['ti'].xcom_pull(task_ids='get_train_embeddings', key='task_status')
+    train_embeddings = context['ti'].xcom_pull(task_ids='get_train_embeddings', key='train_embeddings')
 
     ## batched cosine similarity
     batch_size = 4
