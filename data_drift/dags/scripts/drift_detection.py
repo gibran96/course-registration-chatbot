@@ -57,7 +57,8 @@ def get_thresholds(**context):
     return (upper_threshold, lower_threshold)
 
 def detect_data_drift(**context):
-    test_embeddings = context['ti'].xcom_pull(task_ids='get_test_embeddings', key='task_status')
+    test_embeddings = context['ti'].xcom_pull(task_ids='get_test_embeddings', key='test_embeddings')
+    train_embeddings = context['ti'].xcom_pull(task_ids='get_train_embeddings', key='train_embeddings')
 
     upper_threshold = context['ti'].xcom_pull(task_ids='get_thresholds', key='upper_threshold')
     lower_threshold = context['ti'].xcom_pull(task_ids='get_thresholds', key='lower_threshold')
@@ -69,11 +70,12 @@ def detect_data_drift(**context):
     minimum_sim = np.inf
     lowest_sim = np.inf
     for i in range(0, len(test_embeddings), batch_size):
-        cosine_similarities = cosine_similarity(test_embeddings[i:i+batch_size])
-        min_cosine_sim = min(cosine_similarities)
-        if min_cosine_sim > lower_threshold:
-            minimum_sim = min(minimum_sim, min_cosine_sim)
-        lowest_sim = min(lowest_sim, min_cosine_sim)
+        for j in range(0, len(train_embeddings), batch_size):
+            cosine_similarities = cosine_similarity(train_embeddings[j:j+batch_size], test_embeddings[i:i+batch_size])
+            min_cosine_sim = min(cosine_similarities)
+            if min_cosine_sim > lower_threshold:
+                minimum_sim = min(minimum_sim, min_cosine_sim)
+            lowest_sim = min(lowest_sim, min_cosine_sim)
 
     if (minimum_sim < upper_threshold) and (minimum_sim > lower_threshold):
         data_drift = True
