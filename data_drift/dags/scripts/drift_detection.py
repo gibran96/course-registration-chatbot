@@ -3,8 +3,16 @@ from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import logging
+from scripts.backoff import exponential_backoff
 
 logging.basicConfig(level=logging.INFO)
+
+
+@exponential_backoff()
+def get_embeddings(model, model_inputs):
+    embeddings = model.get_embeddings(model_inputs)
+    return embeddings
+
 
 def get_train_embeddings(**context):
     train_questions = context['ti'].xcom_pull(task_ids='get_train_questions', key='questions')
