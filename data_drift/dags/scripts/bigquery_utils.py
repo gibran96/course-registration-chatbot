@@ -2,6 +2,7 @@ import logging
 from google.cloud import bigquery
 from airflow.models import Variable
 import logging
+from google.cloud import bigquery
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,10 +41,26 @@ def get_new_queries(**context):
     return question_list
 
 
+
 def move_data_from_user_table(**context):
-    """
-    Retrieves 
-    """
     client = bigquery.Client()
-    pass
-    
+
+    source_table_ref = Variable.get('user_data_table_name')
+    destination_table_ref = Variable.get('historic_user_data_table_name')
+
+    insert_query = f"""
+    INSERT INTO {destination_table_ref}
+    SELECT * FROM {source_table_ref};
+    """
+    query_job = client.query(insert_query)
+    query_job.result()  
+
+    delete_query = f"""
+    DELETE FROM {source_table_ref}
+    WHERE TRUE;
+    """
+    query_job = client.query(delete_query)
+    query_job.result() 
+
+    logging.info(f"Data moved from {source_table_ref} to {destination_table_ref} and deleted from source.")
+
