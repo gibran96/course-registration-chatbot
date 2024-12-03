@@ -19,7 +19,7 @@ def get_train_embeddings(**context):
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
-    batch_size = 8
+    batch_size = 4
     embeddings = []
     query_inputs = [TextEmbeddingInput(question, task) for question in train_questions]
     logging.info("Getting train embeddings")
@@ -36,7 +36,7 @@ def get_test_embeddings(**context):
 
     task = "CLUSTERING"
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
-    batch_size = 8
+    batch_size = 4
     query_inputs = [TextEmbeddingInput(question, task) for question in test_questions]
     embeddings = []
     logging.info("Getting test embeddings")
@@ -53,7 +53,7 @@ def get_thresholds(**context):
     train_embeddings = context['ti'].xcom_pull(task_ids='get_train_embeddings', key='task_status')
 
     ## batched cosine similarity
-    batch_size = 8
+    batch_size = 4
     minimum_sim = np.inf
     for i in range(0, len(train_embeddings), batch_size):
         cosine_similarities = cosine_similarity(train_embeddings[i:i+batch_size])
@@ -78,7 +78,7 @@ def detect_data_drift(**context):
     data_drift = False
 
     ## batched cosine similarity
-    batch_size = 8
+    batch_size = 4
     minimum_sim = np.inf
     lowest_sim = np.inf
     for i in range(0, len(test_embeddings), batch_size):
