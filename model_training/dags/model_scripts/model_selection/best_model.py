@@ -34,7 +34,7 @@ def compare_model(**context):
     context["ti"].xcom_push(key="best_metrics", value=best_metrics)
     context["ti"].xcom_push(key="current_metrics", value=current_metrics)
 
-    if current_metrics['bleu/mean'] > best_metrics['bleu/mean'] and current_metrics['rouge_l_sum/mean'] > best_metrics['rouge_l_sum/mean']:
+    if current_metrics['bleu/mean'] >= best_metrics['bleu/mean'] and current_metrics['rouge_l_sum/mean'] >= best_metrics['rouge_l_sum/mean']:
         return 'deploy_new_model'
     else:
         return 'end_dag'
