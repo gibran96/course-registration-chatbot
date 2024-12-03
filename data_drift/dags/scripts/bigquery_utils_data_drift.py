@@ -8,6 +8,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 )
 import string
 
+
 logging.basicConfig(level=logging.INFO)
 
 def get_train_queries_from_bq(**context):

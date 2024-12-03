@@ -9,6 +9,7 @@ from airflow.operators.python import PythonOperator
 from scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
 from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift
 from scripts.llm_utils_data_drift import generate_llm_response
+from scripts.gcs_utils_data_drift import upload_train_data_to_gcs
 
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
@@ -113,6 +114,13 @@ with DAG(
         dag=dag
     )
 
+    upload_train_data_to_gcs_task = PythonOperator(
+        task_id='upload_train_data_to_gcs',
+        python_callable=upload_train_data_to_gcs,
+        provide_context=True,
+        dag=dag
+    )
+
     load_to_bigquery_task = PythonOperator(
         task_id='upload_gcs_to_bq',
         python_callable=upload_gcs_to_bq,
@@ -152,5 +160,5 @@ with DAG(
 
 
     # Define the task dependencies
-    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >> load_to_bigquery_task >> trigger_dag_run >> move_data_from_user_table_task >> success_email_task
+    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >>  upload_train_data_to_gcs_task >> load_to_bigquery_task >> trigger_dag_run >> move_data_from_user_table_task >> success_email_task
     
