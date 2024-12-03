@@ -30,8 +30,11 @@ def fetch_context(user_query: str, project_id: str):
         result_crns.append(row.crn)
         result_content.append(remove_punctuation(row.full_info))
     
+    final_content = "\n\n".join(result_content)
+    if len(final_content) >= 100000:
+        final_content = final_content[:100000]
     context['crns'] = result_crns
-    context['content'] = result_content
+    context['content'] = final_content
     
     return context
 
