@@ -44,17 +44,6 @@ def llm_response_parser(llm_response):
     else:
         return None
 
-def generate_sample_queries(query):
-    """
-    Generate sample queries based on given query
-    :param query: user query
-    :return: list of sample queries
-    """
-    input_prompt = QUERY_GENERATION_PROMPT.format(query=query)
-    res = get_llm_response(input_prompt)
-    queries = llm_response_parser(res)['queries']
-    logging.info(f'generated queries are: {queries}')
-    return queries
 
 def generate_llm_response(**context):
     """
@@ -68,10 +57,14 @@ def generate_llm_response(**context):
     :param context: task instance context
     :return: string "generate_samples" if successful
     """
-    task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
-    logging.info(f"task_status: {task_status}")
-    if task_status == "stop_task":
-        return "stop_task"
+    drift_status = context['ti'].xcom_pull(task_ids='data_drift_detection', key='data_drift')
+    logging.info(f"drift_status: {drift_status}")
+    if drift_status == False:
+        logging.info("No data drift detected. Not generating LLM responses")
+        return False
+    
+
+
     query_responses = context['ti'].xcom_pull(task_ids='bq_similarity_search', key='similarity_results')
 
     prompt = """          
@@ -101,11 +94,11 @@ def generate_llm_response(**context):
     logging.info(f'Size of train_data_df: {train_data_df.memory_usage(deep=True).sum() / 1024**2} MB')
     context['ti'].xcom_push(key='generated_samples_count', value=len(train_data_df))
 
-    if os.path.exists('/tmp/llm_train_data.pq'):
-        logging.info("llm_train_data.pq exists, removing...")
-        os.remove('/tmp/llm_train_data.pq')
-    if not os.path.exists('/tmp/llm_train_data.pq'):
-        logging.info("Successfully removed llm_train_data.pq")
-    train_data_df.to_parquet('/tmp/llm_train_data.pq', index=False)
-    logging.info(f"llm_train_data.pq exists: {os.path.exists('/tmp/llm_train_data.pq')}")
-    return "generate_samples"
+    if os.path.exists('/tmp/llm_train_data_drift.pq'):
+        logging.info("llm_train_data_drift.pq exists, removing...")
+        os.remove('/tmp/llm_train_data_drift.pq')
+    if not os.path.exists('/tmp/llm_train_data_drift.pq'):
+        logging.info("Successfully removed llm_train_data_drift.pq")
+    train_data_df.to_parquet('/tmp/llm_train_data_drift.pq', index=False)
+    logging.info(f"llm_train_data_drift.pq exists: {os.path.exists('/tmp/llm_train_data_drift.pq')}")
+    return True
