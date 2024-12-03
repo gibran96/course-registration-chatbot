@@ -32,7 +32,7 @@ jobs:
     # 4. Build Docker image
     - name: Build Docker Image
       working-directory: model_deployment
-      run: docker build -t us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/course-compass-backend/course-compass /model_deployment
+      run: docker build -t us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/course-compass-backend/course-compass model_deployment
 
     # 5. Push Docker image to Artifact Registry
     - name: Push Docker Image
