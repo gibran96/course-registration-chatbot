@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator, BranchPythonOperator, DummyOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.empty import EmptyOperator
 import os
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
@@ -128,7 +129,7 @@ with DAG(
         provide_context=True,
     )
 
-    end_dag_task = DummyOperator(task_id="end_dag")
+    end_dag_task = EmptyOperator(task_id="end_dag")
     
     success_email_task = EmailOperator(
         task_id='success_email',
