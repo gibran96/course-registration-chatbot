@@ -7,7 +7,7 @@ def fetch_context(user_query: str, project_id: str):
     context = ""
     client = bigquery.Client(project=project_id)
     query_params = [
-        bigquery.ScalarQueryParameter("new_query", "STRING", user_query),
+        bigquery.ScalarQueryParameter("user_query", "STRING", user_query),
     ]
 
     job_config = bigquery.QueryJobConfig(
