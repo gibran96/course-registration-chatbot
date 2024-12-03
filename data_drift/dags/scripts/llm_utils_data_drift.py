@@ -3,7 +3,7 @@ import ast
 import logging
 from vertexai.generative_models import HarmCategory, HarmBlockThreshold, GenerationConfig
 from scripts.backoff import exponential_backoff
-from scripts.constants import CLIENT_MODEL, QUERY_GENERATION_PROMPT, GENERATED_SAMPLE_COUNT
+from data_drift.dags.scripts.constants_data_drift import CLIENT_MODEL, QUERY_GENERATION_PROMPT, GENERATED_SAMPLE_COUNT
 import os
 import pandas as pd
 
