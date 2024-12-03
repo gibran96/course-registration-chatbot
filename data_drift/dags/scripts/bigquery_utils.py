@@ -39,3 +39,11 @@ def get_new_queries(**context):
     context['ti'].xcom_push(key='questions', value=question_list)
     return question_list
 
+
+def move_data_from_user_table(**context):
+    """
+    Retrieves 
+    """
+    client = bigquery.Client()
+    pass
+    
