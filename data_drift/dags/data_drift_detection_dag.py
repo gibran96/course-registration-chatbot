@@ -6,9 +6,9 @@ import logging
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 
-from data_drift.dags.scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
+from scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
 from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift
-from data_drift.dags.scripts.llm_utils_data_drift import generate_llm_response
+from scripts.llm_utils_data_drift import generate_llm_response
 
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
