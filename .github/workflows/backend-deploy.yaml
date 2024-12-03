@@ -47,6 +47,7 @@ jobs:
         --region ${{ secrets.GCP_LOCATION }} \
         --platform managed \
         --allow-unauthenticated \
+        --max-instances 10 \
         --update-env-vars PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
         --update-env-vars ENDPOINT_ID=${{ secrets.GCP_VERTEX_ENDPOINT_ID }} \
         --update-env-vars LOCATION=${{ secrets.GCP_LOCATION }} \
