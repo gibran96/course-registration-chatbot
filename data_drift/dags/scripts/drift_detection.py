@@ -24,7 +24,7 @@ def get_train_embeddings(**context):
     query_inputs = [TextEmbeddingInput(question, task) for question in train_questions]
     logging.info("Getting train embeddings")
     for i in range(0, len(query_inputs), batch_size):
-        query_embeddings = model.get_embeddings(query_inputs[i:i+batch_size])
+        query_embeddings = get_embeddings(model, query_inputs[i:i+batch_size])
         embeddings.extend([embedding.values for embedding in query_embeddings])
     logging.info(f"Got train embeddings {len(query_embeddings)}")
     logging.info(f"Sample embeddings: {embeddings[0]}")
@@ -41,7 +41,7 @@ def get_test_embeddings(**context):
     embeddings = []
     logging.info("Getting test embeddings")
     for i in range(0, len(query_inputs), batch_size):
-        query_embeddings = model.get_embeddings(query_inputs[i:i+batch_size])
+        query_embeddings = get_embeddings(model, query_inputs[i:i+batch_size])
         embeddings.extend([embedding.values for embedding in query_embeddings])
     logging.info(f"Got test embeddings {len(query_embeddings)}")
     logging.info(f"Sample embeddings: {embeddings[0]}")
