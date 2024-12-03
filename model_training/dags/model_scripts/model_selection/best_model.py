@@ -26,9 +26,10 @@ def compare_current_model_with_best_model(current_model_experiment_run_id, curre
     return best_metrics, current_metrics
 
 def compare_model(**context):
-    current_model_experiment_run_id = context["ti"].xcom_pull(task_ids="train_model", key="experiment_run_id")
-    current_model_experiment_id = context["ti"].xcom_pull(task_ids="train_model", key="experiment_id")
-
+    current_model_experiment_run_id = context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_run_name")
+    current_model_experiment_id = context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_name")
+    logging.info(f"Current model experiment run ID: {current_model_experiment_run_id}")
+    logging.info(f"Current model experiment ID: {current_model_experiment_id}")
     best_metrics, current_metrics = compare_current_model_with_best_model(current_model_experiment_run_id, current_model_experiment_id)
 
     context["ti"].xcom_push(key="best_metrics", value=best_metrics)

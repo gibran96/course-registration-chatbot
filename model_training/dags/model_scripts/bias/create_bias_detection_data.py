@@ -327,6 +327,7 @@ def get_data_from_bigquery(queries):
 
     for new_query in queries:
         logging.info(f"Processing query: {new_query}")
+        new_query = new_query['query']
         bq_query = EMBEDDINGS_QUERY
         query_params = [
             bigquery.ScalarQueryParameter("new_query", "STRING", new_query),
