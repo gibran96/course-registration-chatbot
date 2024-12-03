@@ -6,9 +6,9 @@ import logging
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 
-from data_drift.dags.scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
+from scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
 from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift
-from data_drift.dags.scripts.llm_utils_data_drift import generate_llm_response
+from scripts.llm_utils_data_drift import generate_llm_response
 
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
@@ -127,7 +127,7 @@ with DAG(
         dag=dag
     )
 
-    move_data_from_user_table = PythonOperator(
+    move_data_from_user_table_task = PythonOperator(
         task_id='move_data_from_user_table',
         python_callable=move_data_from_user_table,
         provide_context=True,
@@ -152,5 +152,5 @@ with DAG(
 
 
     # Define the task dependencies
-    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >> load_to_bigquery_task >> trigger_dag_run >> success_email_task
+    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >> load_to_bigquery_task >> trigger_dag_run >> move_data_from_user_table_task >> success_email_task
     
