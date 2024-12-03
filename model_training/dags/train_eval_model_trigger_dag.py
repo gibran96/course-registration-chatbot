@@ -160,5 +160,7 @@ with DAG(
         >> get_sentiment_score_task 
         >> generate_bias_report_task
         >> delete_default_endpoint_task
-        >> compare_model_task >> [deploy_new_model_task, end_dag_task] >> success_email_task
+        >> compare_model_task >> [deploy_new_model_task, end_dag_task]
     )
+    end_dag_task >> success_email_task
+    deploy_new_model_task >> success_email_task
