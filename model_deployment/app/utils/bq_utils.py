@@ -4,7 +4,7 @@ from app.utils.data_utils import remove_punctuation
 import logging
 
 def fetch_context(user_query: str, project_id: str):
-    context = ""
+    context = {}
     client = bigquery.Client(project=project_id)
     query_params = [
         bigquery.ScalarQueryParameter("user_query", "STRING", user_query),
