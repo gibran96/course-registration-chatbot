@@ -127,7 +127,7 @@ with DAG(
         dag=dag
     )
 
-    move_data_from_user_table = PythonOperator(
+    move_data_from_user_table_task = PythonOperator(
         task_id='move_data_from_user_table',
         python_callable=move_data_from_user_table,
         provide_context=True,
@@ -152,5 +152,5 @@ with DAG(
 
 
     # Define the task dependencies
-    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >> load_to_bigquery_task >> trigger_dag_run >> success_email_task
+    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >> load_to_bigquery_task >> trigger_dag_run >> move_data_from_user_table_task >> success_email_task
     
