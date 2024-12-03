@@ -12,6 +12,9 @@ from random import uniform
 from functools import wraps
 from typing import Callable, Any
 import pandas as pd
+from google.api_core.retry import Retry
+from textblob import TextBlob
+
 
 from model_scripts.constants.prompts import GET_SENTIMENT_PROMPT, INSTRUCTION_PROMPT
 from model_scripts.constants.queries import QUERIES_FOR_EVAL
@@ -188,7 +191,7 @@ def get_bq_data_for_profs(**context):
         relavant_data = get_data_from_bigquery(query_list)
 
         for query_, data in relavant_data.items():
-            df = pd.concat([df, pd.DataFrame({'question': [query_], 'context': [data['final_content']], 'query_bucket': query, 'prof_name': query_list['prof_name'] })], ignore_index=True)
+            df = pd.concat([df, pd.DataFrame({'question': [query_], 'context': [data['final_content']], 'query_bucket': query, 'prof_name': data['prof_name'] })], ignore_index=True)
 
     context['ti'].xcom_push(key='bq_data', value=df)
 
@@ -233,18 +236,26 @@ def get_sentiment_score(**context):
     :param context: Airflow context dictionary containing task instance (ti) and other metadata.
     :return: The DataFrame with the added sentiment scores.
     """
-    prompt = GET_SENTIMENT_PROMPT
+    # prompt = GET_SENTIMENT_PROMPT
     data = context['ti'].xcom_pull(task_ids='generate_responses_task', key='llm_responses')
-    model = GenerativeModel(model_name="gemini-1.5-flash-002")
+    # model = GenerativeModel(model_name="gemini-1.5-flash-002")
 
     data_df = pd.DataFrame(columns=['question', 'context', 'response', 'query_bucket', 'sentiment_score', 'prof_name'])
 
     for _, row in data.iterrows():
-        input_prompt = prompt.format(response=row['response'])
         logging.info(f"Getting sentiment score for {row['question']}")
-        llm_res = get_llm_response(input_prompt, model)
-        sentiment_score = parse_response(llm_res)
+        blob = TextBlob(row['response'])
+        sentiment_score = blob.sentiment.polarity
         data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score], 'prof_name': row['prof_name']})], ignore_index=True)
+
+
+    # for _, row in data.iterrows():
+    #     input_prompt = prompt.format(response=row['response'])
+    #     logging.info(f"Getting sentiment score for {row['question']}")
+    #     llm_res = get_llm_response(input_prompt, model)
+    #     logging.info(f"Response: {llm_res}")
+    #     sentiment_score = int(llm_res)
+    #     data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score], 'prof_name': row['prof_name']})], ignore_index=True)
 
     context['ti'].xcom_push(key='sentiment_score_data', value=data_df)
 
@@ -324,10 +335,18 @@ def get_data_from_bigquery(queries):
     """
     client = bigquery.Client()
     query_response = {}
+    # Set up retries
+    retry_policy = Retry(
+        initial=1.0,  # Initial delay between retries (in seconds)
+        maximum=60.0,  # Maximum delay between retries (in seconds)
+        multiplier=2.0,  # Exponential backoff multiplier
+        deadline=300.0,  # Total time to spend retrying (in seconds)
+    )
 
-    for new_query in queries:
+    for query in queries:
+        # logging.info(f"Processing query: {query}")
+        new_query = query['query']
         logging.info(f"Processing query: {new_query}")
-        new_query = new_query['query']
         bq_query = EMBEDDINGS_QUERY
         query_params = [
             bigquery.ScalarQueryParameter("new_query", "STRING", new_query),
@@ -336,9 +355,22 @@ def get_data_from_bigquery(queries):
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_params
         )
-        query_job = client.query(bq_query, job_config=job_config)
+        
 
-        results = query_job.result()
+        max_retries = 3
+        curr_failures = 0
+
+        while curr_failures < max_retries:
+            try:
+                query_job = client.query(bq_query, job_config=job_config, retry=retry_policy)
+                results = query_job.result()
+                break
+            except Exception as e:
+                logging.error(f"Query failed: {str(e)}")
+                curr_failures += 1
+                time.sleep(5)
+
+        # results = query_job.result()
 
         result_crns = []
         result_content = []
@@ -352,8 +384,12 @@ def get_data_from_bigquery(queries):
             final_content = final_content[:100000]
         query_response[new_query] = {
             'crns': result_crns,
-            'final_content': final_content
+            'final_content': final_content,
+            'prof_name': query['prof_name']
         }
 
+        # logging.info(f"Processed query: {new_query}")
+    
+    logging.info(f"Retrieved data for {len(query_response)} queries")
 
     return query_response
