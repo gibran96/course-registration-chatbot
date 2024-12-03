@@ -185,7 +185,7 @@ def get_bq_data_for_profs(**context):
     logging.info(f"Getting data for {len(queries)} queries")
 
     for query, query_list in queries.items():
-        relavant_data = get_data_from_bigquery(query_list['query'])
+        relavant_data = get_data_from_bigquery(query_list)
 
         for query_, data in relavant_data.items():
             df = pd.concat([df, pd.DataFrame({'question': [query_], 'context': [data['final_content']], 'query_bucket': query, 'prof_name': query_list['prof_name'] })], ignore_index=True)
