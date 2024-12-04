@@ -98,6 +98,13 @@ The bias detection process is broken down into several subtasks:
    - generate_bias_report_task: Produces a comprehensive bias report based on the sentiment analysis, and sends the report in an email.
 
 
+5. Model Deployment
+The model deployment process ensures efficient and scalable integration with production systems using Vertex AI:  
+   - **Versioned Endpoints**: Each trained model is deployed as a versioned endpoint, enabling seamless updates and rollback functionality.  
+   - **Scalable Architecture**: Deployed endpoints leverage Vertex AI’s scalable infrastructure to handle varying traffic loads.  
+   - **Low-Latency API Integration**: The endpoints provide low-latency APIs suitable for real-time applications.  
+   - **Resource Allocation Optimization**: Automatically adjusts serving resources based on traffic patterns to minimize costs while maintaining performance.  
+
 ## Model Pipeline Directory Structure and Description
 
 ```
