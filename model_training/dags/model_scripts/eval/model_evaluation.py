@@ -99,6 +99,8 @@ def run_model_evaluation(**context):
     )
 
     context['ti'].xcom_push(key='eval_result', value=eval_results)
+    context['ti'].xcom_push(key='experiment_name', value=EXPERIMENT_NAME)
+    context['ti'].xcom_push(key='experiment_run_name', value=EXPERIMENT_RUN_NAME)
 
     return eval_results
 

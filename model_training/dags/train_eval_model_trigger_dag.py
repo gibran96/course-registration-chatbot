@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.empty import EmptyOperator
 import os
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
@@ -8,7 +9,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
 )
 from model_scripts.eval.model_evaluation import run_model_evaluation
 from model_scripts.train.prepare_dataset import prepare_training_data
-
+from model_scripts.model_deployment.endpoint_cleanup import delete_default_endpoint, deploy_new_model
+from model_scripts.model_selection.best_model import compare_model
 from airflow.models import Variable
 import datetime
 from model_scripts.bias.create_bias_detection_data import get_unique_profs, get_bucketed_queries, get_bq_data_for_profs, generate_responses, get_sentiment_score, generate_bias_report
@@ -108,6 +110,26 @@ with DAG(
         python_callable=generate_bias_report,
         provide_context=True,
     )
+
+    delete_default_endpoint_task = PythonOperator(
+        task_id="delete_default_endpoint",
+        python_callable=delete_default_endpoint,
+        provide_context=True,
+    )
+
+    compare_model_task = BranchPythonOperator(
+        task_id="compare_model",
+        python_callable=compare_model,
+        provide_context=True,
+    )
+
+    deploy_new_model_task = PythonOperator(
+        task_id="deploy_new_model",
+        python_callable=deploy_new_model,
+        provide_context=True,
+    )
+
+    end_dag_task = EmptyOperator(task_id="end_dag")
     
     success_email_task = EmailOperator(
         task_id='success_email',
@@ -137,5 +159,8 @@ with DAG(
         >> generate_responses_task
         >> get_sentiment_score_task 
         >> generate_bias_report_task
-        >> success_email_task
+        >> delete_default_endpoint_task
+        >> compare_model_task >> [deploy_new_model_task, end_dag_task]
     )
+    end_dag_task >> success_email_task
+    deploy_new_model_task >> success_email_task

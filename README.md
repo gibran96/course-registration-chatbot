@@ -363,6 +363,13 @@ We store all our data in Google Cloud Storage Bucket and use the versioning capa
 ![image](https://github.com/user-attachments/assets/45481dc0-358c-441d-914c-027108dba488)
 
 
+## Data Drift Detection
+
+We detect data drift based on the types of queries coming in from the users. We follow a similarity based approach over new queries and the existing queries in our training database. We check the similarity between the queries and based on a dynamic threshold we determine if there is a drift in the data and based on it we generate training data and re-train the model. 
+
+More details can be found in data_drift folder.
+
+
 ## Tools and Technologies
 - **Python**: Core programming language for development.
 - **Google Cloud Platform (GCP)**: Provides cloud infrastructure for storage and computation.
