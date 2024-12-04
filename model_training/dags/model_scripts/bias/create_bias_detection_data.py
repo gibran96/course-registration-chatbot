@@ -281,8 +281,8 @@ def generate_bias_report(**context):
     context['ti'].xcom_push(key='bias_report_prof', value=report_df_by_prof)
     context['ti'].xcom_push(key='bias_report_query', value=report_df_by_query)
     
-    bias_prof = report_df_by_prof[(report_df_by_prof['mean'] > 0.75) | (report_df_by_prof['mean'] < 0.25)]
-    bias_query = report_df_by_query[(report_df_by_query['mean'] > 0.75) | (report_df_by_query['mean'] < 0.25)]
+    bias_prof = report_df_by_prof[(report_df_by_prof['mean'] > 4) | (report_df_by_prof['mean'] < 2)]
+    bias_query = report_df_by_query[(report_df_by_query['mean'] > 4) | (report_df_by_query['mean'] < 2)]
     
     if (len(bias_prof) > 0) or (len(bias_query) > 0):
         logging.info(f"Bias detected in {len(bias_prof)} professors and {len(bias_query)} query buckets")
