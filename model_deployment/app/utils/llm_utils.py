@@ -70,5 +70,5 @@ def get_llm_response(input_prompt: str, model) -> str:
             temperature=0.7,
         ),
     ).text
-    logging.info(f"Response: {res}")
+    logging.info(f"Response generated from LLM successfully")
     return res
