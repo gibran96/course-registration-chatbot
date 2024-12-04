@@ -369,6 +369,36 @@ We detect data drift based on the types of queries coming in from the users. We 
 
 More details can be found in data_drift folder.
 
+## Model Deployment
+
+The model deployment process in this DAG involves three critical tasks: deleting the default endpoint, comparing the current model's performance with the existing best model, and deploying the new model if it surpasses the current best. Below is an explanation of each task:
+
+### **1. `delete_default_endpoint_task`**
+This task ensures that any existing model deployed to the default Vertex AI endpoint is deleted before deploying a new model. It retrieves the name of the endpoint using an XCom key (`tuned_model_endpoint_name`) and initializes the `aiplatform` library to interact with the Vertex AI endpoint. The task then deletes the endpoint using the `force=True` option to ensure smooth deployment of the new model.
+
+### **2. `compare_model_task`**
+The `compare_model_task` is a branching task that evaluates the current model's performance metrics (e.g., BLEU and ROUGE scores) against the best existing model stored in environment variables (`best_existing_model_id`, `best_existing_model_experiment_id`, and `best_existing_model_experiment_run_id`).  
+- **Metrics Comparison Logic**: 
+  - If the current model's BLEU and ROUGE scores meet or exceed the best model's metrics, the DAG proceeds to the `deploy_new_model_task`.
+  - If the metrics do not surpass the best model, the DAG ends at `end_dag_task`.
+
+### **3. `deploy_new_model_task`**
+This task deploys the new model to the default Vertex AI endpoint if it has been determined to be better than the existing model. It retrieves the new model name using an XCom key (`tuned_model_name`) and deploys it to the endpoint with 100% traffic allocation. After deployment:
+- The environment variables `best_existing_model_id`, `best_existing_model_experiment_id`, and `best_existing_model_experiment_run_id` are updated to reflect the new model's details, ensuring subsequent comparisons use the updated model as the baseline.
+
+### **4. Workflow Logic**
+The deployment tasks follow this logical sequence:
+1. `delete_default_endpoint_task` ensures a clean state by removing the existing model.
+2. `compare_model_task` determines whether to deploy the new model or end the DAG.
+3. If the new model is better, `deploy_new_model_task` executes and deploys the model to the default endpoint.
+
+This structured approach ensures:
+- Reliable and consistent model management.
+- Automatic model performance evaluation and promotion to deployment if criteria are met. 
+- Clean endpoint management to avoid conflicts during deployment.
+
+These tasks are integrated seamlessly into the DAG and maintain robust automation for the model lifecycle.
+
 
 ## Tools and Technologies
 - **Python**: Core programming language for development.
