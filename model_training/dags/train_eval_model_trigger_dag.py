@@ -129,7 +129,9 @@ with DAG(
         provide_context=True,
     )
 
-    end_dag_task = EmptyOperator(task_id="end_dag")
+    end_dag_task = EmptyOperator(task_id="end_dag",
+            trigger_rule='one_success'                         
+        )
     
     success_email_task = EmailOperator(
         task_id='success_email',
