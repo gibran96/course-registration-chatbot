@@ -51,6 +51,6 @@ jobs:
         --update-env-vars PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
         --update-env-vars ENDPOINT_ID=${{ secrets.GCP_VERTEX_ENDPOINT_ID }} \
         --update-env-vars LOCATION=${{ secrets.GCP_LOCATION }} \
-        --update-env-vars LOCATION=${{ secrets.DATASET_ID }} \
-        --update-env-vars LOCATION=${{ secrets.USER_TABLE_NAME }} \
+        --update-env-vars DATASET_ID=${{ secrets.DATASET_ID }} \
+        --update-env-vars USER_TABLE_NAME=${{ secrets.USER_TABLE_NAME }} \
         --service-account ${{ secrets.GCP_SERVICE_ACCOUNT_ID }}
