@@ -29,7 +29,7 @@ SIMILARITY_QUERY = """
             c.crn AS course_crn
         FROM vector_search_results v
         JOIN `coursecompass.mlopsdataset.course_data_table` c
-            ON v.faculty_name = c.instructor
+            ON v.faculty_name = c.instructor v.subject_course=CONCAT('CS', c.course_code)
     ),
     review_data AS (
         SELECT * EXCEPT(review_id)
