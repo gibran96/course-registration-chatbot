@@ -367,13 +367,13 @@ We store all our data in Google Cloud Storage Bucket and use the versioning capa
 
 We detect data drift based on the types of queries coming in from the users. We follow a similarity based approach over new queries and the existing queries in our training database. We check the similarity between the queries and based on a dynamic threshold we determine if there is a drift in the data and based on it we generate training data and re-train the model. 
 
-More details can be found in `data_drift` folder.
+More details can be found in [data_drift](./data_drift/README.md) folder.
 
 ## Model and backend deployment
 We have deployed the model to an endpoint on Vertex AI, which is then being triggered from our backend FastAPI app, which
 is hosted on Google Cloud Run.
 
-More details can be found in `backend` folder.
+More details can be found in [backend](./backend/README.md) folder.
 
 
 ## Tools and Technologies
