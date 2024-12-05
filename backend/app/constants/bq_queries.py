@@ -29,7 +29,7 @@ SIMILARITY_QUERY = """
             c.crn AS course_crn
         FROM vector_search_results v
         JOIN `coursecompass.mlopsdataset.course_data_table` c
-            ON v.faculty_name = c.instructor v.subject_course=CONCAT('CS', c.course_code)
+            ON v.faculty_name = c.instructor and v.subject_course=CONCAT('CS', c.course_code)
     ),
     review_data AS (
         SELECT * EXCEPT(review_id)
@@ -62,4 +62,11 @@ SESSION_QUERY = """
     WHERE session_id = @session_id
     ORDER BY timestamp DESC
     LIMIT 1
+"""
+
+UPDATE_FEEDBACK_QUERY = """
+    UPDATE @table_name
+    SET feedback = @feedback
+    WHERE session_id = @session_id
+    AND query_id = @query_id
 """
