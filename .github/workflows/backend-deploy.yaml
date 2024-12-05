@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'model_deployment/**'
+      - 'backend/**'
       - '.github/workflows/backend-deploy.yaml'
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
     # 4. Build Docker image
     - name: Build Docker Image
       run: |
-        cd model_deployment
+        cd backend
         docker build -t us-east1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/course-compass-backend/course-compass .
 
     # 5. Push Docker image to Artifact Registry
