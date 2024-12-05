@@ -64,7 +64,7 @@ The pipeline keeps stakeholders informed with real-time updates:
 ## DAG Structure
 The DAG is structured as a linear sequence of tasks, each responsible for a specific part of the model development process:
 
-![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
+![image](https://github.com/user-attachments/assets/22a92394-9b31-497e-aa42-6de7b0c76233)
 
 1. Data Preparation
 2. Model Training
