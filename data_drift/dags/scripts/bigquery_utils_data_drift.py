@@ -37,10 +37,10 @@ def get_new_queries(**context):
     client = bigquery.Client()
     
     test_data_query = """
-        SELECT DISTINCT question
+        SELECT DISTINCT query
         FROM `{}`""".format(Variable.get('user_data_table_name'))
     
-    question_list = list(set(row["question"] for row in client.query(test_data_query).result()))
+    question_list = list(set(row["query"] for row in client.query(test_data_query).result()))
     
     logging.info(f"Found {len(question_list)} unique test questions")
     
