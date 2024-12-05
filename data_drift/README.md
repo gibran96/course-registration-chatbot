@@ -3,23 +3,23 @@
 This DAG is designed to detect data drift and trigger further processes, including retraining workflows, if drift is identified. Below is a step-by-step outline of the tasks performed:
 
 
-## Structure
+## Data Drift Pipeline Directory Structure and Description
 
 ```
-data_drift/
-├── dags/
-│   ├── data_drift_detection_dag.py
-├── scripts/
-│   ├── __init__.py
-│   ├── backoff.py
-│   ├── bigquery_utils_data_drift.py
-│   ├── constants_data_drift.py
-│   ├── data_regeneration.py
-│   ├── drift_detection.py
-│   ├── gcs_utils_data_drift.py
-│   ├── llm_utils_data_drift.py
-├── __init__.py
-└── README.md
+| data_drift/
+| ├── dags/
+| │   ├── data_drift_detection_dag.py: The main DAG that orchestrates the process of data drift detection and triggers further workflows.
+| ├── scripts/
+| │   ├── __init__.py: Initializes the scripts package for utility functions related to data drift detection.
+| │   ├── backoff.py: Implements an exponential backoff strategy for retrying failed operations during data drift detection.
+| │   ├── bigquery_utils_data_drift.py: Contains BigQuery utilities tailored to the data drift detection process.
+| │   ├── constants_data_drift.py: Defines constants used across data drift detection tasks.
+| │   ├── data_regeneration.py: Contains logic for regenerating data when data drift is detected.
+| │   ├── drift_detection.py: Core logic for comparing embeddings and detecting data drift.
+| │   ├── gcs_utils_data_drift.py: Utility functions for interacting with Google Cloud Storage during the data drift detection process.
+| │   ├── llm_utils_data_drift.py: Functions for utilizing large language models (LLMs) in data drift detection.
+| ├── __init__.py: Initializes the data_drift package.
+| └── README.md: Documentation for the data_drift module, outlining the DAG, steps involved, and implementation details.
 ```
 
 ## Data Drift Detection Dag Pipeline
