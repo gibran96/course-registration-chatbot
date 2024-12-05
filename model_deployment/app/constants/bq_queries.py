@@ -55,3 +55,11 @@ SIMILARITY_QUERY = """
         cm.content,
         cm.search_distance
     """
+
+SESSION_QUERY = """
+    SELECT *
+    FROM @table_name
+    WHERE session_id = @session_id
+    ORDER BY timestamp DESC
+    LIMIT 1
+"""
