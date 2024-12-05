@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+
+env:
+  GCP_COMPOSER_NAME: ${{ vars.GCP_COMPOSER_NAME }}
       
 jobs:
   test:
@@ -64,7 +67,7 @@ jobs:
       - name: Trigger DAG
         if: steps.changed-files-specific.outputs.any_changed == 'true'
         run: |
-          gcloud composer environments run data-pipeline-v3 \
+          gcloud composer environments run "$GCP_COMPOSER_NAME" \
             --location us-east1 \
             dags trigger -- banner_dag_pipeline
             echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
@@ -78,7 +81,7 @@ jobs:
           SLEEP_TIME=60  # 60 seconds between checks
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+            STATUS=$(gcloud composer environments run "$GCP_COMPOSER_NAME" \
               --location us-east1 \
               dags list-runs --filter="dag_id=banner_dag_pipeline" \
               --format="value(state)" | head -n 1)
@@ -132,7 +135,7 @@ jobs:
         id: trigger_dag
         if: ${{ needs.trigger-banner-dag.outputs.dag_completed == 'true' }}
         run: |
-          gcloud composer environments run data-pipeline-v3 \
+          gcloud composer environments run "$GCP_COMPOSER_NAME" \
             --location us-east1 \
             dags trigger -- pdf_processing_pipeline
           echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
@@ -146,7 +149,7 @@ jobs:
           SLEEP_TIME=60  # 60 seconds between checks
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+            STATUS=$(gcloud composer environments run "$GCP_COMPOSER_NAME" \
               --location us-east1 \
               dags list-runs --filter="dag_id=pdf_processing_pipeline" \
               --format="value(state)" | head -n 1)
@@ -189,7 +192,7 @@ jobs:
       - name: Trigger DAG
         if: ${{ needs.trigger-trace-dag.outputs.dag_completed == 'true' }}
         run: |
-          gcloud composer environments run data-pipeline-v3 \
+          gcloud composer environments run "$GCP_COMPOSER_NAME" \
             --location us-east1 \
             dags trigger -- train_data_dag
             echo "DAG triggered. Monitoring for completion..."
@@ -203,7 +206,7 @@ jobs:
           SLEEP_TIME=60  # 60 seconds between checks
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+            STATUS=$(gcloud composer environments run "$GCP_COMPOSER_NAME" \
               --location us-east1 \
               dags list-runs --filter="dag_id=train_data_dag" \
               --format="value(state)" | head -n 1)
@@ -262,7 +265,7 @@ jobs:
       - name: Trigger DAG
         if: steps.changed-files-specific.outputs.any_changed == 'true' || needs.trigger-train-data-dag.outputs.dag_completed == 'true'
         run: |
-          gcloud composer environments run data-pipeline-v3 \
+          gcloud composer environments run "$GCP_COMPOSER_NAME" \
             --location us-east1 \
             dags trigger -- train_model_trigger_dag
             echo "Changes in model_training detected. DAG triggered. Monitoring for completion..."
@@ -276,7 +279,7 @@ jobs:
           SLEEP_TIME=60  # 60 seconds between checks
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            STATUS=$(gcloud composer environments run data-pipeline-v3 \
+            STATUS=$(gcloud composer environments run "$GCP_COMPOSER_NAME" \
               --location us-east1 \
               dags list-runs --filter="dag_id=train_model_trigger_dag" \
               --format="value(state)" | head -n 1)
