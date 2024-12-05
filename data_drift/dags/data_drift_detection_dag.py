@@ -6,6 +6,7 @@ import logging
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.models import Variable
 
 from scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
 from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift, check_drift_trend
@@ -41,6 +42,7 @@ def trigger_train_data_dag(**context):
         dag=dag
     )
     logging.info("Triggering train_model_trigger_dag")
+    Variable.set('drift_last_detected_at', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     trigger_train_data_dag.execute(context=context)
 
