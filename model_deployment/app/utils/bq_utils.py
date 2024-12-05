@@ -1,5 +1,5 @@
 from google.cloud import bigquery
-from app.constants.bq_queries import SIMILARITY_QUERY
+from app.constants.bq_queries import SIMILARITY_QUERY, SESSION_QUERY
 from app.utils.data_utils import remove_punctuation
 import logging
 
@@ -14,6 +14,7 @@ def fetch_context(user_query: str, project_id: str):
         query_parameters=query_params
     )
     
+    logging.info(f"Fetching context for user_query: {user_query}")
     try:
         query_job = client.query(SIMILARITY_QUERY, job_config=job_config)
         results = query_job.result()
@@ -68,3 +69,28 @@ def insert_data_into_bigquery(project_id, dataset_id, table_id, rows_to_insert):
             logging.info(f"Successfully inserted {len(rows_to_insert)} rows into {table_ref}")
     except Exception as e:
         logging.error(f"Error: {e}")
+        
+def check_existing_session(project_id, dataset_id, table_id, session_id):
+    # Initialize a BigQuery client
+    client = bigquery.Client(project=project_id)
+    
+    table_name = f"{project_id}.{dataset_id}.{table_id}"
+    final_query = SESSION_QUERY.replace("@table_name", f"`{table_name}`")
+    
+    query_params = [
+        bigquery.ScalarQueryParameter("session_id", "STRING", session_id),
+    ]
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=query_params
+    )
+
+    logging.info(f"Checking existing session for session_id: {session_id} in table: {table_name}")
+    # Execute the query
+    query_job = client.query(final_query, job_config=job_config)
+
+    # Fetch results
+    results = query_job.result()
+
+    # Convert results to a list (or process directly)
+    for row in results:
+        return dict(row)

@@ -1,8 +1,9 @@
 import os
 import logging
+import time
 import vertexai
 from vertexai.generative_models import GenerativeModel
-from app.utils.bq_utils import fetch_context, insert_data_into_bigquery
+from app.utils.bq_utils import fetch_context, check_existing_session, insert_data_into_bigquery
 from app.utils.llm_utils import get_llm_response, exponential_backoff
 
 logging.basicConfig(level=logging.INFO)
@@ -16,23 +17,35 @@ USER_TABLE_NAME = os.getenv("USER_TABLE_NAME")
 
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
-@exponential_backoff()
-def process_llm_request(query: str) -> str:
-    logging.info(f"Generating response using endpoint: {ENDPOINT_ID}")
+def process_llm_request(request) -> str:
+    # get current timestamp
+    timestamp = int(time.time())
+    query, session_id = request.query, request.session_id    
     
-    model = GenerativeModel(model_name=ENDPOINT_ID)
+    cached_session_data = check_existing_session(PROJECT_ID, DATASET_ID, USER_TABLE_NAME, session_id)
     
-    # Fetch context
-    context = fetch_context(query, PROJECT_ID)
+    if cached_session_data:
+        logging.info(f"Using cached session data for session_id: {session_id}")
+        context = cached_session_data["context"]
+    else:
+        logging.info(f"Fetching context for session_id: {session_id}")
+        context = fetch_context(query, PROJECT_ID)
     
     full_prompt = f"Context: {context}\n\nQuery: {query}"
+    model = GenerativeModel(model_name=ENDPOINT_ID)
     
     # Generate response
+    logging.info(f"Generating response using endpoint: {ENDPOINT_ID}")
     response = get_llm_response(full_prompt, model)
+    
+    #convert context to string
+    context = str(context)
     
     user_data_row = [
         {
-            "question": query,
+            "timestamp": timestamp,
+            "session_id": session_id,
+            "query": query,
             "context": context,
             "response": response
         }
