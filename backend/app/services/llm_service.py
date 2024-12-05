@@ -5,6 +5,8 @@ import vertexai
 from vertexai.generative_models import GenerativeModel
 from app.utils.bq_utils import fetch_context, check_existing_session, insert_data_into_bigquery
 from app.utils.llm_utils import get_llm_response, exponential_backoff
+from app.constants.prompts import DEFAULT_RESPONSE, QUERY_PROMPT
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,8 +20,21 @@ USER_TABLE_NAME = os.getenv("USER_TABLE_NAME")
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 def process_llm_request(request) -> str:
-    # get current timestamp
+    """
+    Processes a language model request and returns a generated response along with a unique query ID.
+
+    This function retrieves or fetches the context for the given session and query, constructs a prompt,
+    and generates a response using a language model. The response, along with other related data, is then
+    inserted into a BigQuery table for record-keeping. If no context is found, a default response is returned.
+
+    :param request: An object containing the query and session_id attributes.
+    :return: A tuple containing the generated response and a unique query ID.
+    """
     timestamp = int(time.time())
+    
+    # generating a unique query_id
+    query_id = str(uuid.uuid4())
+    
     query, session_id = request.query, request.session_id    
     
     cached_session_data = check_existing_session(PROJECT_ID, DATASET_ID, USER_TABLE_NAME, session_id)
@@ -31,7 +46,11 @@ def process_llm_request(request) -> str:
         logging.info(f"Fetching context for session_id: {session_id}")
         context = fetch_context(query, PROJECT_ID)
     
-    full_prompt = f"Context: {context}\n\nQuery: {query}"
+    if not context:
+        logging.info(f"No context found for query_id: {query_id}")
+        return DEFAULT_RESPONSE, query_id
+    
+    full_prompt = QUERY_PROMPT.format(context=context, query=query)
     model = GenerativeModel(model_name=ENDPOINT_ID)
     
     # Generate response
@@ -47,11 +66,13 @@ def process_llm_request(request) -> str:
             "session_id": session_id,
             "query": query,
             "context": context,
-            "response": response
+            "response": response,
+            "feedback": None,
+            "query_id": query_id
         }
     ]
     
     # Insert data into BigQuery
     insert_data_into_bigquery(PROJECT_ID, DATASET_ID, USER_TABLE_NAME, user_data_row) 
     
-    return response
+    return response, query_id
