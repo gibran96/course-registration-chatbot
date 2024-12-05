@@ -106,28 +106,73 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 ```
 ├── .github
 │   └── workflows
-│       ├── gcd-upload.yaml: Defines a CI/CD pipeline for uploading code to Google Cloud Storage.
-│       ├── python-tests.yaml: Runs Python tests using pytest, triggered by specific branches.
-│       └── trigger-banner-dag.yaml: Manages triggering the Banner data pipeline DAG in Airflow.
+│       ├── backend-deploy.yaml: Defines the CI/CD pipeline for deploying the backend application.
+│       ├── ci-pipeline.yaml: Configures the continuous integration (CI) pipeline for code quality checks and builds.
+│       ├── gcd-upload.yaml: Automates the process of uploading code to Google Cloud Storage (GCS).
+│       └── python-tests.yaml: Runs Python tests using pytest, triggered by specific branch updates.
 │
-├── .gitignore: Specifies files and directories to ignore during Git operations.
+├── .gitignore: Specifies files and directories to be ignored in Git operations, such as build files and temporary files.
 │
-├── README.md: Main documentation file explaining the project structure, usage, and contributions.
-├── README.pdf: PDF version of the README.md for offline use.
+├── README.md: Main documentation file that explains the project structure, setup, usage instructions, and contribution guidelines.
+├── README.pdf: PDF version of the README.md for offline access and distribution.
 │
 ├── assets
 │   └── imgs
-│       ├── Banner_Data_DAG.png: Visualization of the Banner Data DAG workflow.
-│       ├── PDF_Processing_DAG.png: Diagram illustrating the PDF Processing DAG.
-│       └── Train_Data_DAG.png: Diagram for the training data generation DAG.
+│       ├── Banner_Data_DAG.png: Diagram visualizing the Banner Data pipeline in Airflow.
+│       ├── PDF_Processing_DAG.png: Diagram visualizing the PDF processing pipeline in Airflow.
+│       └── Train_Data_DAG.png: Diagram visualizing the training data pipeline in Airflow.
+│
+├── backend
+│   ├── Dockerfile: Defines the Docker image for the backend service, specifying environment setup and dependencies.
+│   ├── __init__.py: Initializes the backend package for modularization and easier imports.
+│   ├── app
+│   │   ├── __init__.py: Initializes the app module, setting up essential backend components.
+│   │   ├── constants
+│   │   │   ├── __init__.py: Initializes the constants package for use across the backend.
+│   │   │   ├── bq_queries.py: Contains predefined BigQuery queries for data retrieval.
+│   │   │   └── requests.py: Defines the structure and configurations for HTTP requests in the backend.
+│   │   ├── main.py: Entry point for the backend application, containing the main logic and routes.
+│   │   ├── routers
+│   │   │   ├── __init__.py: Initializes the routers package for routing API requests.
+│   │   │   ├── health.py: Contains health check endpoints for monitoring the backend service.
+│   │   │   └── llm_router.py: Defines routes for interacting with large language models (LLMs) in the backend.
+│   │   ├── services
+│   │   │   ├── __init__.py: Initializes the services package for managing backend logic.
+│   │   │   └── llm_service.py: Contains services for interacting with LLMs, such as text generation.
+│   │   └── utils
+│   │       ├── __init__.py: Initializes the utility package, containing helper functions for backend processes.
+│   │       ├── bq_utils.py: Utility functions for interacting with BigQuery.
+│   │       ├── data_utils.py: General utility functions for data processing and transformations.
+│   │       └── llm_utils.py: Helper functions for working with large language models (LLMs).
+│   ├── notebooks
+│   │   ├── Drift Detection.ipynb: Jupyter notebook for detecting data drift and evaluating model performance.
+│   │   └── __init__.py: Initializes the notebooks module for easy integration and use.
+│   ├── requirements.txt: Specifies Python package dependencies required for backend functionality.
+│   └── tests
+│       └── test_main.py: Unit tests for the main backend application logic.
+│
+├── data_drift
+│   ├── README.md: Documentation for the data drift module, explaining its functionality and setup.
+│   ├── __init__.py: Initializes the `data_drift` package.
+│   └── dags
+│       ├── __init__.py: Initializes the DAGs sub-package for the data drift detection workflows.
+│       ├── data_drift_detection_dag.py: Airflow DAG for detecting and managing data drift across datasets.
+│       └── scripts
+│           ├── __init__.py: Initializes the scripts sub-package, containing helper functions.
+│           ├── backoff.py: Implements an exponential backoff strategy for retrying operations after failures.
+│           ├── bigquery_utils_data_drift.py: Contains BigQuery utilities for managing data drift analysis.
+│           ├── constants_data_drift.py: Stores constants used in data drift detection workflows.
+│           ├── data_regeneration.py: Script to regenerate data for retraining models or analysis.
+│           ├── drift_detection.py: Contains the core logic for detecting data drift and triggering actions.
+│           ├── gcs_utils_data_drift.py: Provides utility functions for working with Google Cloud Storage.
+│           └── llm_utils_data_drift.py: Functions for using LLMs for data drift detection.
 │
 ├── data_pipeline
-│   ├── __init__.py: Initializes the `data_pipeline` package.
-│
+│   ├── __init__.py: Initializes the `data_pipeline` package, setting up essential functionality for data processing workflows.
 │   ├── dags
-│       ├── __init__.py: Initializes the `dags` package for Airflow workflows.
+│       ├── __init__.py: Initializes the `dags` sub-package for organizing Airflow DAGs.
 │       ├── banner_data_dag.py: Airflow DAG for fetching course data from the NEU Banner system.
-│       ├── trace_data_dag.py: Airflow DAG for processing TRACE data, including extraction and loading into BigQuery.
+│       ├── trace_data_dag.py: Airflow DAG for processing TRACE data and loading it into BigQuery.
 │       ├── train_data_dag.py: Airflow DAG for generating synthetic training data using LLMs and BigQuery.
 │       ├── scripts
 │           ├── __init__.py: Initializes the `scripts` sub-package.
@@ -157,58 +202,47 @@ These DAGs automate and organize different stages of the data pipeline, each tar
 │           └── trace
 │               ├── __init__.py: Initializes the `trace` sub-package.
 │               └── extract_trace_data.py: Extracts and processes TRACE instructor comments.
-│
 │       ├── tests
 │           ├── __init__.py: Initializes the `tests` package for unit testing.
 │           ├── test_extract_trace_data.py: Unit tests for `extract_trace_data.py`.
 │           └── test_fetch_banner_data.py: Unit tests for `fetch_banner_data.py`.
-│
 │   ├── logs
 │       └── __init__.py: Placeholder for logging setup or future functionality.
-│
 │   └── variables.json: JSON file containing pipeline configurations and settings.
 │
-model_training/
-├── README.md: Comprehensive documentation of the model pipeline, including key components and workflow.
-├── __init__.py: Initializes the `model_training` package, allowing it to be imported as a module.
+├── model_training
+│   ├── README.md: Comprehensive documentation of the model training pipeline, including key components and workflow.
+│   ├── __init__.py: Initializes the `model_training` package, allowing it to be imported as a module.
+│   ├── dags/
+│       ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows related to model training.
+│       ├── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
+│   ├── model_scripts/
+│       ├── __init__.py: Initializes the `model_scripts` sub-package for model-specific operations.
+│       ├── bias/
+│           ├── __init__.py: Initializes the `bias` sub-package.
+│           └── create_bias_detection_data.py: Script for generating data used in bias detection during model evaluation.
+│       ├── constants/
+│           ├── __init__.py: Initializes the `constants` sub-package.
+│           ├── prompts.py: Predefined prompts used for various tasks in the pipeline.
+│           ├── queries.py: Stores query templates for generating evaluation data.
+│           └── sql_queries.py: Contains SQL queries used for data retrieval from BigQuery.
+│       ├── eval/
+│           ├── __init__.py: Initializes the `eval` sub-package for model evaluation.
+│           ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
+│           └── model_evaluation.py: Main script containing the logic for comprehensive model evaluation.
+│       ├── train/
+│           ├── __init__.py: Initializes the `train` sub-package for model training processes.
+│           └── prepare_dataset.py: Script for preparing and formatting datasets for model training.
+│       ├── utils/
+│           ├── __init__.py: Initializes the `utils` sub-package for utility functions.
+│           ├── data_utils.py: Utility functions for data manipulation and processing.
+│           └── email_triggers.py: Functions for sending email notifications and alerts.
+│       └── config.py: Configuration file containing global settings and parameters for the model training pipeline.
+│   └── tests/
+│       └── __init__.py: Initializes the `tests` package for unit and integration tests.
 │
-├── dags/
-│   ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows.
-│   ├── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
-│
-├── model_scripts/
-│   ├── __init__.py: Initializes the `model_scripts` sub-package.
-│   │
-│   ├── bias/
-│   │   ├── __init__.py: Initializes the `bias` sub-package.
-│   │   └── create_bias_detection_data.py: Script for generating data used in bias detection during model evaluation.
-│   │
-│   ├── constants/
-│   │   ├── __init__.py: Initializes the `constants` sub-package.
-│   │   ├── prompts.py: Contains predefined prompts used for various tasks in the pipeline.
-│   │   ├── queries.py: Stores query templates used for generating evaluation data.
-│   │   └── sql_queries.py: Contains SQL queries used for data retrieval from BigQuery.
-│   │
-│   ├── eval/
-│   │   ├── __init__.py: Initializes the `eval` sub-package.
-│   │   ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
-│   │   └── model_evaluation.py: Main script containing the logic for comprehensive model evaluation.
-│   │
-│   ├── train/
-│   │   ├── __init__.py: Initializes the `train` sub-package.
-│   │   └── prepare_dataset.py: Script for preparing and formatting datasets for model training.
-│   │
-│   ├── utils/
-│   │   ├── __init__.py: Initializes the `utils` sub-package.
-│   │   ├── data_utils.py: Utility functions for data manipulation and processing.
-│   │   └── email_triggers.py: Functions for sending email notifications and alerts.
-│   │
-│   └── config.py: Configuration file containing global settings and parameters for the model pipeline.
-│
-└── tests/
-    └── __init__.py: Initializes the `tests` package for unit and integration tests.
-│
-├── requirements.txt: Lists Python dependencies for the project.
+└── requirements.txt: Lists Python dependencies required for the project.
+
 ```
 
 ## Instruction to Reproduce
