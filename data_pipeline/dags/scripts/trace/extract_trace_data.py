@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from airflow.models import Variable
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import os
 
 
 from scripts.data.data_anomalies import check_for_gender_bias
@@ -215,6 +216,10 @@ def read_and_parse_pdf_files(**context):
         
         # Create question mapping
         question_df = pd.DataFrame(list(question_map.items()), columns=["q_desc", "q_num"])
+
+        #Check if the output path exists
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
         question_df.to_csv(f"{output_path}/question_mapping.csv", index=False)
         
         return {
@@ -318,6 +323,10 @@ def preprocess_data(**context):
         # Record final counts
         metadata_values["processed_reviews_count"] = len(reviews_df)
         metadata_values["processed_courses_count"] = len(courses_df)
+
+        # Check if the output path exists
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
 
         # Save preprocessed data
         reviews_preprocessed_path = f"{output_path}/reviews_preprocessed.csv"

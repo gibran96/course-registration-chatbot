@@ -27,3 +27,4 @@ jobs:
       run: |
         gsutil -m cp -r ./data_pipeline/* gs://mlops-data-7374/
         gsutil -m cp -r ./model_training/* gs://mlops-data-7374/
+        gsutil -m cp -r ./data_drift/* gs://mlops-data-7374/
