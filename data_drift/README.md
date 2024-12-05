@@ -22,6 +22,10 @@ data_drift/
 └── README.md
 ```
 
+## Data Drift Detection Dag Pipeline
+![image](https://github.com/user-attachments/assets/970f25e8-c267-410d-aebe-96b11be94ee1)
+
+
 ## Steps to Drift Detection
 
 ### 1. **Get Training Questions**
