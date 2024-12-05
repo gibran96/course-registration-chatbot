@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from google.cloud import bigquery
 from airflow.models import Variable
@@ -36,10 +37,10 @@ def get_new_queries(**context):
     client = bigquery.Client()
     
     test_data_query = """
-        SELECT DISTINCT question
+        SELECT DISTINCT query
         FROM `{}`""".format(Variable.get('user_data_table_name'))
     
-    question_list = list(set(row["question"] for row in client.query(test_data_query).result()))
+    question_list = list(set(row["query"] for row in client.query(test_data_query).result()))
     
     logging.info(f"Found {len(question_list)} unique test questions")
     
@@ -111,7 +112,7 @@ def perform_similarity_search(**context):
         logging.info("No data drift detected. Not triggering perform_similarity_search")
         return False
     
-    queries = context['ti'].xcom_pull(task_ids='get_test_questions', key='questions')
+    queries = context['ti'].xcom_pull(task_ids='data_drift_trend_task', key='drift_queries')
 
     client = bigquery.Client()
     query_response = {}
@@ -237,3 +238,56 @@ def upload_gcs_to_bq(**context):
     load_to_bigquery.execute(context=context)
     return True
 
+def insert_drift_history_into_table(detected_drift_queries):
+    """
+        Insert the drift detected into the data_drift_table
+
+    """
+    client = bigquery.Client()
+    table_id = Variable.get('data_drift_table_name')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows_to_insert = []
+
+    for query in detected_drift_queries:
+        rows_to_insert.append(
+            {
+                "query": query['query'],
+                "distance": query['similarity'],
+                "timestamp": timestamp
+            }
+        )
+
+    errors = client.insert_rows_json(table_id, rows_to_insert)
+    if errors == []:
+        logging.info(f"Inserted {len(rows_to_insert)} rows into {table_id}")
+    else:
+        logging.error(f"Errors: {errors}")
+
+def fetch_drift_history(query_condition):
+    """
+        Fetch the drift history from the data_drift_table
+    """
+    client = bigquery.Client()
+    table_id = Variable.get('data_drift_table_name')
+    drift_last_detected_at = Variable.get('drift_last_detected_at')
+    query = f"""
+        SELECT *
+        FROM {table_id}
+        WHERE timestamp > '{query_condition}'
+    """
+
+    query_job = client.query(query)
+    results = query_job.result()
+
+    drift_history = []
+    for row in results:
+        drift_history.append(
+            {
+                "query": row['query'],
+                "distance": row['distance'],
+                "timestamp": row['timestamp']
+            }
+        )
+
+    return drift_history
+    

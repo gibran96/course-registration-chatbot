@@ -58,5 +58,5 @@ def deploy_new_model(**context):
     endpoint.deploy(model=model, traffic_percentage=100)
     logging.info(f"Model {model_name} deployed successfully to endpoint {endpoint_name}")
     Variable.set("best_existing_model_id", model_name)
-    Variable.set("best_existing_model_experiment_id", context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_id"))
-    Variable.set("best_existing_model_experiment_run_id", context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_run_id"))
+    Variable.set("best_existing_model_experiment_id", context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_name"))
+    Variable.set("best_existing_model_experiment_run_id", context["ti"].xcom_pull(task_ids="model_evaluation_task", key="experiment_run_name"))

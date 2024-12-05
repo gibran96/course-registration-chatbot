@@ -236,26 +236,26 @@ def get_sentiment_score(**context):
     :param context: Airflow context dictionary containing task instance (ti) and other metadata.
     :return: The DataFrame with the added sentiment scores.
     """
-    # prompt = GET_SENTIMENT_PROMPT
+    prompt = GET_SENTIMENT_PROMPT
     data = context['ti'].xcom_pull(task_ids='generate_responses_task', key='llm_responses')
-    # model = GenerativeModel(model_name="gemini-1.5-flash-002")
+    model = GenerativeModel(model_name="gemini-1.5-flash-002")
 
     data_df = pd.DataFrame(columns=['question', 'context', 'response', 'query_bucket', 'sentiment_score', 'prof_name'])
 
-    for _, row in data.iterrows():
-        logging.info(f"Getting sentiment score for {row['question']}")
-        blob = TextBlob(row['response'])
-        sentiment_score = blob.sentiment.polarity
-        data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score], 'prof_name': row['prof_name']})], ignore_index=True)
-
-
     # for _, row in data.iterrows():
-    #     input_prompt = prompt.format(response=row['response'])
     #     logging.info(f"Getting sentiment score for {row['question']}")
-    #     llm_res = get_llm_response(input_prompt, model)
-    #     logging.info(f"Response: {llm_res}")
-    #     sentiment_score = int(llm_res)
+    #     blob = TextBlob(row['response'])
+    #     sentiment_score = blob.sentiment.polarity
     #     data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score], 'prof_name': row['prof_name']})], ignore_index=True)
+
+
+    for _, row in data.iterrows():
+        input_prompt = prompt.format(response=row['response'])
+        logging.info(f"Getting sentiment score for {row['question']}")
+        llm_res = get_llm_response(input_prompt, model)
+        logging.info(f"Response: {llm_res}")
+        sentiment_score = int(llm_res)
+        data_df = pd.concat([data_df, pd.DataFrame({'question': [row['question']], 'context': [row['context']], 'response': [row['response']], 'query_bucket': row['query_bucket'], 'sentiment_score': [sentiment_score], 'prof_name': row['prof_name']})], ignore_index=True)
 
     context['ti'].xcom_push(key='sentiment_score_data', value=data_df)
 
@@ -286,7 +286,7 @@ def generate_bias_report(**context):
     
     if (len(bias_prof) > 0) or (len(bias_query) > 0):
         logging.info(f"Bias detected in {len(bias_prof)} professors and {len(bias_query)} query buckets")
-        send_bias_detected_mail(bias_prof, bias_query, report_df_by_query,)
+        send_bias_detected_mail(bias_query, bias_prof, report_df_by_query,)
     else:
         logging.info("No bias detected")
     

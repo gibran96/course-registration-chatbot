@@ -1,13 +1,15 @@
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 import logging
 import logging
 from airflow.operators.email import EmailOperator
 from airflow.operators.python import PythonOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.models import Variable
 
 from scripts.bigquery_utils_data_drift import get_train_queries_from_bq, get_new_queries, perform_similarity_search, upload_gcs_to_bq, move_data_from_user_table
-from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift
+from scripts.drift_detection import get_train_embeddings, get_test_embeddings, get_thresholds, detect_data_drift, check_drift_trend
 from scripts.llm_utils_data_drift import generate_llm_response
 from scripts.gcs_utils_data_drift import upload_train_data_to_gcs
 
@@ -36,10 +38,11 @@ def trigger_train_data_dag(**context):
 
     trigger_train_data_dag = TriggerDagRunOperator(
         task_id='trigger_train_data_dag',
-        trigger_dag_id='train_data_dag',
+        trigger_dag_id='train_model_trigger_dag',
         dag=dag
     )
-    logging.info("Triggering train_data_dag")
+    logging.info("Triggering train_model_trigger_dag")
+    Variable.set('drift_last_detected_at', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     trigger_train_data_dag.execute(context=context)
 
@@ -100,6 +103,19 @@ with DAG(
         dag=dag
     )
 
+    data_drift_trend_task = BranchPythonOperator(
+        task_id='data_drift_trend_task',
+        python_callable=check_drift_trend,
+        provide_context=True,
+        dag=dag
+    )
+
+    dummy_task = EmptyOperator(
+        task_id='dummy_task',
+        dag=dag
+    )
+
+
     similarity_search_results = PythonOperator(
         task_id='bq_similarity_search',
         python_callable=perform_similarity_search,
@@ -139,7 +155,8 @@ with DAG(
         task_id='move_data_from_user_table',
         python_callable=move_data_from_user_table,
         provide_context=True,
-        dag=dag
+        dag=dag,
+        trigger_rule='one_success'
     )
 
 
@@ -160,5 +177,10 @@ with DAG(
 
 
     # Define the task dependencies
-    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift >> similarity_search_results >> llm_response >>  upload_train_data_to_gcs_task >> load_to_bigquery_task >> trigger_dag_run >> move_data_from_user_table_task >> success_email_task
+    train_questions >> new_questions >> train_embeddings >> test_embeddings >> thresholds >> data_drift
+    data_drift >> data_drift_trend_task >> [dummy_task, similarity_search_results]
+    similarity_search_results >> llm_response >>  upload_train_data_to_gcs_task >> load_to_bigquery_task >> trigger_dag_run 
+    dummy_task >> move_data_from_user_table_task 
+    trigger_dag_run >> move_data_from_user_table_task
+    move_data_from_user_table_task >> success_email_task
     
