@@ -64,7 +64,7 @@ The pipeline keeps stakeholders informed with real-time updates:
 ## DAG Structure
 The DAG is structured as a linear sequence of tasks, each responsible for a specific part of the model development process:
 
-![Screenshot 2024-11-15 at 9 55 44 PM](https://github.com/user-attachments/assets/88b5c088-7d15-4584-83cc-c9676c751096)
+![image](https://github.com/user-attachments/assets/22a92394-9b31-497e-aa42-6de7b0c76233)
 
 1. Data Preparation
 2. Model Training
@@ -110,43 +110,48 @@ The model deployment process ensures efficient and scalable integration with pro
 ```
 model_training/
 ├── README.md: Comprehensive documentation of the model pipeline, including key components and workflow.
-├── __init__.py: Initializes the `model_training` package, allowing it to be imported as a module.
-│
+├── __init__.py: Initializes the model_training package for seamless imports.
 ├── dags/
-│   ├── __init__.py: Initializes the `dags` sub-package for Airflow workflows.
-│   ├── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
-│
-├── model_scripts/
-│   ├── __init__.py: Initializes the `model_scripts` sub-package.
-│   │
-│   ├── bias/
-│   │   ├── __init__.py: Initializes the `bias` sub-package.
-│   │   └── create_bias_detection_data.py: Script for generating data used in bias detection during model evaluation.
-│   │
-│   ├── constants/
-│   │   ├── __init__.py: Initializes the `constants` sub-package.
-│   │   ├── prompts.py: Contains predefined prompts used for various tasks in the pipeline.
-│   │   ├── queries.py: Stores query templates used for generating evaluation data.
-│   │   └── sql_queries.py: Contains SQL queries used for data retrieval from BigQuery.
-│   │
-│   ├── eval/
-│   │   ├── __init__.py: Initializes the `eval` sub-package.
-│   │   ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
-│   │   └── model_evaluation.py: Main script containing the logic for comprehensive model evaluation.
-│   │
-│   ├── train/
-│   │   ├── __init__.py: Initializes the `train` sub-package.
-│   │   └── prepare_dataset.py: Script for preparing and formatting datasets for model training.
-│   │
-│   ├── utils/
-│   │   ├── __init__.py: Initializes the `utils` sub-package.
-│   │   ├── data_utils.py: Utility functions for data manipulation and processing.
-│   │   └── email_triggers.py: Functions for sending email notifications and alerts.
-│   │
-│   └── config.py: Configuration file containing global settings and parameters for the model pipeline.
-│
+│   ├── __init__.py: Initializes the DAGs sub-package for Airflow workflows related to model training.
+│   ├── model_scripts/
+│   │   ├── __init__.py: Initializes the model_scripts sub-package for various model-related scripts.
+│   │   ├── bias/
+│   │   │   ├── __init__.py: Initializes the bias sub-package for handling bias detection.
+│   │   │   └── create_bias_detection_data.py: Generates data used for bias detection during model evaluation.
+│   │   ├── config.py: Contains configuration settings for the model pipeline.
+│   │   ├── constants/
+│   │   │   ├── __init__.py: Initializes the constants sub-package for model-related constants.
+│   │   │   ├── prompts.py: Stores predefined prompts used in model tasks.
+│   │   │   ├── queries.py: Stores query templates used for model evaluation and training.
+│   │   │   └── sql_queries.py: Contains SQL queries used for retrieving model-related data from BigQuery.
+│   │   ├── eval/
+│   │   │   ├── __init__.py: Initializes the eval sub-package for evaluation-related tasks.
+│   │   │   ├── custom_eval.py: Implements custom evaluation metrics for model assessment.
+│   │   │   └── model_evaluation.py: Contains logic for comprehensive model evaluation.
+│   │   ├── model_deployment/
+│   │   │   └── endpoint_cleanup.py: Cleans up deployment endpoints after model deployment or retraining.
+│   │   ├── model_selection/
+│   │   │   └── best_model.py: Logic for selecting the best model based on evaluation results.
+│   │   ├── train/
+│   │   │   ├── __init__.py: Initializes the train sub-package for training-related tasks.
+│   │   │   └── prepare_dataset.py: Prepares and formats datasets for model training.
+│   │   └── utils/
+│   │       ├── __init__.py: Initializes the utils sub-package for utility functions.
+│   │       ├── data_utils.py: Utility functions for data manipulation and processing used in model tasks.
+│   │       └── email_triggers.py: Functions for sending email notifications and alerts.
+│   ├── tests/
+│   │   └── __init__.py: Initializes the tests sub-package for unit and integration testing.
+│   └── train_eval_model_trigger_dag.py: Main Airflow DAG that orchestrates the entire model training and evaluation process.
+├── image-1.png: Visualization of the model pipeline.
+├── image-2.png: Another diagram illustrating model selection and training steps.
+├── image.png: General overview image of the model training process.
+├── notebooks/
+│   └── qwen_finetuning.ipynb: Jupyter notebook used for fine-tuning the Qwen model.
 └── tests/
-    └── __init__.py: Initializes the `tests` package for unit and integration tests.
+    └── __init__.py: Initializes the tests package for unit and integration tests.
+└── requirements.txt: Lists Python dependencies required for the model training pipeline.
+
+
 ```
 
 ## Key Features
