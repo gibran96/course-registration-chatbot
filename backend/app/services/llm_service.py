@@ -11,7 +11,7 @@ import uuid
 logging.basicConfig(level=logging.INFO)
 
 # Vertex AI initialization
-PROJECT_ID = os.getenv("PROJECT_ID")
+PROJECT_ID = os.getenv("PROJECT_ID", "coursecompass")
 LOCATION = os.getenv("LOCATION")
 ENDPOINT_ID = os.getenv("ENDPOINT_ID")
 DATASET_ID = os.getenv("DATASET_ID")
@@ -49,9 +49,15 @@ def process_llm_request(request) -> str:
     if not context:
         logging.info(f"No context found for query_id: {query_id}")
         return DEFAULT_RESPONSE, query_id
+
     
     full_prompt = QUERY_PROMPT.format(context=context, query=query)
-    model = GenerativeModel(model_name=ENDPOINT_ID)
+        
+    try:
+        model = GenerativeModel(model_name=ENDPOINT_ID)
+    except Exception as e:
+        logging.error(f"Error initializing model: {e}")
+        return DEFAULT_RESPONSE, query_id
     
     # Generate response
     logging.info(f"Generating response using endpoint: {ENDPOINT_ID}")
