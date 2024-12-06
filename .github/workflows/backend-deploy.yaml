@@ -47,6 +47,7 @@ jobs:
         --region ${{ vars.GCP_LOCATION }} \
         --platform managed \
         --allow-unauthenticated \
+        --min-instances 1 \
         --max-instances 10 \
         --update-env-vars PROJECT_ID=${{ vars.GCP_PROJECT_ID }} \
         --update-env-vars ENDPOINT_ID=${{ vars.GCP_VERTEX_ENDPOINT_ID }} \
@@ -54,3 +55,9 @@ jobs:
         --update-env-vars DATASET_ID=${{ vars.DATASET_ID }} \
         --update-env-vars USER_TABLE_NAME=${{ vars.USER_TABLE_NAME }} \
         --service-account ${{ secrets.GCP_SERVICE_ACCOUNT_ID }}
+        
+        gcloud run services add-iam-policy-binding course-compass \
+        --region ${{ vars.GCP_LOCATION }} \
+        --member="allUsers" \
+        --role="roles/run.invoker"
+        
