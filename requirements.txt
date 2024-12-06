@@ -14,3 +14,5 @@ scikit-learn==1.4.1.post1
 rouge-score==0.1.2
 evaluate==0.4.0
 protobuf==3.20.3
+googleapis_common_protos==1.56.2
+google_cloud_aiplatform==1.72.0
