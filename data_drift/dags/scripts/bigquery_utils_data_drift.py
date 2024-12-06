@@ -184,9 +184,20 @@ def perform_similarity_search(**context):
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_params
         )
-        query_job = client.query(bq_query, job_config=job_config)
 
-        results = query_job.result()
+        retry_count = 3
+        for i in range(retry_count):
+            try:
+                query_job = client.query(bq_query, job_config=job_config)
+                results = query_job.result()
+                break
+            except Exception as e:
+                logging.error(f"Error executing query: {e}")
+                if i == retry_count - 1:
+                    return "stop_task"
+        
+
+        
 
         result_crns = []
         result_content = []
