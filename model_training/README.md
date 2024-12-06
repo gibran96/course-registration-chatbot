@@ -55,6 +55,16 @@ The Continuous Integration and Continuous Deployment (CI/CD) pipeline automates 
    - **End-to-End Integration:** Links data preparation, training, evaluation, and deployment stages.
    - **Error Handling:** Implements robust error handling with detailed logs for debugging.
 
+7. **Endpoint Cleanup (`delete_default_endpoint_task`)**
+   - Deletes the default Vertex AI endpoint post-deployment.
+
+8. **Model Comparison and Selection (`compare_model_task`)**
+   - Compares the newly trained model against the best existing model.
+   - **Deploy New Model (`deploy_new_model_task`)**
+     - Deploys the new model if it outperforms the existing one.
+   - **End DAG (`end_dag_task`)**
+     - Terminates the DAG if the new model does not outperform.
+
 7. **Notifications and Alerts**
 The pipeline keeps stakeholders informed with real-time updates:
    - **Trigger Points:** Sends notifications for data preparation completion, model training completion, evaluation results, and task failures.
