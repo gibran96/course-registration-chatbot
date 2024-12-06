@@ -3,7 +3,7 @@ apache-airflow
 google-cloud-storage
 google-cloud-bigquery
 google-cloud-resource-manager
-google-api-core
+google-api-core==2.15.0
 pytest==8.3.3
 beautifulsoup4==4.12.3
 pandas==2.2.2
