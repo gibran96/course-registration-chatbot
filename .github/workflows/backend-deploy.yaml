@@ -57,3 +57,8 @@ jobs:
         --update-env-vars DATASET_ID=${{ vars.DATASET_ID }} \
         --update-env-vars USER_TABLE_NAME=${{ vars.USER_TABLE_NAME }} \
         --service-account ${{ secrets.GCP_SERVICE_ACCOUNT_ID }}
+        
+        gcloud run services add-iam-policy-binding course-compass \
+        --region ${{ vars.GCP_LOCATION }} \
+        --member="allUsers" \
+        --role="roles/run.invoker"
