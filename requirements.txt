@@ -1,5 +1,5 @@
 pymupdf==1.24.11
-apache-airflow==2.10.2
+apache-airflow
 pytest==8.3.3
 beautifulsoup4==4.12.3
 pandas==2.2.2
