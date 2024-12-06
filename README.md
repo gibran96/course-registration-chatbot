@@ -403,7 +403,7 @@ We detect data drift based on the types of queries coming in from the users. We 
 
 More details can be found in [data_drift](./data_drift) folder.
 
-## Model and backend deployment
+## Backend deployment
 We have deployed the model to an endpoint on Vertex AI, which is then being triggered from our backend FastAPI app, which
 is hosted on Google Cloud Run.
 
