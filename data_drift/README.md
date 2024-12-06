@@ -23,7 +23,8 @@ This DAG is designed to detect data drift and trigger further processes, includi
 ```
 
 ## Data Drift Detection Dag Pipeline
-![image](https://github.com/user-attachments/assets/970f25e8-c267-410d-aebe-96b11be94ee1)
+![image](https://github.com/user-attachments/assets/4a23de1b-ee54-4eb3-a824-316fee49f5ab)
+
 
 
 ## Steps to Drift Detection
