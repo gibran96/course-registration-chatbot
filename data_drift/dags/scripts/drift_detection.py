@@ -135,7 +135,7 @@ def check_drift_trend(**context):
         logging.info("Data drift trend detected. Triggering train_data_dag")
         drift_queries = [query['query'] for query in detected_drift_queries]
         context['ti'].xcom_push(key='drift_queries', value=drift_queries)
-        return 'perform_similarity_search'
+        return 'bq_similarity_search'
     else:
         logging.info("No data drift trend detected")
         return 'dummy_task'
