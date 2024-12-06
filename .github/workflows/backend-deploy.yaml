@@ -60,3 +60,4 @@ jobs:
         --region ${{ vars.GCP_LOCATION }} \
         --member="allUsers" \
         --role="roles/run.invoker"
+        
