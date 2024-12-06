@@ -45,7 +45,7 @@ if user_input:
     
     # Add user and assistant messages to the chat history
     st.session_state.messages.append({"role": "user", "content": user_input})
-    st.session_state.messages.append({"role": "assistant", "content": response.get("response:w", "I'm sorry, I didn't understand that.")})
+    st.session_state.messages.append({"role": "assistant", "content": response.get("response", "I'm sorry, I didn't understand that.")})
 
 # Display chat history
 for message in st.session_state.messages:
