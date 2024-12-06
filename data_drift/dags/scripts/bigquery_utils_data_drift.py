@@ -257,7 +257,7 @@ def insert_drift_history_into_table(detected_drift_queries):
             }
         )
 
-    errors = client.insert_rows_json(table_id, rows_to_insert)
+    errors = client.load_table_from_json(table_id, rows_to_insert)
     if errors == []:
         logging.info(f"Inserted {len(rows_to_insert)} rows into {table_id}")
     else:
