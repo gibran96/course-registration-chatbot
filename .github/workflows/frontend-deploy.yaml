@@ -57,6 +57,8 @@ jobs:
         --allow-unauthenticated \
         --min-instances 1 \
         --max-instances 10 \
+        --port 8501
+
         
         gcloud run services add-iam-policy-binding course-compass-frontend \
         --region ${{ vars.GCP_LOCATION }} \
