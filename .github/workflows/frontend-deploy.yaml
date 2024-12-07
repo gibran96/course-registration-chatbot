@@ -1,0 +1,56 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yaml'
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Check out the code
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # 2. Set up Google Cloud SDK
+    - name: Setup Auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ vars.GCP_PROJECT_ID }}
+
+    # 3. Authenticate Docker with Google Artifact Registry
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker us-east1-docker.pkg.dev
+
+    # 4. Build Docker image
+    - name: Build Docker Image
+      run: |
+        cd frontend
+        docker build -t us-east1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/course-compass-frontend/course-compass .
+
+    # 5. Push Docker image to Artifact Registry
+    - name: Push Docker Image
+      run: docker push us-east1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/course-compass-frontend/course-compass
+
+    # 6. Deploy to Cloud Run
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy course-compass \
+        --image us-east1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/course-compass-frontend/course-compass \
+        --region ${{ vars.GCP_LOCATION }} \
+        --platform managed \
+        --allow-unauthenticated \
+        --min-instances 1 \
+        --max-instances 10 \
+        
+        gcloud run services add-iam-policy-binding course-compass \
+        --region ${{ vars.GCP_LOCATION }} \
+        --member="allUsers" \
+        --role="roles/run.invoker"
