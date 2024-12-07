@@ -29,6 +29,14 @@ jobs:
     - name: Authenticate Docker
       run: gcloud auth configure-docker us-east1-docker.pkg.dev
 
+    # 4. Create repository artifact registry
+    - name: Create Artifact Registry
+      run: |
+        gcloud artifacts repositories create course-compass-frontend \
+        --repository-format=docker \
+        --location=us-east1 \
+        --description="Docker repository for Course Compass frontend app"
+
     # 4. Build Docker image
     - name: Build Docker Image
       run: |
