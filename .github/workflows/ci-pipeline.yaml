@@ -34,6 +34,7 @@ jobs:
 
   trigger-banner-dag:
     runs-on: ubuntu-latest
+    needs: test
     outputs:
       dag_completed: ${{ steps.wait-for-dag.outputs.dag_completed }}
       dag_skipped: ${{ steps.check-skip-condition.outputs.dag_skipped }}
