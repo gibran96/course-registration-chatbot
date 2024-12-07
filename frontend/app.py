@@ -75,12 +75,12 @@ st.title("📚 Course Compass Assistant")
 st.write("Your friendly assistant for course registration queries!")
 
 with st.sidebar:
-    # st.markdown(custom_sidebar_header, unsafe_allow_html=True)
+    st.markdown(custom_sidebar_header, unsafe_allow_html=True)
     st.markdown(custom_sidebar_css, unsafe_allow_html=True)
     st.image("nu_logo_transparent.png", width=120)
     st.header("Course Compass")
     reset_button = st.button("Reset Chat", key="reset_chat")
-    st.markdown("Please reset the chat if you want to start a new conversation on a different course")
+    st.markdown("Please reset the chat if you want to start a new conversation on a different topic.")
     if reset_button:
         st.session_state.session_id = None
         st.session_state.messages = []
