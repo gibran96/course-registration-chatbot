@@ -32,15 +32,6 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    
-# Inject HTML content into the SidebarHeader
-custom_sidebar_header = """
-    <style>
-    [data-testid="stSidebarHeader"] {
-        display: none;
-    }
-    </style>
-"""
 
 custom_sidebar_css = """
     <style>
@@ -75,7 +66,6 @@ st.title("📚 Course Compass Assistant")
 st.write("Your friendly assistant for course registration queries!")
 
 with st.sidebar:
-    st.markdown(custom_sidebar_header, unsafe_allow_html=True)
     st.markdown(custom_sidebar_css, unsafe_allow_html=True)
     st.image("nu_logo_transparent.png", width=120)
     st.header("Course Compass")
