@@ -2,6 +2,9 @@ import logging
 import streamlit as st
 import uuid
 import requests
+from PIL import Image
+
+logging.basicConfig(level=logging.INFO)
 
 # Backend URL (replace with your backend endpoint)
 
@@ -17,7 +20,11 @@ if 'backend_url' not in st.session_state:
 
 # Function to send a query to the backend
 def send_query(session_id, query):
-    response = requests.post(st.session_state.backend_url, json={"session_id": session_id, "query": query})
+    try:
+        response = requests.post(st.session_state.backend_url, json={"session_id": session_id, "query": query})
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error sending query to backend: {e}")
+        return {"error": "Error sending query to backend"}
     return response.json()
 
 # Initialize session state
@@ -43,12 +50,16 @@ user_input = st.chat_input("Enter your query")
 # Handle new query
 if user_input:
     # Generate a new session ID if it's the first message
+    logging.info(f"User input: {user_input}, Session ID: {st.session_state.session_id}")
     if st.session_state.session_id is None:
         st.session_state.session_id = str(uuid.uuid4())
     
     # Send the query to the backend
     with st.spinner("Generating response..."):
         response = send_query(st.session_state.session_id, user_input)
+        if "error" in response:
+            st.error("Encountered an error while processing your query.")
+            st.stop()
 
     # logging.info(f"Response from backend: {response}")
     # print(f"Response from backend: {response}")
@@ -59,5 +70,9 @@ if user_input:
 
     # Display chat history
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+        if message["role"] == "user":
+            with st.chat_message(message["role"], avatar="👨‍🎓"):
+                st.write(message["content"])
+        else:
+            with st.chat_message(message["role"], avatar=Image.open('Northeastern_Huskies.png')):
+                st.write(message["content"])
