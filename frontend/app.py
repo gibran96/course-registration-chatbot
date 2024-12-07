@@ -33,28 +33,6 @@ if "session_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-custom_sidebar_css = """
-    <style>
-        [data-testid="element-container"] > div:first-child {
-            display: flex;
-            justify-content: center;
-            height: 100%;
-        }
-        [data-testid="stMarkdownContainer"] {
-            display: flex;
-            justify-content: center;
-        }
-        .stHeading {
-            display: flex;
-            justify-content: center;
-        }
-        .stImage {
-            display: flex;
-            justify-content: center;
-        }
-    </style>
-"""
-
 st.set_page_config(
     page_title="Course Compass",  # Title of the browser tab
     page_icon="nu_logo_transparent.png",  # Path to the favicon
@@ -66,7 +44,6 @@ st.title("📚 Course Compass Assistant")
 st.write("Your friendly assistant for course registration queries!")
 
 with st.sidebar:
-    st.markdown(custom_sidebar_css, unsafe_allow_html=True)
     st.image("nu_logo_transparent.png", width=120)
     st.header("Course Compass")
     reset_button = st.button("Reset Chat", key="reset_chat")
