@@ -2,6 +2,7 @@ import logging
 import streamlit as st
 import uuid
 import requests
+from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
 
@@ -69,5 +70,9 @@ if user_input:
 
     # Display chat history
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+        if message["role"] == "user":
+            with st.chat_message(message["role"], avatar="👨‍🎓"):
+                st.write(message["content"])
+        else:
+            with st.chat_message(message["role"], avatar=Image.open('Northeastern_Huskies.png')):
+                st.write(message["content"])
