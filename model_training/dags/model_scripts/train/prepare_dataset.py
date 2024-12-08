@@ -77,8 +77,11 @@ def clean_and_filter_Data(data):
     """
     df = pd.DataFrame(data)
     df = df.dropna()
-    train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
+    train_df, test_df = train_test_split(df, test_size=0.1, random_state=29)
     logging.info("Filtering data")
+    # Just consider 10 rows for testing
+    test_df = test_df.head(5)
+    logging.info(f"Training data shape: {test_df.shape}")
     return train_df, test_df
 
 
@@ -140,7 +143,7 @@ def format_eval_data(df):
 
     for _, row in df.iterrows():
         json_item = {
-            "context": row['context'] if len(row['context']) < 100000 else row['context'][:100000],
+            "context": row['context'] if len(row['context']) < 50000 else row['context'][:50000],
             "instruction": row['query'],
             "reference": row['response']
         }

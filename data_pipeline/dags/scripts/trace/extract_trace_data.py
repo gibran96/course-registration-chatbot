@@ -220,7 +220,8 @@ def read_and_parse_pdf_files(**context):
         #Check if the output path exists
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-        question_df.to_csv(f"{output_path}/question_mapping.csv", index=False)
+            logging.info(f"Created output path: {output_path}")
+        # question_df.to_csv(f"{output_path}/question_mapping.csv", index=False)
         
         return {
             'reviews_count': len(reviews_df),
