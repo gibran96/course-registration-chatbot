@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import requests
 import os
+import time
 from airflow.models import Variable
 
 from scripts.data.data_anomalies import check_missing_faculty
@@ -317,8 +318,9 @@ def make_api_call_with_retry(url, headers, params):
     :param params: Parameters for the API request.
     :return: The response object if successful.
     """
-    logging.info(f"Making API call: {url} with params: {params} and headers: {headers}")
     response = requests.post(url, headers=headers, params=params, timeout=30)
+    # add a sleep here
+    time.sleep(0.1)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response
 
