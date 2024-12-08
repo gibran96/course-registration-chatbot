@@ -147,58 +147,6 @@ def get_courses_list(**context):
     context['ti'].xcom_push(key='course_list_df', value=course_list_df)
 
 
-# def get_faculty_info(cookie_output, course_list_df):
-#     """
-#     Fetch the faculty information for a given course reference number
-    
-#     :param cookie_output: The cookie output from the get_cookies function with the necessary cookies.
-#     :param course_list_df: A DataFrame containing the course_list with the columns "crn", 
-#                     "campus_description", "course_title", "subject_course", "faculty_name", "term".
-#     :return: The course_list_df with additional columns "faculty_name", "begin_time", "end_time", "days".
-#     """
-#     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-#     base_url = cookie_output["base_url"]
-#     url = base_url + "/searchResults/getFacultyMeetingTimes"
-    
-#     headers = {
-#         "Cookie": jsessionid+"; "+nubanner_cookie
-#     }
-    
-#     term = 202530 # hardcoded for now
-    
-#     params = {
-#         "term": term,
-#         "courseReferenceNumber": ""
-#     }
-    
-#     # Loop through the course_list_df and fetch the faculty info for each crn
-#     for index, row in course_list_df.iterrows():
-#         course_ref_num = row["crn"]
-#         params["courseReferenceNumber"] = course_ref_num       
-        
-#         try:
-#             response = requests.post(url, headers=headers, params=params)
-#             response.raise_for_status()  # Raises an exception for bad status codes
-            
-#             data = response.json()["fmt"][0]
-            
-#             course_list_df.loc[index, "faculty_name"] = data["faculty"][0]["displayName"] if data["faculty"] else ""
-#             course_list_df.loc[index, "begin_time"] = data["meetingTime"]["beginTime"] if data["meetingTime"]["beginTime"] else ""
-#             course_list_df.loc[index, "end_time"] = data["meetingTime"]["endTime"] if data["meetingTime"]["endTime"] else ""
-#             course_list_df.loc[index, "days"] = get_days(data["meetingTime"]) if data["meetingTime"] else ""
-            
-#         except requests.exceptions.RequestException as e:
-#             # Log the error but continue execution to fetch the next CRN
-#             logging.error(f"Failed to fetch faculty info for crn: {course_ref_num}. Error: {e}")
-#             # Set empty values for failed requests
-#             course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
-#         except (KeyError, IndexError) as e:
-#             # Log the error but continue execution to fetch the next CRN
-#             logging.error(f"Error parsing data for crn: {course_ref_num}. Error: {e}")
-#             course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
-    
-#     return course_list_df
-
 def get_faculty_info(cookie_output, course_list_df):
     """
     Fetch the faculty information for given course reference numbers.
@@ -223,69 +171,16 @@ def get_faculty_info(cookie_output, course_list_df):
             faculty = data.get("faculty", [])
             meeting_time = data.get("meetingTime", {})
             
-            course_list_df.loc[index, "faculty_name"] = faculty[0]["displayName"] if faculty else ""
-            course_list_df.loc[index, "begin_time"] = meeting_time.get("beginTime", "")
-            course_list_df.loc[index, "end_time"] = meeting_time.get("endTime", "")
-            course_list_df.loc[index, "days"] = get_days(meeting_time)
+            course_list_df.at[index, "faculty_name"] = faculty[0]["displayName"] if faculty else ""
+            course_list_df.at[index, "begin_time"] = meeting_time.get("beginTime", "")
+            course_list_df.at[index, "end_time"] = meeting_time.get("endTime", "")
+            course_list_df.at[index, "days"] = get_days(meeting_time)
         except (Exception) as e:
             logging.error(f"Failed to fetch faculty info for CRN {crn}: {e}")
-            course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
+            course_list_df.at[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
 
     return course_list_df
 
-
-
-# def get_course_description(cookie_output, course_list_df):
-#     """
-#     Fetches the course description from the Banner API for the given CRNs in the course_list_df.
-    
-#     Args:
-#         cookie_output (dict): The cookie output from the get_cookies function with the necessary cookies.
-#         course_list_df (DataFrame): A DataFrame containing the course_list with the columns "crn", "campus_description", "course_title", "subject_course", "faculty_name", "term".
-        
-#     Returns:
-#         DataFrame: The course_list_df with an additional column "course_description" containing the course descriptions.
-#     """
-#     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-#     base_url = cookie_output["base_url"]
-#     url = base_url + "/searchResults/getCourseDescription"
-    
-#     headers = {
-#         "Cookie": jsessionid+"; "+nubanner_cookie
-#     }
-    
-#     term = 202530 # hardcoded for now
-
-#     params = {
-#         "term": term,
-#         "courseReferenceNumber": ""
-#     }
-    
-#     for index, row in course_list_df.iterrows():
-#         course_ref_num = row["crn"]
-#         params["courseReferenceNumber"] = course_ref_num       
-        
-#         try:
-#             response = requests.post(url, headers=headers, params=params)
-#             response.raise_for_status()
-#         except requests.exceptions.RequestException as e:
-#             logging.error(f"Failed to fetch description for CRN: {course_ref_num} - {e}")
-#             continue
-
-#         # Parse HTML response
-#         soup = BeautifulSoup(response.text, 'html.parser')
-#         description_section = soup.find("section", {"aria-labelledby": "courseDescription"})
-        
-#         if description_section:
-#             # Extract and clean up the text
-#             description_text = description_section.get_text(strip=True)
-#             description_text = clean_response(description_text)
-#             course_list_df.loc[index, "course_description"] = description_text
-#         else:
-#             course_list_df.loc[index, "course_description"] = "No description available."
-#             logging.warning(f"No description found for CRN: {course_ref_num}")
-
-#     return course_list_df
 
 def get_course_description(cookie_output, course_list_df):
     """
@@ -312,79 +207,15 @@ def get_course_description(cookie_output, course_list_df):
             
             if description_section:
                 description_text = description_section.get_text(strip=True)
-                course_list_df.loc[index, "course_description"] = clean_response(description_text)
+                course_list_df.at[index, "course_description"] = clean_response(description_text)
             else:
-                course_list_df.loc[index, "course_description"] = "No description available."
+                course_list_df.at[index, "course_description"] = "No description available."
                 logging.warning(f"No description found for CRN: {crn}")
         except (Exception) as e:
             logging.error(f"Failed to fetch course description for CRN {crn}: {e}")
-            course_list_df.loc[index, "course_description"] = ""
+            course_list_df.at[index, "course_description"] = ""
 
     return course_list_df
-
-
-# def get_course_prerequisites(cookie_output, course_list_df):
-#     """
-#     Fetches the course prerequisites from the Banner API for the given CRNs in the course_list_df.
-
-#     Args:
-#         cookie_output (dict): The cookie output from the get_cookies function with the necessary cookies.
-#         course_list_df (DataFrame): A DataFrame containing the course_list with the columns "crn", "campus_description", "course_title", "subject_course", "faculty_name", "term".
-
-#     Returns:
-#         DataFrame: The course_list_df with an additional column "prereq" containing the course prerequisites.
-#     """
-#     cookie, jsessionid, nubanner_cookie = cookie_output["cookie"], cookie_output["jsessionid"], cookie_output["nubanner_cookie"]
-#     base_url = cookie_output["base_url"]
-#     url = base_url + "/searchResults/getSectionPrerequisites"
-    
-#     headers = {
-#         "Cookie": jsessionid+"; "+nubanner_cookie
-#     }
-    
-#     term = 202530 # hardcoded for now
-
-#     params = {
-#         "term": term,
-#         "courseReferenceNumber": ""
-#     }
-    
-#     for index, row in course_list_df.iterrows():
-#         course_ref_num = row["crn"]
-#         params["courseReferenceNumber"] = course_ref_num       
-        
-#         try:
-#             response = requests.post(url, headers=headers, params=params)
-#             response.raise_for_status()
-#         except requests.exceptions.RequestException as e:
-#             logging.error(f"Failed to fetch prerequisites for CRN: {course_ref_num} - {e}")
-#             continue
-
-#         # Parse HTML response
-#         soup = BeautifulSoup(response.text, 'html.parser')
-#         prerequisites = []
-        
-#         # Locate the prerequisite table
-#         table = soup.find("table", class_="basePreqTable")
-        
-#         if table:
-#             # Parse each row in the table body
-#             for row in table.find("tbody").find_all("tr"):
-#                 cells = row.find_all("td")
-#                 prereq = {
-#                     "and_or": cells[0].text.strip(),
-#                     "subject": cells[4].text.strip(),
-#                     "course_number": cells[5].text.strip(),
-#                     "level": cells[6].text.strip(),
-#                     "grade": cells[7].text.strip()
-#                 }
-#                 prerequisites.append(prereq)
-#         else:
-#             logging.warning(f"No prerequisites found for CRN: {course_ref_num}")
-        
-#         course_list_df.loc[index, "prereq"] = prerequisites
-    
-#     return course_list_df
 
 def get_course_prerequisites(cookie_output, course_list_df):
     """
@@ -425,10 +256,10 @@ def get_course_prerequisites(cookie_output, course_list_df):
             else:
                 logging.warning(f"No prerequisites found for CRN: {crn}")
             
-            course_list_df.loc[index, "prereq"] = prerequisites
+            course_list_df.at[index, "prereq"] = prerequisites
         except (Exception) as e:
             logging.error(f"Failed to fetch prerequisites for CRN {crn}: {e}")
-            course_list_df.loc[index, "prereq"] = []
+            course_list_df.at[index, "prereq"] = []
 
     return course_list_df
 
@@ -486,7 +317,8 @@ def make_api_call_with_retry(url, headers, params):
     :param params: Parameters for the API request.
     :return: The response object if successful.
     """
-    response = requests.post(url, headers=headers, params=params, timeout=10)
+    logging.info(f"Making API call: {url} with params: {params} and headers: {headers}")
+    response = requests.post(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response
 
