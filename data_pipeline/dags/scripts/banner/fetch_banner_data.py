@@ -386,7 +386,7 @@ def get_course_description(cookie_output, course_list_df):
     
 #     return course_list_df
 
-def get_course_prerequisites(cookie_output, course_list_df, term):
+def get_course_prerequisites(cookie_output, course_list_df):
     """
     Fetches course prerequisites for given CRNs.
 
@@ -398,6 +398,8 @@ def get_course_prerequisites(cookie_output, course_list_df, term):
     base_url = cookie_output["base_url"]
     headers = {"Cookie": f"{cookie_output['jsessionid']}; {cookie_output['nubanner_cookie']}"}
     url = base_url + "/searchResults/getSectionPrerequisites"
+    
+    term = 202530
 
     for index, row in course_list_df.iterrows():
         crn = row["crn"]
