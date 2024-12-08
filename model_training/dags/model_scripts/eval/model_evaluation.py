@@ -94,8 +94,8 @@ def run_model_evaluation(**context):
         model=model,
         prompt_template=PROMPT_TEMPLATE,
         experiment_run_name=EXPERIMENT_RUN_NAME,
-        evaluation_service_qps=0.2,
-        retry_timeout=1,
+        evaluation_service_qps=0.01,
+        retry_timeout=1,       
     )
 
     context['ti'].xcom_push(key='eval_result', value=eval_results)
