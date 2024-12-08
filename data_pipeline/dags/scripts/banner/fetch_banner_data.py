@@ -227,7 +227,7 @@ def get_faculty_info(cookie_output, course_list_df):
             course_list_df.loc[index, "begin_time"] = meeting_time.get("beginTime", "")
             course_list_df.loc[index, "end_time"] = meeting_time.get("endTime", "")
             course_list_df.loc[index, "days"] = get_days(meeting_time)
-        except (requests.exceptions.RequestException, KeyError, IndexError) as e:
+        except (Exception) as e:
             logging.error(f"Failed to fetch faculty info for CRN {crn}: {e}")
             course_list_df.loc[index, ["faculty_name", "begin_time", "end_time", "days"]] = ""
 
@@ -316,7 +316,7 @@ def get_course_description(cookie_output, course_list_df):
             else:
                 course_list_df.loc[index, "course_description"] = "No description available."
                 logging.warning(f"No description found for CRN: {crn}")
-        except (requests.exceptions.RequestException, KeyError) as e:
+        except (Exception) as e:
             logging.error(f"Failed to fetch course description for CRN {crn}: {e}")
             course_list_df.loc[index, "course_description"] = ""
 
@@ -397,7 +397,7 @@ def get_course_prerequisites(cookie_output, course_list_df):
     """
     base_url = cookie_output["base_url"]
     headers = {"Cookie": f"{cookie_output['jsessionid']}; {cookie_output['nubanner_cookie']}"}
-    url = base_url + "/searchResults/getSectionPrerequisites"
+    url = base_url + "searchResults/getSectionPrerequisites"
     
     term = 202530
 
@@ -426,7 +426,7 @@ def get_course_prerequisites(cookie_output, course_list_df):
                 logging.warning(f"No prerequisites found for CRN: {crn}")
             
             course_list_df.loc[index, "prereq"] = prerequisites
-        except (requests.exceptions.RequestException, KeyError) as e:
+        except (Exception) as e:
             logging.error(f"Failed to fetch prerequisites for CRN {crn}: {e}")
             course_list_df.loc[index, "prereq"] = []
 
