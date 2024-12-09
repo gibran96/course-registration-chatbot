@@ -6,10 +6,30 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import (
 )
 from airflow.models import Variable
 from airflow.operators.email import EmailOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 from scripts.banner.fetch_banner_data import dump_to_csv, get_cookies, get_courses_list
 from scripts.banner.opt_fetch_banner_data import parallel_course_description, parallel_faculty_info, parallel_prerequisites
 from scripts.gcs.gcs_utils import upload_banner_data_to_gcs
+
+def trigger_train_data_dag(**context):
+    """
+    Triggers the train_data_dag DAG.
+
+    This function is used as the final task in the banner_data_dag to trigger the train_data_dag DAG
+    after the data has been processed and uploaded to GCS. It is wrapped in a PythonOperator to
+    allow for dynamic triggering of the DAG, which is useful for testing and development.
+
+    Args:
+        **context (dict): The context dictionary provided by Airflow, containing task instance
+                        and other metadata.
+    """
+    trigger_train_data_dag = TriggerDagRunOperator(
+        task_id='trigger_train_data_dag',
+        trigger_dag_id='train_data_dag',
+        dag=dag
+    )
+    trigger_train_data_dag.execute(context=context)
 
 
 default_args = {
@@ -118,5 +138,6 @@ with DAG(
         >> dump_to_csv_task
         >> upload_to_gcs_task
         >> load_banner_data_to_bq_task
+        >> trigger_train_data_dag
         >> success_email_task
     )
