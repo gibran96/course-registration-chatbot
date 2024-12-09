@@ -135,7 +135,8 @@ with DAG(
         >> process_pdfs 
         >> preproceess_pdfs 
         >> upload_to_gcs_task 
-        >> [load_reviews_to_bigquery_task, load_courses_to_bigquery_task]
+        >> load_courses_to_bigquery_task
+        >> load_reviews_to_bigquery_task
         >> trigger_train_data_pipeline
         >> success_email_task
     )
