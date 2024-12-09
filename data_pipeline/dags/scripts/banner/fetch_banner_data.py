@@ -314,8 +314,6 @@ def dump_to_csv(**context):
                                    requests.exceptions.Timeout,
                                    requests.exceptions.ConnectionError,
                                    requests.exceptions.ConnectTimeout)),  # Retry on request exceptions
-    before=before_log(logger, logging.INFO),
-    after=after_log(logger, logging.INFO),
 )
 def make_api_call_with_retry(url, headers, params):
     """
