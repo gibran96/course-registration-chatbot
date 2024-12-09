@@ -43,7 +43,13 @@ def trigger_dag_run(**context):
     """
     
     task_status = context['ti'].xcom_pull(task_ids='check_sample_count', key='task_status')
+    trigger_model_train_dag = TriggerDagRunOperator(
+        task_id='trigger_model_train_dag',
+        trigger_dag_id='train_model_trigger_dag',
+        dag=dag
+    )
     if task_status == "stop_task":
+        trigger_model_train_dag.execute(context=context)
         return "stop_task"
     trigger_dag_run = TriggerDagRunOperator(
         task_id='trigger_dag_run',
