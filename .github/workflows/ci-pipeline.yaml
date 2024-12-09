@@ -73,7 +73,7 @@ jobs:
           gcloud composer environments run "$GCP_COMPOSER_NAME" \
               --location us-east1 \
               dags trigger -- banner_dag_pipeline
-              echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
+              echo "Triggered banner_dag_pipeline DAG""
   
   trigger-model-training-dag:
     runs-on: ubuntu-latest
@@ -108,8 +108,9 @@ jobs:
           project_id: coursecompass
 
       - name: Trigger DAG
+        if: steps.changed-files-specific.outputs.any_changed == 'true'
         run: |
           gcloud composer environments run "$GCP_COMPOSER_NAME" \
           --location us-east1 \
-          dags trigger -- banner_dag_pipeline
-          echo "Changes in data_pipeline detected. DAG triggered. Monitoring for completion..."
+          dags trigger -- train_model_trigger_dag
+          echo "Triggered train_model_trigger_dag DAG"
