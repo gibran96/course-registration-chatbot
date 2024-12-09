@@ -27,7 +27,6 @@ def trigger_train_data_dag(**context):
     trigger_train_data_dag = TriggerDagRunOperator(
         task_id='trigger_train_data_dag',
         trigger_dag_id='train_data_dag',
-        dag=dag
     )
     trigger_train_data_dag.execute(context=context)
 
