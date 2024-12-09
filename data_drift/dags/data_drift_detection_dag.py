@@ -54,7 +54,7 @@ with DAG(
     'data_drift_detection_dag',
     default_args=default_args,
     description='Detect data drift',
-    schedule_interval=None, 
+    schedule_interval='0 0 1 */5 *',
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pdf', 'banner', 'llm'],
