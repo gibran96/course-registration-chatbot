@@ -6,7 +6,7 @@ import pandas as pd
 from scripts.banner.fetch_banner_data import get_course_description, get_course_prerequisites, get_faculty_info
 
 
-def split_course_list_df(course_list_df, batch_size=10):
+def split_course_list_df(course_list_df, batch_size=25):
     """
     Split a DataFrame of course data into smaller batches for parallel processing.
 

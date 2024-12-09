@@ -323,4 +323,3 @@ def make_api_call_with_retry(url, headers, params):
     time.sleep(0.1)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response
-
