@@ -307,7 +307,9 @@ def dump_to_csv(**context):
 @retry(
     stop=stop_after_attempt(3),  # Retry up to 3 times
     wait=wait_exponential(multiplier=1, min=2, max=10),  # Exponential backoff
-    retry=retry_if_exception_type(requests.exceptions.RequestException),  # Retry on request exceptions
+    retry=retry_if_exception_type((requests.exceptions.RequestException,
+                                   requests.exceptions.Timeout,
+                                   requests.exceptions.ConnectionError)),  # Retry on request exceptions
 )
 def make_api_call_with_retry(url, headers, params):
     """
