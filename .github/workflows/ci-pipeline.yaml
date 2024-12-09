@@ -9,7 +9,7 @@ on:
       - 'model_training/**'
 
 env:
-  COMPOSER_API_URL: ${{ vars.GCP_COMPOSER_WEB_SERVER_URL }}
+  COMPOSER_API_URL: ${{ vars.GCP_COMPOSER_WEB_SERVER_URL }}/dags/v1
       
 jobs:
   test:
@@ -71,7 +71,7 @@ jobs:
         if: steps.changed-files-specific.outputs.any_changed == 'true'
         run: |
           TOKEN=$(gcloud auth print-access-token)
-          curl -X POST "$COMPOSER_API_URL/dags/banner_dag_pipeline/dagRuns" \
+          curl -X POST "$COMPOSER_API_URL/banner_dag_pipeline/dagRuns" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $TOKEN" \
               -d '{
@@ -89,7 +89,7 @@ jobs:
           TOKEN=$(gcloud auth print-access-token)
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/dags/banner_dag_pipeline/dagRuns" \
+            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/banner_dag_pipeline/dagRuns" \
                 -H "Authorization: Bearer $TOKEN")
             STATUS=$(echo $RESPONSE | jq -r '.dag_runs[0].state')
 
@@ -143,7 +143,7 @@ jobs:
         if: ${{ needs.trigger-banner-dag.outputs.dag_completed == 'true' }}
         run: |
           TOKEN=$(gcloud auth print-access-token)
-          curl -X POST "$COMPOSER_API_URL/dags/pdf_processing_pipeline/dagRuns" \
+          curl -X POST "$COMPOSER_API_URL/pdf_processing_pipeline/dagRuns" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $TOKEN" \
               -d '{
@@ -161,7 +161,7 @@ jobs:
           TOKEN=$(gcloud auth print-access-token)
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/dags/pdf_processing_pipeline/dagRuns" \
+            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/pdf_processing_pipeline/dagRuns" \
                 -H "Authorization: Bearer $TOKEN")
             STATUS=$(echo $RESPONSE | jq -r '.dag_runs[0].state')
 
@@ -201,7 +201,7 @@ jobs:
         if: ${{ needs.trigger-trace-dag.outputs.dag_completed == 'true' }}
         run: |
           TOKEN=$(gcloud auth print-access-token)
-          curl -X POST "$COMPOSER_API_URL/dags/train_data_dag/dagRuns" \
+          curl -X POST "$COMPOSER_API_URL/train_data_dag/dagRuns" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $TOKEN" \
               -d '{
@@ -219,7 +219,7 @@ jobs:
           TOKEN=$(gcloud auth print-access-token)
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/dags/train_data_dag/dagRuns" \
+            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/train_data_dag/dagRuns" \
                 -H "Authorization: Bearer $TOKEN")
             STATUS=$(echo $RESPONSE | jq -r '.dag_runs[0].state')
 
@@ -276,7 +276,7 @@ jobs:
         if: steps.changed-files-specific.outputs.any_changed == 'true' || needs.trigger-train-data-dag.outputs.dag_completed == 'true'
         run: |
           TOKEN=$(gcloud auth print-access-token)
-          curl -X POST "$COMPOSER_API_URL/dags/train_model_trigger_dag/dagRuns" \
+          curl -X POST "$COMPOSER_API_URL/train_model_trigger_dag/dagRuns" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $TOKEN" \
               -d '{
@@ -294,7 +294,7 @@ jobs:
           TOKEN=$(gcloud auth print-access-token)
 
           while [[ $ATTEMPTS -lt $MAX_ATTEMPTS ]]; do
-            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/dags/train_model_trigger_dag/dagRuns" \
+            RESPONSE=$(curl -X GET "$COMPOSER_API_URL/train_model_trigger_dag/dagRuns" \
                 -H "Authorization: Bearer $TOKEN")
             STATUS=$(echo $RESPONSE | jq -r '.dag_runs[0].state')
 
