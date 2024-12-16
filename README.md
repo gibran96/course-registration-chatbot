@@ -1,6 +1,3 @@
-Here's a structured README for your project:
-
----
 
 # **Course Compass MLOps System**
 
@@ -47,24 +44,33 @@ The Course Compass project addresses these challenges through:
 The system is divided into three major pipelines:
 
 ### 1. **Data Pipeline**
+
+![diagram-export-07-12-2024-15_21_39](https://github.com/user-attachments/assets/866be8a0-4ec5-4b30-b02c-663b9093f567)
+
 - **Sources**: Fetches course information (Banner), student feedback (TRACE PDFs), and historical training data (BigQuery).
 - **Processing**: Extracts, cleans, and transforms data into structured datasets for downstream use.
 - **Outputs**: 
   - Enriched training datasets in JSONL format.
   - Archived data in GCS and BigQuery for analysis.
 
-### 2. **Data Drift Detection Pipeline**
-- Monitors incoming queries for distributional changes compared to training data.
-- Triggers retraining workflows upon detecting significant drift.
-- Archives processed data and logs drift trends in BigQuery.
+### 2. **Model Training and Deployment Pipeline**
 
-### 3. **Model Training and Deployment Pipeline**
+![diagram-export-07-12-2024-15_25_16](https://github.com/user-attachments/assets/f0a1f891-a486-485c-bc20-a7eb4cef5661)
+
 - **Training**:
   - Fine-tunes base models with task-specific data.
   - Evaluates models using metrics like BLEU, ROUGE, and custom relevance metrics.
 - **Deployment**:
   - Deploys the best-performing model to a Vertex AI endpoint.
   - Ensures scalability and low-latency response times.
+ 
+### 3. **Data Drift Detection Pipeline**
+
+![diagram-export-07-12-2024-15_26_04](https://github.com/user-attachments/assets/ad54d7c5-f44e-4ade-930b-a0d5ee890b54)
+
+- Monitors incoming queries for distributional changes compared to training data.
+- Triggers retraining workflows upon detecting significant drift.
+- Archives processed data and logs drift trends in BigQuery.
 
 ---
 
